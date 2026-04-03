@@ -1,27 +1,24 @@
 # Use Node.js Alpine for a lightweight production image
 FROM node:20-alpine
 
-# Set the working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# 1. Copy package files FROM the current directory (server/)
+# Copy package.json & package-lock.json
 COPY package*.json ./
 
-# 2. Install production dependencies only
-RUN npm install --production
+# Install only production dependencies
+RUN npm install 
 
-# 3. Copy all backend source code FROM the current directory (server/)
+# Copy all source code
 COPY . .
 
-# 4. Set environment variables
-# Note: In production, it's safer to pass .env variables 
-# via your deployment platform (Render/Vercel) rather than copying the file.
+# Set environment variables (override via Render or other platform)
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# 5. Expose the port your Express app listens on
+# Expose the port your app listens on
 EXPOSE 5000
 
-# 6. Start the server
-# Ensure index.js is the correct entry point in your server folder
+# Use the port from environment variable in index.js
 CMD ["node", "index.js"]
