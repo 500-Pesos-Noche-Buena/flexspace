@@ -40,14 +40,13 @@ const UserManagement = () => {
         }
     };
 
-    // Triggered by DataTable internal state (Search/Pagination)
     const handleParamsChange = (params) => {
         fetchData(params);
     };
 
     const toggleStatus = async (id) => {
         try {
-            await apiPost(`/admin/owners/${id}/toggle`);
+            await apiPost(`/admin/users/${id}/toggle`);
             showToast({ icon: 'success', title: 'Status updated' });
             fetchData();
         } catch (err) {
@@ -70,7 +69,7 @@ const UserManagement = () => {
 
         if (result.isConfirmed) {
             try {
-                await apiDelete(`/admin/owners/${id}`);
+                await apiDelete(`/admin/users/${id}`);
                 showToast({ icon: 'success', title: 'Account deleted' });
                 fetchData();
             } catch (err) {
@@ -82,7 +81,7 @@ const UserManagement = () => {
     const handleSave = async () => {
         if (!selectedOwner?._id) return;
         try {
-            await apiPut(`/admin/owners/${selectedOwner._id}`, {
+            await apiPut(`/admin/users/${selectedOwner._id}`, {
                 name: selectedOwner.name,
                 email: selectedOwner.email
             });

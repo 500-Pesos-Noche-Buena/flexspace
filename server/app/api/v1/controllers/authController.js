@@ -9,13 +9,13 @@ class AuthController {
             const { email, password } = req.body;
 
             if (!email || !password) {
-                throw new ApiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "Email and password are required");
+                throw new ApiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "Email and password are required", true);
             }
 
             const result = await userService.verifyUserCredentials(email, password);
 
             if (!result) {
-                throw new ApiError(HTTP_STATUS.UNAUTHORIZED, "Invalid email or password");
+                throw new ApiError(HTTP_STATUS.UNAUTHORIZED, "Invalid email or password", true);
             }
 
             if (result.type === 'pending') {
@@ -27,7 +27,7 @@ class AuthController {
             }
 
             if (result.user.isActive === false) {
-                throw new ApiError(HTTP_STATUS.FORBIDDEN, "Your account is not yet activated.");
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, "Your account is not yet activated.", true);
             }
 
             const { access } = generateAuthTokens(result.user);
@@ -52,12 +52,12 @@ class AuthController {
             const { name, email, password, role } = req.body;
 
             if (await userService.isEmailTaken(email)) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Email is already registered or pending approval.");
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Email is already registered or pending approval.", true);
             }
 
             if (role === 'space') {
                 if (!req.files || !req.files.business_permit || !req.files.dti_sec_reg) {
-                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Business Permit and DTI documents are required.");
+                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Business Permit and DTI documents are required.", true);
                 }
 
                 await userService.createSpaceRequest({

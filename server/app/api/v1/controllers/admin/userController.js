@@ -1,14 +1,15 @@
 const { User } = require('@/api/v1/models');
+const ApiError = require('@/utils/ApiError'); // 👈 Import this
+const { HTTP_STATUS } = require('@/utils/constants'); // 👈 Use constants for cleaner code
 
 class UserController {
     
-    async index(req, res) {
+    async index(req, res, next) { // 👈 Added next
         try {
             const { page = 1, search = '' } = req.query;
             const limit = 10;
             const skip = (page - 1) * limit;
 
-            // ✅ Updated: role is now 'user' instead of 'space'
             const query = {
                 role: 'user', 
                 ...(search && {
@@ -19,41 +20,33 @@ class UserController {
                 })
             };
 
-            // ✅ Fetch filtered data
             const users = await User.find(query)
-                .select('name email isActive createdAt') // Adjusted fields for standard users
+                .select('name email isActive createdAt')
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit);
 
-            // ✅ Total count for pagination
             const total = await User.countDocuments(query);
 
             return res.status(200).json({
                 success: true,
-                owners: users, // Keeping the key as 'owners' to avoid breaking your React frontend
+                owners: users, 
                 total
             });
 
         } catch (error) {
-            console.error('[Admin-Controller] Fetch Users Error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to retrieve user list.'
-            });
+            next(error); // 👈 Let errorHandler handle the 500/stack trace
         }
     }
 
-    async toggleStatus(req, res) {
+    async toggleStatus(req, res, next) {
         try {
             const { id } = req.params;
             const user = await User.findById(id);
 
             if (!user) {
-                return res.status(404).json({ 
-                    success: false, 
-                    message: 'User account not found.' 
-                });
+                // ✅ Add 'true' so Production shows this message
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User account not found.', true);
             }
 
             user.isActive = !user.isActive; 
@@ -65,41 +58,29 @@ class UserController {
                 isActive: user.isActive 
             });
         } catch (error) {
-            console.error('[Admin-Controller] Toggle Status Error:', error);
-            return res.status(500).json({ 
-                success: false, 
-                message: 'Internal server error during status update.' 
-            });
+            next(error);
         }
     }
 
-    async destroy(req, res) {
+    async destroy(req, res, next) {
         try {
             const { id } = req.params;
-            
             const user = await User.findByIdAndDelete(id);
 
             if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'User not found or already deleted.'
-                });
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found or already deleted.', true);
             }
 
             return res.status(200).json({
                 success: true,
-                message: 'Owner account permanently removed from the system.'
+                message: 'Account permanently removed from the system.'
             });
         } catch (error) {
-            console.error('[Admin-Controller] Delete Error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to delete the account.'
-            });
+            next(error);
         }
     }
 
-    async update(req, res) {
+    async update(req, res, next) {
         try {
             const { id } = req.params;
             const { name, email } = req.body;
@@ -107,13 +88,9 @@ class UserController {
             const user = await User.findById(id);
 
             if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'User not found.'
-                });
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found.', true);
             }
 
-            // Update fields
             user.name = name || user.name;
             user.email = email || user.email;
 
@@ -126,11 +103,7 @@ class UserController {
             });
 
         } catch (error) {
-            console.error('[Admin-Controller] Update Error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to update user.'
-            });
+            next(error);
         }
     }
 }
