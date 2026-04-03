@@ -1,24 +1,25 @@
-# Use Node.js Alpine for a lightweight production image
-FROM node:20-alpine
+# Use the full Node 20 image (Debian-based) for maximum compatibility
+FROM node:20-bookworm
 
 # Set working directory
 WORKDIR /app
 
-# Copy package.json & package-lock.json
+# 1. Copy package files first to leverage Docker layer caching
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm install 
+# 2. Install ALL dependencies (including module-alias and bcryptjs)
+# Using 'npm ci' is faster and more reliable for production/CI environments
+RUN npm install
 
-# Copy all source code
+# 3. Copy the rest of your source code
 COPY . .
 
-# Set environment variables (override via Render or other platform)
+# 4. Set environment variables
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Expose the port your app listens on
+# 5. Expose the port
 EXPOSE 5000
 
-# Use the port from environment variable in index.js
+# 6. Start the server (ensure this points to your entry file)
 CMD ["node", "index.js"]
