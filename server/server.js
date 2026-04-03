@@ -1,7 +1,7 @@
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
-
+const { HTTP_STATUS } = require('@/utils/constants');
 const routes = require('@/api/v1/routes/routes'); 
 const { errorConverter, errorHandler } = require('@/api/v1/middleware/errorHandler');
 const ApiError = require('@/utils/ApiError');
@@ -24,7 +24,31 @@ app.use(
     })
 );
 
-app.get('/health', (req, res) => res.status(200).send('OK'));
+app.get('/health', (req, res) => {
+    const now = new Date();
+
+    const timeString = now.toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Manila',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+
+    const dateString = now.toLocaleDateString('en-US', {
+        timeZone: 'Asia/Manila',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+    });
+
+    res.status(200).json({
+        success: true,
+        message: 'Welcome to FlexSpace API - System Online',
+        timestamp: `${dateString} | ${timeString}`
+    });
+});
+
 app.use('/api/v1', routes);
 app.use((req, res, next) => {
     next(new ApiError(404, `Route ${req.method} ${req.originalUrl} not found`));

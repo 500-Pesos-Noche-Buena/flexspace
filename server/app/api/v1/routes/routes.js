@@ -9,14 +9,6 @@ class ApiRouter {
     }
 
     mountRoutes() {
-        this.router.get('/', (req, res) => {
-            res.json({ 
-                success: true,
-                message: 'Welcome to Co-Working API V1',
-                version: '1.0.0'
-            });
-        });
-
         this.router.use('/auth', authRoutes);
         this.router.use('/admin', adminRoutes);
     }

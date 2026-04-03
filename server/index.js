@@ -41,21 +41,28 @@ async function startServer() {
                 const FIVE_MINUTES = 5 * 60 * 1000;
 
                 if (siteUrl && siteUrl.startsWith('http')) {
-                    console.log(`📡 [Keep-Alive]: Auto-pinging ${siteUrl}/health`);
+                    const baseUrl = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
+                    const PING_URL = `${baseUrl}/health`;
+
+                    console.log(`📡 [Keep-Alive]: Monitoring initialized for ${PING_URL}`);
 
                     setInterval(() => {
-                        const protocol = siteUrl.startsWith('https') ? https : http;
+                        const protocol = PING_URL.startsWith('https') ? https : http;
                         
-                        protocol.get(`${siteUrl}/health`, (res) => {
+                        protocol.get(PING_URL, (res) => {
                             if (res.statusCode === 200) {
-                                console.log(`✨ [Keep-Alive]: Heartbeat OK (${new Date().toLocaleTimeString()})`);
+                                const now = new Date().toLocaleTimeString('en-US', { 
+                                    timeZone: 'Asia/Manila', 
+                                    hour12: true 
+                                });
+                                console.log(`✨ [Keep-Alive]: Heartbeat successful at ${now}`);
                             }
                         }).on('error', (err) => {
-                            console.error('❌ [Keep-Alive]: Internal Ping failed:', err.message);
+                            console.error('❌ [Keep-Alive]: Ping failed:', err.message);
                         });
                     }, FIVE_MINUTES);
                 } else {
-                    console.warn('⚠️ [Keep-Alive]: Skipping ping. VITE_API_URL is not set in Render Dashboard.');
+                    console.warn('⚠️ [Keep-Alive]: VITE_API_URL is missing or invalid in Render settings.');
                 }
             }
         });
