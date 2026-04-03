@@ -2,9 +2,15 @@ require('module-alias/register');
 const dotenv = require('dotenv');
 const path = require('path');
 
-dotenv.config({
-    path: path.resolve(__dirname, process.env.NODE_ENV === 'production' ? '.env.production' : '.env'),
-});
+if (process.env.NODE_ENV === 'production') {
+    dotenv.config();
+    console.log('[Env] Production mode: Using system environment variables.');
+} else {
+    dotenv.config({
+        path: path.resolve(__dirname, '.env'),
+    });
+    console.log('[Env] Development mode: Loading variables from .env file.');
+}
 
 const config = require('./app/config/config'); 
 const db = require('./app/config/mongodb'); 
