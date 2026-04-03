@@ -1,0 +1,28 @@
+# ----------------------------------------------
+# 1. Global Dependencies and Build Artifacts
+# ----------------------------------------------
+
+# Ignore node_modules directory anywhere in the project
+**/node_modules/
+
+# Ignore global build directories if they exist
+**/dist/
+**/build/
+**/coverage/
+
+# ----------------------------------------------
+# 2. Environment Variables (CRITICAL)
+# ----------------------------------------------
+
+# Ignore all .env files everywhere (Dev, Prod, Local, etc.)
+**/.env
+**/.env.*
+
+# ----------------------------------------------
+# 3. IDE and OS Files
+# ----------------------------------------------
+.DS_Store
+.vscode/
+.idea/
+npm-debug.log*
+yarn-debug.log*
