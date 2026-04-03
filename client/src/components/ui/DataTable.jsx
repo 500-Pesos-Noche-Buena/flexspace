@@ -51,9 +51,9 @@ export function DataTable({
             </div>
 
             {/* 2. THE TABLE */}
-            <div className="bg-[#111114] rounded-[2rem] border border-white/5 overflow-hidden shadow-sm">
+            <div className="bg-[#111114] rounded-4xl border border-white/5 overflow-hidden shadow-sm">
                 <Table>
-                    <TableHeader className="bg-white/[0.02]">
+                    <TableHeader className="bg-white/2">
                         <TableRow>
                             {columns.map((col, i) => (
                                 <TableHead key={i} className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
@@ -80,7 +80,7 @@ export function DataTable({
                             </TableRow>
                         ) : (
                             data.map((row, rowIndex) => (
-                                <TableRow key={rowIndex} className="hover:bg-white/[0.01] transition-colors">
+                                <TableRow key={rowIndex} className="hover:bg-white/1 transition-colors">
                                     {columns.map((col, colIndex) => (
                                         <TableCell key={colIndex} className="px-6 py-4">
                                             {col.cell ? col.cell(row) : row[col.accessor]}

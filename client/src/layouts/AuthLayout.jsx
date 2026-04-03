@@ -8,7 +8,7 @@ const AuthLayout = () => {
 
             {/* LEFT SIDE: Form Content Area */}
             <main className="flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-950">
-                <div className="w-full max-w-[400px] space-y-6">
+                <div className="w-full max-w-100 space-y-6">
                     {/* Mobile-only Logo */}
                     <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
                         <div className="bg-primary p-2 rounded-lg">
@@ -24,7 +24,7 @@ const AuthLayout = () => {
             {/* RIGHT SIDE: Branding Panel */}
             <section className="hidden lg:flex relative bg-slate-900 items-center justify-center p-12 overflow-hidden">
                 {/* Modern Dot Pattern Background */}
-                <div className="absolute inset-0 z-0 opacity-20 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]">
+                <div className="absolute inset-0 z-0 opacity-20 mask-[radial-gradient(ellipse_at_center,white,transparent)]">
                     <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                             <pattern id="dot-pattern" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -36,7 +36,7 @@ const AuthLayout = () => {
                 </div>
 
                 {/* Floating Gradient Glow */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-125 h-125 bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none" />
 
                 <div className="relative z-10 w-full max-w-md">
                     <div className="space-y-8 text-center lg:text-left">

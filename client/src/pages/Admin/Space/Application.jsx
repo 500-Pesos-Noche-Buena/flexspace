@@ -148,7 +148,7 @@ const SpaceApplications = () => {
                                     <label className="text-[10px] font-black text-slate-500 uppercase mb-3 block italic tracking-widest">
                                         {fileKey.replace(/_/g, ' ')}
                                     </label>
-                                    <div className="aspect-[4/3] rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center overflow-hidden relative">
+                                    <div className="aspect-4/3 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center overflow-hidden relative">
                                         {selectedReq[fileKey] ? (
                                             <img src={`/uploads/requirements/${selectedReq[fileKey]}`} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                         ) : (
@@ -165,7 +165,7 @@ const SpaceApplications = () => {
                         {statusFilter === 'pending' && (
                             <div className="flex gap-4 pt-6 border-t border-white/5">
                                 <button onClick={() => handleDecision(selectedReq._id, 'reject')} className="flex-1 py-3.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-2xl font-black uppercase text-[10px] hover:bg-rose-500 hover:text-white transition-all">Decline</button>
-                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="flex-[2] py-3.5 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] hover:bg-indigo-500 shadow-xl shadow-indigo-900/40 transition-all">Approve & Grant Access</button>
+                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="flex-2 py-3.5 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] hover:bg-indigo-500 shadow-xl shadow-indigo-900/40 transition-all">Approve & Grant Access</button>
                             </div>
                         )}
 
