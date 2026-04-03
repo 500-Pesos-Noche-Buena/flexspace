@@ -1,4 +1,5 @@
 const express = require('express');
+// 1. Double check this path and casing!
 const authController = require('@/api/v1/controllers/authController');
 
 class AuthRoutes {
@@ -8,9 +9,15 @@ class AuthRoutes {
     }
 
     initializeRoutes() {
-        this.router.post('/login', authController.login);
-        this.router.post('/register', authController.register);
-        this.router.post('/logout', authController.logout);
+        console.log('--- 🛡️ Initializing Auth Routes ---');
+        
+        if (!authController.login) {
+            console.error('❌ ERROR: authController.login is undefined! Check your controller exports.');
+        }
+        
+        this.router.post('/login', (req, res, next) => authController.login(req, res, next));
+        this.router.post('/register', (req, res, next) => authController.register(req, res, next));
+        this.router.post('/logout', (req, res, next) => authController.logout(req, res, next));
     }
 
     getRouter() {
