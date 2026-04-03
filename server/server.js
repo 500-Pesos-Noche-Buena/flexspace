@@ -9,7 +9,7 @@ const ApiError = require('@/utils/ApiError');
 
 const app = express();
 
-const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'http://localhost:5173';
+const ALLOWED_ORIGIN = process.env.VITE_API_URL || 'http://localhost:5173';
 console.log(`Cors Origin running on ${ALLOWED_ORIGIN}`);
 
 app.use(morgan('dev'));
