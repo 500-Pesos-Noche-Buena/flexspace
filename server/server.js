@@ -5,7 +5,7 @@ const { HTTP_STATUS } = require('@/utils/constants');
 const routes = require('@/api/v1/routes/routes'); 
 const { errorConverter, errorHandler } = require('@/api/v1/middleware/errorHandler');
 const ApiError = require('@/utils/ApiError');
-
+const path = require('path');
 const app = express();
 
 const ALLOWED_ORIGIN = process.env.VITE_API_URL || 'http://localhost:5173';
@@ -23,6 +23,8 @@ app.use(
         allowedHeaders: ['Content-Type', 'Authorization']
     })
 );
+
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 app.get('/health', (req, res) => {
     const now = new Date();

@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const os = require('os');
 
 if (process.env.NODE_ENV === 'production') {
     dotenv.config();
@@ -24,16 +25,30 @@ const config = require('./app/config/config');
 const db = require('./app/config/mongodb'); 
 const app = require('./server');
 
+function getLocalIp() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const net of interfaces[name]) {
+            if (net.family === 'IPv4' && !net.internal) {
+                return net.address;
+            }
+        }
+    }
+    return 'localhost';
+}
+
 async function startServer() {
     try {
         await db.connectToMongoDB();
         
         const PORT = process.env.PORT || config.port || 5000;
+        const LOCAL_IP = getLocalIp();
 
-        app.listen(PORT, () => {
+        app.listen(PORT, '0.0.0.0', () => {
             console.log(`✅ [Server] Status: ONLINE`);
-            console.log(`🔗 [Server] URL: http://localhost:${PORT}`);
-            console.log(`🌍 [Server] Mode: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`🔗 [Local]:   http://localhost:${PORT}`);
+            console.log(`📱 [Network]: http://${LOCAL_IP}:${PORT}  <-- USE THIS ON YOUR PHONE`);
+            console.log(`🌍 [Mode]:    ${process.env.NODE_ENV || 'development'}`);
             console.log('-----------------------------------------');
 
             if (process.env.NODE_ENV === 'production') {
@@ -62,7 +77,7 @@ async function startServer() {
                         });
                     }, FIVE_MINUTES);
                 } else {
-                    console.warn('⚠️ [Keep-Alive]: VITE_API_URL is missing or invalid in Render settings.');
+                    console.warn('⚠️ [Keep-Alive]: VITE_API_URL is missing or invalid.');
                 }
             }
         });

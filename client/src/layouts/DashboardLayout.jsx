@@ -127,7 +127,7 @@ export default function DashboardLayout() {
                             </div>
                             {(isSidebarOpen || isMobileMenuOpen) && (
                                 <div className="leading-tight animate-in fade-in duration-300">
-                                    <div className="text-lg font-bold tracking-tight">IloiloHub</div>
+                                    <div className="text-lg font-bold tracking-tight">FlexSpace</div>
                                     <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
                                         {isAdmin ? "Admin Console" : "Space Portal"}
                                     </div>

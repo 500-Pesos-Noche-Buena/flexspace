@@ -1,10 +1,10 @@
 const { User } = require('@/api/v1/models');
-const ApiError = require('@/utils/ApiError'); // 👈 Import this
-const { HTTP_STATUS } = require('@/utils/constants'); // 👈 Use constants for cleaner code
+const ApiError = require('@/utils/ApiError');
+const { HTTP_STATUS } = require('@/utils/constants');
 
 class UserController {
     
-    async index(req, res, next) { // 👈 Added next
+    async index(req, res, next) {
         try {
             const { page = 1, search = '' } = req.query;
             const limit = 10;
@@ -20,22 +20,26 @@ class UserController {
                 })
             };
 
-            const users = await User.find(query)
-                .select('name email isActive createdAt')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit);
-
-            const total = await User.countDocuments(query);
+            const [users, total, activeCount, inactiveCount] = await Promise.all([
+                User.find(query).select('name email isActive createdAt').sort({ createdAt: -1 }).skip(skip).limit(limit),
+                User.countDocuments({ role: 'user' }),
+                User.countDocuments({ role: 'user', isActive: true }),
+                User.countDocuments({ role: 'user', isActive: false })
+            ]);
 
             return res.status(200).json({
                 success: true,
                 owners: users, 
-                total
+                total,
+                stats: {
+                    total,
+                    active: activeCount,
+                    inactive: inactiveCount
+                }
             });
 
         } catch (error) {
-            next(error); // 👈 Let errorHandler handle the 500/stack trace
+            next(error); 
         }
     }
 
@@ -45,7 +49,6 @@ class UserController {
             const user = await User.findById(id);
 
             if (!user) {
-                // ✅ Add 'true' so Production shows this message
                 throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User account not found.', true);
             }
 

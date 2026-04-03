@@ -21,7 +21,8 @@ import SpaceManagement from '@/pages/Admin/Space/Index';
 import SpaceApplication from '@/pages/Admin/Space/Application';
 
 // Pages: Space Owner
-// import SpaceDashboard from '@/pages/Space/Dashboard/Index';
+import SpaceDashboard from '@/pages/Space/Dashboard/Index';
+import MySpaces from '@/pages/Space/MySpaces/Index';
 
 export const AppRoutes = () => {
     return (
@@ -55,7 +56,8 @@ export const AppRoutes = () => {
                 {/* Space Owner Section */}
                 <Route path="/space">
                     <Route index element={<Navigate to="/space/dashboard" replace />} />
-                    {/* <Route path="dashboard" element={<SpaceDashboard />} /> */}
+                    <Route path="dashboard" element={<SpaceDashboard />} />
+                    <Route path="my-spaces" element={<MySpaces />} />
                 </Route>
                 
             </Route>

@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     role: { type: String, default: 'user' },
     isActive: { type: Boolean, default: true },
-    status: { type: String, default: 'pending', enum: ['pending', 'approved', 'rejected'] },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'] },
     business_permit: { type: String },
     dti_sec_reg: { type: String }
 }, { 

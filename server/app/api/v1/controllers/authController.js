@@ -51,12 +51,19 @@ class AuthController {
         try {
             const { name, email, password, role } = req.body;
 
+            if (!name || !email || !password) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "All fields are required.", true);
+            }
+
             if (await userService.isEmailTaken(email)) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Email is already registered or pending approval.", true);
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Email is already registered.", true);
             }
 
             if (role === 'space') {
-                if (!req.files || !req.files.business_permit || !req.files.dti_sec_reg) {
+                const permit = req.files?.find(f => f.fieldname === 'business_permit');
+                const dti = req.files?.find(f => f.fieldname === 'dti_sec_reg');
+
+                if (!permit || !dti) {
                     throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Business Permit and DTI documents are required.", true);
                 }
 
@@ -64,9 +71,8 @@ class AuthController {
                     name,
                     email,
                     password,
-                    role: 'space',
-                    businessPermit: req.files.business_permit[0].filename,
-                    dtiSecReg: req.files.dti_sec_reg[0].filename
+                    businessPermit: permit.filename,
+                    dtiSecReg: dti.filename
                 });
 
                 return res.status(HTTP_STATUS.CREATED).json({
@@ -75,9 +81,9 @@ class AuthController {
                 });
             }
 
-            await userService.createUser({ name, email, password, role: 'user' });
+            await userService.createUser({ name, email, password });
 
-            res.status(HTTP_STATUS.CREATED).json({
+            return res.status(HTTP_STATUS.CREATED).json({
                 status: 'success',
                 message: 'Registration successful! You can now log in.'
             });

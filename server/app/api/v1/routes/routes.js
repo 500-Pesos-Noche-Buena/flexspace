@@ -1,6 +1,7 @@
 const express = require('express');
 const authRoutes = require('./authRoutes'); 
 const adminRoutes = require('./adminRoutes'); 
+const spaceRoutes = require('./spaceRoutes'); 
 
 class ApiRouter {
     constructor() {
@@ -11,6 +12,7 @@ class ApiRouter {
     mountRoutes() {
         this.router.use('/auth', authRoutes);
         this.router.use('/admin', adminRoutes);
+        this.router.use('/space', spaceRoutes);
     }
     
     getRouter() {

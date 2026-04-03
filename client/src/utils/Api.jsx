@@ -13,20 +13,25 @@ async function apiRequest(method, endpoint, data = null) {
     const token = getToken();
 
     try {
+        const isFormData = data instanceof FormData;
+
         const config = {
             method: method,
             headers: {
-                'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
         };
+
+        if (!isFormData) {
+            config.headers['Content-Type'] = 'application/json';
+        }
 
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
         
         if (data) {
-            config.body = JSON.stringify(data);
+            config.body = isFormData ? data : JSON.stringify(data);
         }
 
         const response = await fetch(url, config);

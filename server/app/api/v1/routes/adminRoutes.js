@@ -13,17 +13,21 @@ class AdminRoutes {
     initializeRoutes() {
         this.router.get('/dashboard', auth, dashboardController.index);
 
-        // Standard User Management
+        // Users
         this.router.get('/users', auth, userController.index);
         this.router.post('/users/:id/toggle', auth, userController.toggleStatus);
         this.router.delete('/users/:id', auth, userController.destroy);
         this.router.put('/users/:id', auth, userController.update);
 
-        // ✅ Space Management Section
+        // ✅ Space Management
         this.router.get('/space/management', auth, spaceController.index);
         this.router.post('/space/management/:id/toggle', auth, spaceController.toggleStatus);
-        
-        // ✅ Space Applications Section
+
+        // 👉 ADD THESE TWO 👇
+        this.router.put('/space/management/:id', auth, spaceController.update);
+        this.router.delete('/space/management/:id', auth, spaceController.destroy);
+
+        // Space Requests
         this.router.get('/space/requests', auth, spaceController.requests);
         this.router.post('/space/requests/:id/approve', auth, spaceController.approve);
         this.router.post('/space/requests/:id/reject', auth, spaceController.reject);

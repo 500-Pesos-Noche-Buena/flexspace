@@ -1,10 +1,13 @@
 const { User } = require('@/api/v1/models');
+const ApiError = require('@/utils/ApiError');
+const { HTTP_STATUS } = require('@/utils/constants');
 
 class SpaceController {
-    
-    async index(req, res) {
+
+    async index(req, res, next) {
         try {
             const { page = 1, search = '' } = req.query;
+
             const limit = 10;
             const skip = (page - 1) * limit;
 
@@ -19,23 +22,37 @@ class SpaceController {
                 })
             };
 
-            const owners = await User.find(query)
-                .select('name email isActive business_permit dti_sec_reg createdAt')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit);
+            const [owners, total, activeCount, inactiveCount] = await Promise.all([
+                User.find(query)
+                    .select('name email isActive business_permit dti_sec_reg createdAt')
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit),
 
-            const total = await User.countDocuments(query);
+                User.countDocuments({ role: 'space', status: 'approved' }),
+                User.countDocuments({ role: 'space', status: 'approved', isActive: true }),
+                User.countDocuments({ role: 'space', status: 'approved', isActive: false })
+            ]);
 
-            return res.status(200).json({ success: true, owners, total });
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                owners,
+                stats: {
+                    total,
+                    active: activeCount,
+                    inactive: inactiveCount
+                }
+            });
+
         } catch (error) {
-            return res.status(500).json({ success: false, message: 'Error fetching owners.' });
+            next(error);
         }
     }
 
-    async requests(req, res) {
+    async requests(req, res, next) {
         try {
             const { page = 1, search = '', status = 'pending' } = req.query;
+
             const limit = 10;
             const skip = (page - 1) * limit;
 
@@ -50,62 +67,130 @@ class SpaceController {
                 })
             };
 
-            const requests = await User.find(query)
-                .select('name email business_permit dti_sec_reg status createdAt')
-                .sort({ createdAt: status === 'pending' ? 1 : -1 })
-                .skip(skip)
-                .limit(limit);
+            const [requests, total, pendingCount, rejectedCount] = await Promise.all([
+                User.find(query)
+                    .select('name email business_permit dti_sec_reg status createdAt')
+                    .sort({ createdAt: status === 'pending' ? 1 : -1 })
+                    .skip(skip)
+                    .limit(limit),
 
-            const total = await User.countDocuments(query);
-            return res.status(200).json({ success: true, requests, total });
+                User.countDocuments(query),
+                User.countDocuments({ role: 'space', status: 'pending' }),
+                User.countDocuments({ role: 'space', status: 'rejected' })
+            ]);
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                requests,
+                total,
+                stats: {
+                    pending: pendingCount,
+                    rejected: rejectedCount
+                }
+            });
+
         } catch (error) {
-            return res.status(500).json({ success: false, message: 'Error fetching requests.' });
+            next(error);
         }
     }
 
-    // ✅ POST /admin/space/requests/:id/approve
-    async approve(req, res) {
+    async approve(req, res, next) {
         try {
             const user = await User.findById(req.params.id);
-            if (!user) return res.status(404).json({ success: false, message: 'Not found' });
+            if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
 
             user.status = 'approved';
-            user.isActive = true; // Grant access immediately
+            user.isActive = true;
+
             await user.save();
 
-            return res.status(200).json({ success: true, message: 'Application approved.' });
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Application approved.'
+            });
+
         } catch (error) {
-            return res.status(500).json({ success: false, message: 'Approval failed.' });
+            next(error);
         }
     }
 
-    // ✅ POST /admin/space/requests/:id/reject
-    async reject(req, res) {
+    async reject(req, res, next) {
         try {
             const user = await User.findById(req.params.id);
-            if (!user) return res.status(404).json({ success: false, message: 'Not found' });
+            if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
 
             user.status = 'rejected';
             user.isActive = false;
+
             await user.save();
 
-            return res.status(200).json({ success: true, message: 'Application rejected.' });
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Application rejected.'
+            });
+
         } catch (error) {
-            return res.status(500).json({ success: false, message: 'Rejection failed.' });
+            next(error);
         }
     }
 
-    // ✅ POST /admin/space/management/:id/toggle (Active/Deactivate)
-    async toggleStatus(req, res) {
+    async toggleStatus(req, res, next) {
         try {
             const user = await User.findById(req.params.id);
+            if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+
             user.isActive = !user.isActive;
+
             await user.save();
-            return res.status(200).json({ success: true, message: 'Status updated.' });
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Status updated.'
+            });
+
         } catch (error) {
-            return res.status(500).json({ success: false, message: 'Toggle failed.' });
+            next(error);
         }
     }
+
+    async update(req, res, next) {
+        try {
+            const user = await User.findById(req.params.id);
+            if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+
+            user.name = req.body.name ?? user.name;
+            user.email = req.body.email ?? user.email;
+
+            await user.save();
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Space owner updated successfully'
+            });
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ✅ ADD THIS
+    async destroy(req, res, next) {
+        try {
+            const user = await User.findById(req.params.id);
+            if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found');
+
+            await user.deleteOne();
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Space owner deleted successfully'
+            });
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
 }
 
 module.exports = new SpaceController();
