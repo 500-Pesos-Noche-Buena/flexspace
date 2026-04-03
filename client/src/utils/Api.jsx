@@ -30,24 +30,19 @@ async function apiRequest(method, endpoint, data = null) {
         }
 
         const response = await fetch(url, config);
-        
         const responseData = await response.json().catch(() => ({}));
 
-        // Handle Session Expiry / Unauthorized Access
-        if (response.status === 401) {
-            // 1. Clear local storage to ensure the token is actually gone
+        // ✅ FIX: Only redirect if it's NOT the login page
+        if (response.status === 401 && endpoint !== '/auth/login') {
             localStorage.removeItem('authToken');
-            localStorage.removeItem('user'); // Also clear user data if stored
-
-            // 2. Force the browser to the login page
-            // This breaks any "memory state" and forces a fresh start
+            localStorage.removeItem('user');
             window.location.href = '/login';
-
-            const msg = responseData.message || 'Unauthorized access. Please log in.';
-            throw new Error(msg);
+            return; 
         }
 
+        // If it IS the login page and 401, or any other error
         if (!response.ok) {
+            // Throw the message from the backend (e.g., "Invalid Credentials")
             throw new Error(responseData.message || `Error: ${response.status}`);
         }
 
@@ -55,7 +50,7 @@ async function apiRequest(method, endpoint, data = null) {
 
     } catch (error) {
         console.error(`API ${method} Request Failed:`, error.message);
-        throw error;
+        throw error; // This goes to your handleSubmit catch block
     }
 }
 
