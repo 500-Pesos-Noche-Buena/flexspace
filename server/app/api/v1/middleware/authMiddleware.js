@@ -8,7 +8,7 @@ class AuthMiddleware {
         const authHeader = req.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return next(new ApiError(HTTP_STATUS.UNAUTHORIZED, "Unauthorized access. Please log in."));
+            return next(new ApiError(HTTP_STATUS.UNAUTHORIZED, "Unauthorized access. Please log in.", true));
         }
 
         const token = authHeader.split(' ')[1];
