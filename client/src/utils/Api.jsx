@@ -30,27 +30,28 @@ async function apiRequest(method, endpoint, data = null) {
         }
 
         const response = await fetch(url, config);
+        
         const responseData = await response.json().catch(() => ({}));
 
-        // ✅ FIX: Only redirect if it's NOT the login page
-        if (response.status === 401 && endpoint !== '/auth/login') {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
-            return; 
-        }
-
-        // If it IS the login page and 401, or any other error
         if (!response.ok) {
-            // Throw the message from the backend (e.g., "Invalid Credentials")
-            throw new Error(responseData.message || `Error: ${response.status}`);
+            if (response.status === 401 && endpoint !== '/auth/login') {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+                return;
+            }
+
+            const error = new Error(responseData.message || `Error: ${response.status}`);
+            error.status = response.status;
+            error.data = responseData;
+            throw error; 
         }
 
         return responseData;
 
     } catch (error) {
         console.error(`API ${method} Request Failed:`, error.message);
-        throw error; // This goes to your handleSubmit catch block
+        throw error; 
     }
 }
 

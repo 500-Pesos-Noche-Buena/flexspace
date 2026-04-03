@@ -36,12 +36,14 @@ export default function DashboardLayout() {
 
     const handleLogout = async () => {
         try {
-            await apiPost('/auth/logout'); 
+            if (typeof apiPost === 'function') {
+                await apiPost('/auth/logout'); 
+            }
         } catch (error) {
             console.error("Logout error:", error);
         } finally {
             localStorage.clear();
-            window.location.href = '/login'; 
+            navigate('/login', { replace: true }); 
         }
     };
 

@@ -9,7 +9,7 @@ const errorConverter = (err, req, res, next) => {
         const statusCode = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
         const message = error.message || 'Internal Server Error';
 
-        error = new ApiError(statusCode, message, false); 
+        error = new ApiError(statusCode, message, false, err.stack); 
     }
 
     next(error);
@@ -18,10 +18,11 @@ const errorConverter = (err, req, res, next) => {
 const errorHandler = (err, req, res, next) => {
     let { statusCode, message } = err;
 
-    console.error('--- 🛑 CRITICAL SERVER ERROR 🛑 ---');
+    console.error('--- 🛑 SERVER LOG 🛑 ---');
+    console.error(`Status: ${statusCode}`);
     console.error(`Message: ${err.message}`);
     console.error(`Stack: ${err.stack}`);
-    console.error('-----------------------------------');
+    console.error('-----------------------');
 
     if (statusCode >= 500 || !err.isOperational) {
         logger.error('Uncaught Exception details:', {
@@ -42,7 +43,7 @@ const errorHandler = (err, req, res, next) => {
     const response = {
         code: statusCode,
         message: message,
-        stack: err.stack, 
+        ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
     };
 
     res.status(statusCode).send(response);
