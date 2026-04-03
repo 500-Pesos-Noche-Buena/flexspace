@@ -18,15 +18,13 @@ const errorConverter = (err, req, res, next) => {
 const errorHandler = (err, req, res, next) => {
     let { statusCode, message } = err;
 
-    console.error('--- 🛑 CRITICAL SERVER ERROR 🛑 ---');
-    console.error(`Message: ${err.message}`);
-    console.error(`Stack: ${err.stack}`);
-    console.error('-----------------------------------');
-
     if (statusCode >= 500 || !err.isOperational) {
+        console.error('--- 🛑 SERVER ERROR 🛑 ---');
+        console.error(`Message: ${err.message}`);
+        console.error(`Stack: ${err.stack}`);
+        
         logger.error('Uncaught Exception details:', {
             message: err.message,
-            stack: err.stack,
             requestUrl: req.originalUrl,
             method: req.method,
         });
@@ -34,15 +32,15 @@ const errorHandler = (err, req, res, next) => {
 
     if (process.env.NODE_ENV === 'production') {
         if (!err.isOperational) {
-            statusCode = statusCode || 500;
-            message = `PROD_ERROR: ${err.message}`;
+            statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+            message = 'Internal Server Error';
         }
     }
 
     const response = {
         code: statusCode,
-        message: message,
-        stack: err.stack, 
+        message,
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     };
 
     res.status(statusCode).send(response);
