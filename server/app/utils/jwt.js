@@ -16,7 +16,6 @@ const generateToken = (userId, expires, type, role) => {
 const generateAuthTokens = (user) => {
     const expires = moment().add(config.jwt.accessExpirationMinutes, 'minutes');
     
-    // Ensure we get the ID regardless of if it's a Mongoose object or plain JSON
     const userId = user._id ? user._id.toString() : user.id;
     
     const accessToken = generateToken(userId, expires, 'access', user.role);

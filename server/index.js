@@ -4,30 +4,39 @@ const path = require('path');
 
 if (process.env.NODE_ENV === 'production') {
     dotenv.config();
-    console.log('[Env] Production mode: Using system environment variables.');
+    console.log('-----------------------------------------');
+    console.log('🚀 [Env] Mode: PRODUCTION');
+    console.log('📌 Source: System Environment Variables');
+    console.log('-----------------------------------------');
 } else {
     dotenv.config({
         path: path.resolve(__dirname, '.env'),
     });
-    console.log('[Env] Development mode: Loading variables from .env file.');
+    console.log('-----------------------------------------');
+    console.log('🛠️ [Env] Mode: DEVELOPMENT');
+    console.log('📌 Source: .env file');
+    console.log('-----------------------------------------');
 }
 
 const config = require('./app/config/config'); 
 const db = require('./app/config/mongodb'); 
-
 const app = require('./server');
 
 async function startServer() {
     try {
         await db.connectToMongoDB();
         
-        app.listen(config.port, () => {
-            console.log(`[Server] Running on http://localhost:${config.port}`);
-            console.log(`[Server] Mode: ${config.env}`);
+        const PORT = process.env.PORT || config.port || 5000;
+
+        app.listen(PORT, () => {
+            console.log(`✅ [Server] Status: ONLINE`);
+            console.log(`🔗 [Server] URL: http://localhost:${PORT}`);
+            console.log(`🌍 [Server] Mode: ${process.env.NODE_ENV || 'development'}`);
+            console.log('-----------------------------------------');
         });
 
     } catch (err) {
-        console.error('❌ Server failed to start:', err);
+        console.error('❌ [Server] Failed to start:', err);
         process.exit(1); 
     }
 }
