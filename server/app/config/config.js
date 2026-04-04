@@ -9,6 +9,10 @@ const config = {
         dbName: process.env.MONGODB_DB_NAME,
     },
 
+    app: {
+        internalSecret: process.env.INTERNAL_API_KEY
+    },
+
     jwt: {
         secret: process.env.JWT_SECRET,
         accessExpirationMinutes: 30,

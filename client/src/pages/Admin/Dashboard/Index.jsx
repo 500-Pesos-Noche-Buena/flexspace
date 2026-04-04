@@ -1,39 +1,64 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '@/context/AuthContext';
 import { apiGet } from '@/utils/Api';
-import { Users, MapPin, Clock, Banknote, ArrowUpRight, Loader2, RefreshCw } from 'lucide-react';
+import { Users, MapPin, Clock, Banknote, ArrowUpRight, Loader2, RefreshCw, Building2 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
-
+import { useRealTimeSync } from '@/hooks/useRealTimeSync';
 const AdminDashboard = () => {
     const { logout } = useContext(AuthContext);
     const navigate = useNavigate();
 
+
     const [stats, setStats] = useState({
         totalUsers: 0,
-        activeSpaces: 0,
+        totalSpaceHubs: 0,
+        activeSpaces: 0,  
         pendingRequests: 0,
         monthlyRevenue: "0",
         recentRequests: []
     });
+
+    const lastDashboardFingerprint = useRef("");
+
     const [loading, setLoading] = useState(true);
 
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = async (isInitial = false) => {
+        if (isInitial) setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
             if (!token) return logout();
 
             const res = await apiGet('/admin/dashboard');
-            setStats(res.data);
+            
+            const freshData = res.data || res;
+            const currentFingerprint = JSON.stringify(freshData);
+
+            if (currentFingerprint !== lastDashboardFingerprint.current) {
+                lastDashboardFingerprint.current = currentFingerprint;
+                setStats(freshData);
+                
+                if (!isInitial) {
+                    console.log("📊 Dashboard Synced: System stats updated.");
+                }
+            }
         } catch (err) {
-            showToast({ icon: 'error', title: 'Failed to sync dashboard data' });
+            if (isInitial) {
+                showToast({ icon: 'error', title: 'Failed to sync dashboard data' });
+            }
         } finally {
-            setLoading(false);
+            if (isInitial) setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchDashboardData();
+        fetchDashboardData(true);
+
+        const interval = setInterval(() => {
+            fetchDashboardData(false);
+        }, 3000);
+
+        return () => clearInterval(interval);
     }, []);
 
     if (loading) {
@@ -49,26 +74,27 @@ const AdminDashboard = () => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
-            {/* Header - Adjusted for Mobile Stacking */}
+            {/* Header */}
             <div className="mb-6 md:mb-8 flex flex-row justify-between items-center gap-4">
                 <div>
                     <h1 className="text-xl md:text-2xl font-black tracking-tight text-white uppercase italic">System Overview</h1>
                     <p className="text-[10px] md:text-sm text-slate-500 font-medium">Real-time performance of Iloilo Co-Working network.</p>
                 </div>
                 <button 
-                    onClick={fetchDashboardData}
+                    onClick={() => fetchDashboardData(true)}
                     className="p-2.5 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all active:scale-95"
                 >
                     <RefreshCw className="w-4 h-4 text-emerald-500" />
                 </button>
             </div>
 
-            {/* Stats Grid - 2 columns on mobile, 4 on desktop */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                <StatCard title="Users" value={stats.totalUsers} icon={<Users className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />} trend="+12%" />
-                <StatCard title="Spaces" value={stats.activeSpaces} icon={<MapPin className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" />} trend="Live" />
-                <StatCard title="Pending" value={stats.pendingRequests} icon={<Clock className="w-4 h-4 md:w-5 md:h-5 text-yellow-500" />} trend="Review" />
-                <StatCard title="Revenue" value={`₱${stats.monthlyRevenue}`} icon={<Banknote className="w-4 h-4 md:w-5 md:h-5 text-purple-500" />} trend="Total" />
+            {/* Stats Grid - 5 Items (Responsive Grid) */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+                <StatCard title="Users" value={stats.totalUsers} icon={<Users className="w-4 h-4 text-blue-500" />} trend="Students" />
+                <StatCard title="Space Hubs" value={stats.totalSpaceHubs} icon={<Building2 className="w-4 h-4 text-purple-500" />} trend="Partners" />
+                <StatCard title="Active" value={stats.activeSpaces} icon={<MapPin className="w-4 h-4 text-emerald-500" />} trend="Live" />
+                <StatCard title="Pending" value={stats.pendingRequests} icon={<Clock className="w-4 h-4 text-yellow-500" />} trend="Review" />
+                <StatCard title="Revenue" value={`₱${stats.monthlyRevenue}`} icon={<Banknote className="w-4 h-4 text-pink-500" />} trend="Total" />
             </div>
 
             {/* Main Content Area */}
@@ -79,7 +105,7 @@ const AdminDashboard = () => {
                     <div className="px-5 py-4 md:px-6 md:py-5 border-b border-white/5 flex justify-between items-center">
                         <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">Recent Applications</h3>
                         <button 
-                            onClick={() => navigate('/admin/users')}
+                            onClick={() => navigate('/admin/space/applications')}
                             className="text-[10px] font-bold text-emerald-500 hover:underline flex items-center gap-1"
                         >
                             View All <ArrowUpRight className="w-3 h-3" />
@@ -87,9 +113,9 @@ const AdminDashboard = () => {
                     </div>
                     
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[400px] md:min-w-full">
+                        <table className="w-full text-left border-collapse min-w-100 md:min-w-full">
                             <thead>
-                                <tr className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-tighter bg-white/[0.02]">
+                                <tr className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-tighter bg-white/2">
                                     <th className="px-5 py-3 md:px-6 md:py-4">Name</th>
                                     <th className="px-5 py-3 md:px-6 md:py-4 hidden sm:table-cell">Location</th>
                                     <th className="px-5 py-3 md:px-6 md:py-4">Status</th>
@@ -117,14 +143,14 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                {/* Growth Card - Compact for Mobile */}
+                {/* Growth Card */}
                 <div className="bg-linear-to-br from-emerald-600/20 to-transparent rounded-3xl md:rounded-4xl border border-emerald-500/10 p-5 md:p-8 flex flex-col justify-center">
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-600 rounded-xl md:rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-emerald-900/40">
                         <ArrowUpRight className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                     <h3 className="text-base md:text-lg font-bold text-white mb-2">Network Growth</h3>
                     <p className="text-[11px] md:text-sm text-slate-400 leading-relaxed mb-5">
-                        Manage <strong>{stats.pendingRequests}</strong> pending applications to expand coverage.
+                        You have <strong>{stats.pendingRequests}</strong> applications waiting. Review them to increase active locations in Iloilo.
                     </p>
                     <button 
                         onClick={() => navigate('/admin/space/applications')}
@@ -140,14 +166,13 @@ const AdminDashboard = () => {
 
 // --- Subcomponents ---
 const StatCard = ({ title, value, icon, trend }) => (
-    <div className="bg-[#111114] p-4 md:p-6 rounded-2xl md:rounded-4xl border border-white/5 group hover:border-emerald-500/30 transition-all duration-300">
+    <div className="bg-[#111114] p-4 md:p-5 rounded-2xl md:rounded-3xl border border-white/5 group hover:border-emerald-500/30 transition-all duration-300">
         <div className="flex items-center justify-between mb-3 md:mb-4">
-            <div className="p-2 md:p-3 bg-white/5 rounded-lg md:rounded-2xl group-hover:bg-emerald-500/10 transition-all duration-500">{icon}</div>
-            <span className="hidden sm:block text-[8px] md:text-[10px] font-bold text-slate-500 uppercase tracking-tighter bg-white/5 px-2 py-1 rounded-lg">Live</span>
+            <div className="p-2 bg-white/5 rounded-lg group-hover:bg-emerald-500/10 transition-all duration-500">{icon}</div>
         </div>
-        <h4 className="text-lg md:text-2xl font-black text-white mb-0.5 truncate">{value}</h4>
-        <p className="text-[9px] md:text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">{title}</p>
-        <div className="text-[8px] md:text-[10px] font-black text-emerald-500 flex items-center gap-1">
+        <h4 className="text-lg md:text-xl font-black text-white mb-0.5 truncate">{value}</h4>
+        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">{title}</p>
+        <div className="text-[8px] font-black text-emerald-500 flex items-center gap-1">
             <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
             {trend}
         </div>
@@ -157,7 +182,7 @@ const StatCard = ({ title, value, icon, trend }) => (
 const TableRow = ({ name, loc, status, statusColor }) => (
     <tr className="border-t border-white/5 hover:bg-white/2 transition-colors group">
         <td className="px-5 py-3 md:px-6 md:py-4">
-            <p className="font-bold text-white text-[11px] md:text-xs truncate max-w-[100px] md:max-w-none">{name}</p>
+            <p className="font-bold text-white text-[11px] md:text-xs truncate max-w-25 md:max-w-none">{name}</p>
         </td>
         <td className="px-5 py-3 md:px-6 md:py-4 text-slate-400 text-[10px] md:text-xs hidden sm:table-cell">{loc}</td>
         <td className="px-5 py-3 md:px-6 md:py-4">

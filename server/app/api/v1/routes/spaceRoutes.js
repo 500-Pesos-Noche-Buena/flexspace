@@ -16,24 +16,18 @@ class SpaceRoutes {
     }
 
     initializeRoutes() {
-        // --- DASHBOARD ---
+        console.log('--- 🛡️ Initializing Space Routes ---');
+
         this.router.get('/dashboard', auth, DashboardController.index);
 
-        // --- DISTRICTS ---
         this.router.get('/districts/active', auth, DistrictController.getActive);
 
-     // --- SPACE LISTINGS MANAGEMENT ---
-
-        // ✅ FIX: Added arrow function to preserve 'this'
         this.router.get('/spaces', auth, (req, res, next) => SpaceController.index(req, res, next));
 
-        // ✅ This one was already correct
         this.router.post('/spaces', auth, upload.single('image'), (req, res, next) => SpaceController.store(req, res, next));
 
-        // ✅ FIX: Added arrow function
         this.router.post('/spaces/:id/update', auth, upload.single('image'), (req, res, next) => SpaceController.update(req, res, next));
 
-        // ✅ FIX: Added arrow function
         this.router.post('/spaces/:id/delete', auth, (req, res, next) => SpaceController.delete(req, res, next));
 
         /* // --- BOOKINGS (Uncomment when controllers are ready) ---

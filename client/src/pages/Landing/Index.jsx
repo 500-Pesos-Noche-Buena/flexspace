@@ -47,12 +47,6 @@ const LandingPage = () => {
             </div>
 
             <Contact />
-
-            <footer className="py-8 border-t border-slate-100 text-center">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    © 2026 Iloilo City Work
-                </p>
-            </footer>
         </div>
     );
 };

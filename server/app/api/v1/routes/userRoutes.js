@@ -9,6 +9,8 @@ class AuthRoutes {
     }
 
     initializeRoutes() {
+        console.log('--- 🛡️ Initializing User Routes ---');
+
         this.router.get('/profile', auth, userController.getProfile);
     }
 

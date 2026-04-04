@@ -11,6 +11,8 @@ class AdminRoutes {
     }
 
     initializeRoutes() {
+        console.log('--- 🛡️ Initializing Admin Routes ---');
+        
         this.router.get('/dashboard', auth, dashboardController.index);
 
         // Users

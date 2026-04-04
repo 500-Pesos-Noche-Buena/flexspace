@@ -16,6 +16,15 @@ export default ({ mode }) => {
     server: {
       host: true, 
       port: 5173,
+      watch: {
+        usePolling: true, 
+        interval: 100, 
+      },
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+      },
+      // ---------------------------
       proxy: {
         '/api': {
           target: env.VITE_API_URL || 'http://localhost:5000',

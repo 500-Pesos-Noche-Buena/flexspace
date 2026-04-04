@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { apiGet, apiPost, apiDelete, apiPut } from '@/utils/Api';
 import { FileText, BadgeCheck, Trash2, Edit3, Building2, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
@@ -15,9 +15,11 @@ const SpaceManagement = () => {
     const [openModal, setOpenModal] = useState(false);
     const [selectedOwner, setSelectedOwner] = useState(null);
     const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
+    const lastDataFingerprint = useRef("");
 
-    const fetchData = async (params = currentParams) => {
-        setLoading(true);
+    const fetchData = async (params = currentParams, isInitial = false) => {
+        if (isInitial) setLoading(true);
+
         try {
             const { page, search } = params;
             const res = await apiGet(`/admin/space/management?page=${page}&search=${search}`);
@@ -26,22 +28,44 @@ const SpaceManagement = () => {
             const total = res.total || res.data?.total || 0;
             const fetchedStats = res.stats || res.data?.stats || { total: 0, active: 0, inactive: 0 };
 
-            setOwners(Array.isArray(rowData) ? rowData : []);
-            setTotalCount(total);
-            setStats(fetchedStats);
+            const currentFingerprint = JSON.stringify({ rowData, total, fetchedStats });
+
+            if (currentFingerprint !== lastDataFingerprint.current) {
+                lastDataFingerprint.current = currentFingerprint;
+                
+                setOwners(Array.isArray(rowData) ? rowData : []);
+                setTotalCount(total);
+                setStats(fetchedStats);
+                
+                if (!isInitial) {
+                    console.log("🏢 Space Management Synced: Live data updated.");
+                }
+            }
+            
             setCurrentParams(params);
         } catch (err) {
-            showToast({ icon: 'error', title: 'Failed to load owners' });
+            if (isInitial) {
+                showToast({ icon: 'error', title: 'Failed to load spaces' });
+            }
         } finally {
-            setLoading(false);
+            if (isInitial) setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchData(currentParams, true);
+
+        const interval = setInterval(() => {
+            fetchData(currentParams, false);
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [currentParams.page, currentParams.search]);
 
     const handleParamsChange = (params) => {
         fetchData(params);
     };
 
-    // ... toggleStatus, handleDelete, handleSave logic remains same ...
     const toggleStatus = async (id) => {
         try {
             await apiPost(`/admin/space/management/${id}/toggle`);

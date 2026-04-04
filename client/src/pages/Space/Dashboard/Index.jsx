@@ -103,7 +103,7 @@ const SpaceDashboard = () => {
                         <p className="text-xs font-bold opacity-70 mt-1 uppercase tracking-widest">Manual Registration</p>
                     </div>
                     <ArrowUpRight className="relative z-10 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform duration-500" size={28} />
-                    <Zap size={180} className="absolute right-[-30px] bottom-[-50px] opacity-10 rotate-12 group-hover:rotate-[25deg] transition-transform duration-700" />
+                    <Zap size={180} className="absolute -right-7.5 -bottom-12.5 opacity-10 rotate-12 group-hover:rotate-25 transition-transform duration-700" />
                 </div>
 
                 <div className="p-8 bg-white/5 border border-white/10 rounded-[2.5rem] text-white flex justify-between items-center group cursor-pointer hover:bg-white hover:text-black transition-all duration-500 shadow-xl active:scale-[0.98]">
@@ -128,7 +128,7 @@ const SpaceDashboard = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     {activeSessions.length > 0 ? (
                         activeSessions.map((session) => (
-                            <div key={session._id} className="bg-[#111114] border border-white/5 p-5 rounded-[2rem] flex items-center justify-between group hover:border-indigo-500/30 transition-all shadow-lg">
+                            <div key={session._id} className="bg-[#111114] border border-white/5 p-5 rounded-4xl flex items-center justify-between group hover:border-indigo-500/30 transition-all shadow-lg">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-indigo-500 font-black italic border border-white/5 shadow-inner">
                                         {session.userName?.charAt(0).toUpperCase()}

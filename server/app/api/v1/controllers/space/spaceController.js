@@ -5,38 +5,36 @@ const fs = require('fs');
 const path = require('path');
 
 class SpaceController {
-    // Arrow function auto-binds 'this'
     getUserId = (req) => {
         return req.user?.id || req.user?._id || req.user?.sub;
     };
 
     index = async (req, res, next) => {
-    try {
-        const userId = this.getUserId(req);
-        if (!userId) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Session expired.');
+        try {
+            const userId = this.getUserId(req);
+            if (!userId) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Session expired.');
 
-        // Fetch user-owned spaces
-        const spaces = await Space.find({ user_id: userId })
-            .populate('district_id', 'name') // If you need district names directly
-            .sort({ created_at: -1 });
+            const spaces = await Space.find({ user_id: userId })
+                .populate('district_id', 'name')
+                .sort({ created_at: -1 });
 
-        return res.status(HTTP_STATUS.OK).json({ 
-            success: true, 
-            data: spaces 
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: spaces
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 
     store = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
             if (!userId) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Identity missing.');
 
-            const { 
-                name, area, rate_hour, capacity, status, 
-                lat, lng, district_id, available_rooms 
+            const {
+                name, area, rate_hour, capacity, status,
+                lat, lng, district_id, available_rooms
             } = req.body;
 
             const space = await Space.create({
@@ -54,10 +52,10 @@ class SpaceController {
                 image: req.file ? req.file.filename : null
             });
 
-            return res.status(HTTP_STATUS.CREATED).json({ 
-                success: true, 
-                message: 'Space published!', 
-                data: space 
+            return res.status(HTTP_STATUS.CREATED).json({
+                success: true,
+                message: 'Space published!',
+                data: space
             });
         } catch (error) {
             next(error);
@@ -73,7 +71,7 @@ class SpaceController {
             if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Unauthorized or not found.');
 
             const updates = { ...req.body };
-            
+
             // Clean up numeric fields
             if (updates.rate_hour) updates.rate_hour = Number(updates.rate_hour);
             if (updates.capacity) updates.capacity = Number(updates.capacity);

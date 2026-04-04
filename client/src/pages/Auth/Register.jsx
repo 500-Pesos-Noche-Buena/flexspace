@@ -89,7 +89,7 @@ const Register = () => {
             <div className="text-center mb-4 md:mb-8">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 mb-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.1em] text-indigo-700">Create Account</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700">Create Account</span>
                 </div>
                 <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-none">Get Started</h1>
             </div>

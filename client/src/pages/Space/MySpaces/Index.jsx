@@ -136,7 +136,7 @@ const MySpaces = () => {
                     { label: 'Active Spaces', val: stats.active, icon: <CheckCircle size={14}/>, color: 'text-emerald-400' },
                     { label: 'Total Capacity', val: stats.capacity, icon: <Activity size={14}/>, color: 'text-amber-400' }
                 ].map((stat, i) => (
-                    <div key={i} className="bg-[#111114] border border-white/5 p-6 rounded-[2rem] flex items-center justify-between shadow-sm">
+                    <div key={i} className="bg-[#111114] border border-white/5 p-6 rounded-4xl flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
                             <p className={`text-2xl font-black italic ${stat.color}`}>{stat.val}</p>
@@ -278,7 +278,7 @@ const MySpaces = () => {
                     {/* Image Upload with Preview */}
                     <div>
                         <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Cover Image</label>
-                        <div className="mt-2 h-48 border-2 border-dashed border-white/5 rounded-[2rem] flex flex-col items-center justify-center gap-3 group hover:border-indigo-500/30 transition-all relative overflow-hidden bg-white/2 cursor-pointer">
+                        <div className="mt-2 h-48 border-2 border-dashed border-white/5 rounded-4xl flex flex-col items-center justify-center gap-3 group hover:border-indigo-500/30 transition-all relative overflow-hidden bg-white/2 cursor-pointer">
                             {formData.image ? (
                                 <div className="absolute inset-0 w-full h-full">
                                     <img
@@ -308,7 +308,7 @@ const MySpaces = () => {
                     {/* Action Buttons */}
                     <div className="flex gap-3 pt-4">
                         <button onClick={() => setOpenModal(false)} className="flex-1 py-4 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">Discard</button>
-                        <button onClick={handleSave} className="flex-[2] py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase shadow-lg shadow-indigo-900/40 hover:bg-indigo-500 transition-all active:scale-[0.98]">
+                        <button onClick={handleSave} className="flex-2 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase shadow-lg shadow-indigo-900/40 hover:bg-indigo-500 transition-all active:scale-[0.98]">
                             {isEditing ? "Update Space" : "Publish Listing"}
                         </button>
                     </div>

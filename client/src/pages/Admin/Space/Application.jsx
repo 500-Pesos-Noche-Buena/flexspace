@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import { FileSearch, ShieldCheck, Clock, XCircle, Eye, Inbox, Ban } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
+import { useRealTimeSync } from '@/hooks/useRealTimeSync';
 
 const SpaceApplications = () => {
     const [requests, setRequests] = useState([]);
@@ -17,8 +18,11 @@ const SpaceApplications = () => {
     const [statusFilter, setStatusFilter] = useState('pending');
     const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
 
-    const fetchData = async (params = currentParams, status = statusFilter) => {
-        setLoading(true);
+    const lastDataFingerprint = useRef("");
+
+    const fetchData = async (params = currentParams, status = statusFilter, isInitial = false) => {
+        if (isInitial) setLoading(true);
+
         try {
             const { page, search } = params;
             const res = await apiGet(`/admin/space/requests?page=${page}&search=${search}&status=${status}`);
@@ -27,16 +31,39 @@ const SpaceApplications = () => {
             const total = res.total || res.data?.total || 0;
             const fetchedStats = res.stats || res.data?.stats || { pending: 0, rejected: 0 };
 
-            setRequests(Array.isArray(rowData) ? rowData : []);
-            setTotalCount(total);
-            setStats(fetchedStats);
+            const currentFingerprint = JSON.stringify({ rowData, total, fetchedStats, status });
+
+            if (currentFingerprint !== lastDataFingerprint.current) {
+                lastDataFingerprint.current = currentFingerprint;
+                
+                setRequests(Array.isArray(rowData) ? rowData : []);
+                setTotalCount(total);
+                setStats(fetchedStats);
+                
+                if (!isInitial) {
+                    console.log(`📩 New ${status} requests synced in real-time.`);
+                }
+            }
+            
             setCurrentParams(params);
         } catch (err) {
-            showToast({ icon: 'error', title: 'Fetch error' });
+            if (isInitial) {
+                showToast({ icon: 'error', title: 'Failed to sync space requests' });
+            }
         } finally {
-            setLoading(false);
+            if (isInitial) setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchData(currentParams, statusFilter, true);
+
+        const interval = setInterval(() => {
+            fetchData(currentParams, statusFilter, false);
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [currentParams.page, currentParams.search, statusFilter]);
 
     const handleParamsChange = (params) => {
         fetchData(params, statusFilter);
@@ -143,11 +170,11 @@ const SpaceApplications = () => {
 
             {/* Navigation & Controls */}
             <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex gap-2 bg-[#111114] p-1.5 rounded-[2rem] w-full md:w-fit border border-white/5 shadow-xl">
+                <div className="flex gap-2 bg-[#111114] p-1.5 rounded-4xl w-full md:w-fit border border-white/5 shadow-xl">
                     <button
                         onClick={() => handleFilterChange('pending')}
                         className={cn(
-                            "flex-1 md:flex-none px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2",
+                            "flex-1 md:flex-none px-8 py-3 rounded-3xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2",
                             statusFilter === 'pending' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40' : 'text-slate-500 hover:text-white'
                         )}
                     >
@@ -156,7 +183,7 @@ const SpaceApplications = () => {
                     <button
                         onClick={() => handleFilterChange('rejected')}
                         className={cn(
-                            "flex-1 md:flex-none px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2",
+                            "flex-1 md:flex-none px-8 py-3 rounded-3xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2",
                             statusFilter === 'rejected' ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/40' : 'text-slate-500 hover:text-white'
                         )}
                     >
@@ -233,7 +260,7 @@ const SpaceApplications = () => {
                                     <label className="text-[10px] font-black text-slate-500 uppercase mb-3 block italic tracking-[0.2em]">
                                         {fileKey.replace(/_/g, ' ')}
                                     </label>
-                                    <div className="aspect-video md:aspect-4/3 rounded-[2rem] border border-white/10 bg-[#0a0a0c] flex items-center justify-center overflow-hidden relative shadow-2xl group-hover:border-indigo-500/50 transition-all">
+                                    <div className="aspect-video md:aspect-4/3 rounded-4xl border border-white/10 bg-[#0a0a0c] flex items-center justify-center overflow-hidden relative shadow-2xl group-hover:border-indigo-500/50 transition-all">
                                         {selectedReq[fileKey] ? (
                                             <img src={`/uploads/requirements/${selectedReq[fileKey]}`} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-500" alt="doc" />
                                         ) : (
@@ -249,14 +276,14 @@ const SpaceApplications = () => {
 
                         {statusFilter === 'pending' && (
                             <div className="flex flex-col md:flex-row gap-4 pt-6 border-t border-white/5">
-                                <button onClick={() => handleDecision(selectedReq._id, 'reject')} className="flex-1 py-4.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-[1.5rem] font-black uppercase text-[10px] hover:bg-rose-500 hover:text-white transition-all order-2 md:order-1">Deny Application</button>
-                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="flex-2 py-4.5 bg-indigo-600 text-white rounded-[1.5rem] font-black uppercase text-[10px] hover:bg-indigo-500 shadow-xl shadow-indigo-900/50 transition-all order-1 md:order-2">Approve & Send Email</button>
+                                <button onClick={() => handleDecision(selectedReq._id, 'reject')} className="flex-1 py-4.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-3xl font-black uppercase text-[10px] hover:bg-rose-500 hover:text-white transition-all order-2 md:order-1">Deny Application</button>
+                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="flex-2 py-4.5 bg-indigo-600 text-white rounded-3xl font-black uppercase text-[10px] hover:bg-indigo-500 shadow-xl shadow-indigo-900/50 transition-all order-1 md:order-2">Approve & Send Email</button>
                             </div>
                         )}
 
                         {statusFilter === 'rejected' && (
                             <div className="flex gap-4 pt-6 border-t border-white/5">
-                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="w-full py-4.5 bg-white text-black rounded-[1.5rem] font-black uppercase text-[10px] hover:bg-emerald-500 hover:text-white transition-all shadow-xl">Re-evaluate & Accept</button>
+                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="w-full py-4.5 bg-white text-black rounded-3xl font-black uppercase text-[10px] hover:bg-emerald-500 hover:text-white transition-all shadow-xl">Re-evaluate & Accept</button>
                             </div>
                         )}
                     </div>
