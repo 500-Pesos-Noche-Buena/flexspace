@@ -4,24 +4,32 @@ const ApiError = require('@/utils/ApiError');
 const { HTTP_STATUS } = require('@/utils/constants');
 
 class AuthMiddleware {
-    async handle(req, res, next) {
+    /**
+     * Middleware to verify JWT.
+     * Exported as an arrow function to maintain scope.
+     */
+    handle = async (req, res, next) => {
+    try {
         const authHeader = req.headers.authorization;
+        console.log('--- Auth Header Received ---', authHeader); // 🕵️‍♂️ DEBUG 1
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return next(new ApiError(HTTP_STATUS.UNAUTHORIZED, "Unauthorized access. Please log in.", true));
+            console.error('Missing or Malformed Header');
+            return next(new ApiError(HTTP_STATUS.UNAUTHORIZED, "Unauthorized."));
         }
 
         const token = authHeader.split(' ')[1];
-
-        try {
-            const decoded = jwt.verify(token, config.jwt.secret);
-            req.user = decoded;
-            next();
-        } catch (error) {
-            next(new ApiError(HTTP_STATUS.UNAUTHORIZED, `Invalid token: ${error.message}`));
-        }
+        const decoded = jwt.verify(token, config.jwt.secret);
+        
+        console.log('--- Token Decoded Successfully ---', decoded); // 🕵️‍♂️ DEBUG 2
+        
+        req.user = decoded;
+        next();
+    } catch (error) {
+        console.error('JWT Verification Failed:', error.message); // 🕵️‍♂️ DEBUG 3
+        next(new ApiError(HTTP_STATUS.UNAUTHORIZED, "Invalid token"));
     }
 }
+}
 
-const authMiddleware = new AuthMiddleware();
-module.exports = authMiddleware.handle.bind(authMiddleware);
+module.exports = new AuthMiddleware().handle;

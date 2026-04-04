@@ -9,7 +9,7 @@ class UserService {
             return isMatch ? { user, type: 'authorized' } : null;
         }
 
-        const pending = await SpaceRequest.json({ email });
+        const pending = await SpaceRequest.findOne({ email }); 
         if (pending) {
             const isMatch = await comparePassword(password, pending.password);
             return isMatch ? { user: pending, type: 'pending' } : null;

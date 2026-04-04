@@ -4,7 +4,7 @@ const { HTTP_STATUS } = require('@/utils/constants');
 
 class UserController {
     
-    async index(req, res, next) {
+    index = async (req, res, next) => {
         try {
             const { page = 1, search = '' } = req.query;
             const limit = 10;
@@ -21,13 +21,17 @@ class UserController {
             };
 
             const [users, total, activeCount, inactiveCount] = await Promise.all([
-                User.find(query).select('name email isActive createdAt').sort({ createdAt: -1 }).skip(skip).limit(limit),
+                User.find(query)
+                    .select('name email isActive createdAt')
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit),
                 User.countDocuments({ role: 'user' }),
                 User.countDocuments({ role: 'user', isActive: true }),
                 User.countDocuments({ role: 'user', isActive: false })
             ]);
 
-            return res.status(200).json({
+            return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 owners: users, 
                 total,
@@ -37,11 +41,10 @@ class UserController {
                     inactive: inactiveCount
                 }
             });
-
         } catch (error) {
             next(error); 
         }
-    }
+    };
 
     async toggleStatus(req, res, next) {
         try {

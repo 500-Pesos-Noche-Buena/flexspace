@@ -1,26 +1,35 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import { FileSearch, ShieldCheck, Clock, XCircle, Eye, Inbox, Ban } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
-import { useRealTimeSync } from '@/hooks/useRealTimeSync';
+
+let globalAppPollingInstance = null;
 
 const SpaceApplications = () => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
-    const [stats, setStats] = useState({ pending: 0, rejected: 0 }); // Stats state
+    const [stats, setStats] = useState({ pending: 0, rejected: 0 });
     const [selectedReq, setSelectedReq] = useState(null);
     const [openModal, setOpenModal] = useState(false);
 
     const [statusFilter, setStatusFilter] = useState('pending');
     const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
 
+    const paramsRef = useRef(currentParams);
+    const statusRef = useRef(statusFilter);
     const lastDataFingerprint = useRef("");
 
-    const fetchData = async (params = currentParams, status = statusFilter, isInitial = false) => {
+    // Keep Refs in sync with state for the background heartbeat
+    useEffect(() => {
+        paramsRef.current = currentParams;
+        statusRef.current = statusFilter;
+    }, [currentParams, statusFilter]);
+
+    const fetchData = async (params = paramsRef.current, status = statusRef.current, isInitial = false) => {
         if (isInitial) setLoading(true);
 
         try {
@@ -35,44 +44,48 @@ const SpaceApplications = () => {
 
             if (currentFingerprint !== lastDataFingerprint.current) {
                 lastDataFingerprint.current = currentFingerprint;
-                
                 setRequests(Array.isArray(rowData) ? rowData : []);
                 setTotalCount(total);
                 setStats(fetchedStats);
-                
-                if (!isInitial) {
-                    console.log(`📩 New ${status} requests synced in real-time.`);
-                }
             }
-            
-            setCurrentParams(params);
         } catch (err) {
-            if (isInitial) {
-                showToast({ icon: 'error', title: 'Failed to sync space requests' });
-            }
+            if (isInitial) showToast({ icon: 'error', title: 'Failed to sync requests' });
         } finally {
             if (isInitial) setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchData(currentParams, statusFilter, true);
-
-        const interval = setInterval(() => {
-            fetchData(currentParams, statusFilter, false);
-        }, 3000);
-
-        return () => clearInterval(interval);
-    }, [currentParams.page, currentParams.search, statusFilter]);
-
-    const handleParamsChange = (params) => {
-        fetchData(params, statusFilter);
-    };
+    // Memoized to prevent DataTable infinite re-renders
+    const handleParamsChange = useCallback((params) => {
+        setCurrentParams(params);
+        fetchData(params, statusRef.current);
+    }, []);
 
     const handleFilterChange = (newStatus) => {
         setStatusFilter(newStatus);
-        fetchData({ ...currentParams, page: 1 }, newStatus);
+        // Reset to page 1 when filter changes
+        const resetParams = { ...currentParams, page: 1 };
+        setCurrentParams(resetParams);
+        fetchData(resetParams, newStatus, true);
     };
+
+    // Heartbeat logic
+    useEffect(() => {
+        if (globalAppPollingInstance) clearInterval(globalAppPollingInstance);
+
+        fetchData(paramsRef.current, statusRef.current, true);
+
+        globalAppPollingInstance = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                fetchData(paramsRef.current, statusRef.current, false);
+            }
+        }, 5000);
+
+        return () => {
+            clearInterval(globalAppPollingInstance);
+            globalAppPollingInstance = null;
+        };
+    }, []);
 
     const handleDecision = async (id, action) => {
         try {
@@ -92,9 +105,7 @@ const SpaceApplications = () => {
                 <div className="flex items-center gap-3">
                     <div className={cn(
                         "w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs italic border shadow-sm",
-                        statusFilter === 'pending' 
-                            ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' 
-                            : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                        statusFilter === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
                     )}>
                         {req.name?.charAt(0).toUpperCase()}
                     </div>
@@ -120,10 +131,7 @@ const SpaceApplications = () => {
             header: "Actions",
             cell: (req) => (
                 <div className="flex justify-end">
-                    <button
-                        onClick={() => { setSelectedReq(req); setOpenModal(true); }}
-                        className="px-5 py-2 bg-white/5 text-slate-300 rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all border border-white/5 shadow-lg active:scale-95"
-                    >
+                    <button onClick={() => { setSelectedReq(req); setOpenModal(true); }} className="px-5 py-2 bg-white/5 text-slate-300 rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all border border-white/5">
                         {statusFilter === 'pending' ? 'Review Docs' : 'View Details'}
                     </button>
                 </div>
@@ -133,69 +141,38 @@ const SpaceApplications = () => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
-            {/* Header Section */}
             <div className="mb-8">
                 <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Space Applications</h1>
                 <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Verify and audit new space owner registrations.</p>
             </div>
 
-            {/* --- STATS GRID --- */}
+            {/* STATS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-5 shadow-2xl relative overflow-hidden group">
-                    <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 shadow-inner group-hover:bg-amber-500 group-hover:text-black transition-all duration-500">
-                        <Inbox size={24} />
-                    </div>
+                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-5 relative overflow-hidden group">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 group-hover:bg-amber-500 group-hover:text-black transition-all"><Inbox size={24} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pending Review</p>
                         <p className="text-3xl font-black text-white italic">{stats.pending}</p>
                     </div>
-                    <div className="absolute top-[-20%] right-[-10%] opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Inbox size={120} className="text-white" />
-                    </div>
                 </div>
-
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-5 shadow-2xl relative overflow-hidden group">
-                    <div className="w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 shadow-inner group-hover:bg-rose-500 group-hover:text-black transition-all duration-500">
-                        <Ban size={24} />
-                    </div>
+                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-5 relative overflow-hidden group">
+                    <div className="w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 group-hover:bg-rose-500 group-hover:text-black transition-all"><Ban size={24} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Rejected Apps</p>
                         <p className="text-3xl font-black text-white italic">{stats.rejected}</p>
                     </div>
-                    <div className="absolute top-[-20%] right-[-10%] opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Ban size={120} className="text-white" />
-                    </div>
                 </div>
             </div>
 
-            {/* Navigation & Controls */}
-            <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex gap-2 bg-[#111114] p-1.5 rounded-4xl w-full md:w-fit border border-white/5 shadow-xl">
-                    <button
-                        onClick={() => handleFilterChange('pending')}
-                        className={cn(
-                            "flex-1 md:flex-none px-8 py-3 rounded-3xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2",
-                            statusFilter === 'pending' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40' : 'text-slate-500 hover:text-white'
-                        )}
-                    >
-                        <Clock size={14} /> Pending
-                    </button>
-                    <button
-                        onClick={() => handleFilterChange('rejected')}
-                        className={cn(
-                            "flex-1 md:flex-none px-8 py-3 rounded-3xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2",
-                            statusFilter === 'rejected' ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/40' : 'text-slate-500 hover:text-white'
-                        )}
-                    >
-                        <XCircle size={14} /> Rejected
-                    </button>
+            {/* Filter Controls */}
+            <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex gap-2 bg-[#111114] p-1.5 rounded-4xl w-full md:w-fit border border-white/5">
+                    <button onClick={() => handleFilterChange('pending')} className={cn("flex-1 md:flex-none px-8 py-3 rounded-3xl text-[10px] font-black uppercase transition-all", statusFilter === 'pending' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40' : 'text-slate-500 hover:text-white')}>Pending</button>
+                    <button onClick={() => handleFilterChange('rejected')} className={cn("flex-1 md:flex-none px-8 py-3 rounded-3xl text-[10px] font-black uppercase transition-all", statusFilter === 'rejected' ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/40' : 'text-slate-500 hover:text-white')}>Rejected</button>
                 </div>
-
                 <div className="hidden md:flex bg-white/5 px-5 py-3 rounded-2xl border border-white/10 items-center gap-3">
                     <ShieldCheck size={16} className="text-indigo-500" />
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                        Filtered: {totalCount}
-                    </span>
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Filtered: {totalCount}</span>
                 </div>
             </div>
 

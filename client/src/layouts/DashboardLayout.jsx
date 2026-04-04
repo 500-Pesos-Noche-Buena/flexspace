@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { 
-    LayoutGrid, Users, FileText, Calendar, Box, Fence, 
-    ShoppingCart, Receipt, ChevronLeft, LogOut, User, 
+import {
+    LayoutGrid, Users, FileText, Calendar, Box, Fence,
+    ShoppingCart, Receipt, ChevronLeft, LogOut, User,
     Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck
 } from "lucide-react";
 
@@ -37,13 +37,13 @@ export default function DashboardLayout() {
     const handleLogout = async () => {
         try {
             if (typeof apiPost === 'function') {
-                await apiPost('/auth/logout'); 
+                await apiPost('/auth/logout');
             }
         } catch (error) {
             console.error("Logout error:", error);
         } finally {
             localStorage.clear();
-            navigate('/login', { replace: true }); 
+            navigate('/login', { replace: true });
         }
     };
 
@@ -89,6 +89,9 @@ export default function DashboardLayout() {
             items: [
                 ...(isAdmin ? [
                     { href: "/admin/earnings", active: isRouteActive("/admin/earnings"), icon: <Receipt />, label: "Earnings Tracker" }
+                ] : []),
+                ...(isSpaceOwner ? [
+                    { href: "/space/earnings", active: isRouteActive("/space/earnings"), icon: <Receipt />, label: "Earnings Tracker" }
                 ] : []),
             ],
         });
@@ -195,11 +198,41 @@ export default function DashboardLayout() {
                         </button>
 
                         {isProfileOpen && (
-                            <div className="absolute right-0 top-full mt-4 w-56 bg-[#111114] rounded-2xl shadow-2xl border border-white/5 py-2 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
-                                <div className="px-4 py-3 border-b border-white/5 mb-1 text-xs font-bold text-slate-400 uppercase tracking-widest">Session Active</div>
-                                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/10 transition-colors text-left">
-                                    <LogOut className="w-4 h-4" /> Sign Out
-                                </button>
+                            <div className="absolute right-0 top-full mt-4 w-60 bg-[#111114] rounded-4xl shadow-2xl border border-white/5 p-2 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
+                                {/* Header / Label */}
+                                <div className="px-4 py-3 mb-1">
+                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Account Session</p>
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                    {/* Profile Button */}
+                                    <button
+                                        onClick={() => {
+                                            navigate('/profile');
+                                            setIsProfileOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 rounded-3xl transition-all text-left group"
+                                    >
+                                        <div className="p-2 rounded-xl bg-white/5 group-hover:bg-indigo-500/20 group-hover:text-indigo-400 transition-all duration-300">
+                                            <User className="w-3.5 h-3.5" />
+                                        </div>
+                                        My Profile
+                                    </button>
+
+                                    {/* Separator Line */}
+                                    <div className="h-px bg-white/5 mx-3 my-1" />
+
+                                    {/* Sign Out Button */}
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-500/80 hover:text-rose-500 hover:bg-rose-500/10 rounded-3xl transition-all text-left group"
+                                    >
+                                        <div className="p-2 rounded-xl bg-rose-500/5 group-hover:bg-rose-500/20 transition-all duration-300">
+                                            <LogOut className="w-3.5 h-3.5" />
+                                        </div>
+                                        Sign Out
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

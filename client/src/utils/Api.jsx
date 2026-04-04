@@ -6,64 +6,53 @@ const FULL_BASE_URL = `${API_BASE_URL}${API_PREFIX}`;
 
 const INTERNAL_SECRET = import.meta.env.VITE_INTERNAL_SECRET;
 
-const getToken = () => {
-    return localStorage.getItem('authToken');
-};
+// Ensure this key matches what you use in your Login function!
+const getToken = () => localStorage.getItem('authToken');
 
 async function apiRequest(method, endpoint, data = null) {
     const url = `${FULL_BASE_URL}${endpoint}`;
     const token = getToken();
 
+    const config = {
+        method: method,
+        headers: {
+            'Accept': 'application/json',
+            'x-app-fingerprint': INTERNAL_SECRET 
+        },
+    };
+
+    // Attach Bearer Token if available
+    if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    if (data instanceof FormData) {
+        config.body = data;
+    } else if (data) {
+        config.headers['Content-Type'] = 'application/json';
+        config.body = JSON.stringify(data);
+    }
+
     try {
-        const isFormData = data instanceof FormData;
-
-        const config = {
-            method: method,
-            headers: {
-                'Accept': 'application/json',
-                // --- ADD THE PROTECTION HEADER HERE ---
-                'x-app-fingerprint': INTERNAL_SECRET 
-            },
-        };
-
-        if (!isFormData) {
-            config.headers['Content-Type'] = 'application/json';
-        }
-
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        if (data) {
-            config.body = isFormData ? data : JSON.stringify(data);
-        }
-
         const response = await fetch(url, config);
-        
-        // Handle potential empty responses safely
         const responseText = await response.text();
         const responseData = responseText ? JSON.parse(responseText) : {};
 
         if (!response.ok) {
             if (response.status === 401 && endpoint !== '/auth/login') {
+                // Clear stale session
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('user');
-                // Optional: avoid hard redirect during background polling
-                // window.location.href = '/login'; 
+                window.location.href = '/login';
                 return;
             }
-
-            const error = new Error(responseData.message || `Error: ${response.status}`);
-            error.status = response.status;
-            error.data = responseData;
-            throw error; 
+            throw new Error(responseData.message || `Error: ${response.status}`);
         }
 
         return responseData;
-
     } catch (error) {
-        console.error(`API ${method} Request Failed:`, error.message);
-        throw error; 
+        console.error(`API Error [${method} ${endpoint}]:`, error.message);
+        throw error;
     }
 }
 

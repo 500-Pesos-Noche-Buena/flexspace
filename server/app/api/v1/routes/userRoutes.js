@@ -1,8 +1,10 @@
 const express = require('express');
 const auth = require('@/api/v1/middleware/authMiddleware');
-const userController = require('@/api/v1/controllers/userController');
+const profileController = require('@/api/v1/controllers/profileController');
+const dashboardController = require('@/api/v1/controllers/user/dashboardController');
+const spaceController = require('@/api/v1/controllers/user/spaceController');
 
-class AuthRoutes {
+class UserRoutes {
     constructor() {
         this.router = express.Router();
         this.initializeRoutes();
@@ -11,7 +13,10 @@ class AuthRoutes {
     initializeRoutes() {
         console.log('--- 🛡️ Initializing User Routes ---');
 
-        this.router.get('/profile', auth, userController.getProfile);
+        this.router.get('/profile', auth, profileController.getProfile);
+        
+        this.router.get('/dashboard', auth, dashboardController.getUserDashboard);
+        this.router.get('/spaces', auth, spaceController.getAllSpaces);
     }
 
     getRouter() {
@@ -19,4 +24,4 @@ class AuthRoutes {
     }
 }
 
-module.exports = new AuthRoutes().getRouter();
+module.exports = new UserRoutes().getRouter();

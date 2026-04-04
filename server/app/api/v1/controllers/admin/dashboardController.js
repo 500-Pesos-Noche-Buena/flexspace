@@ -2,15 +2,19 @@ const { User, Space, SpaceRequest } = require('@/api/v1/models');
 const { HTTP_STATUS } = require('@/utils/constants');
 
 class DashboardController {
-    async index(req, res, next) {
+    index = async (req, res, next) => {
         try {
-            const totalUsers = await User.countDocuments({ role: 'user' });
-
-            const totalSpaceHubs = await User.countDocuments({ role: 'space' });
-
-            const activeSpaces = await Space.countDocuments();
-
-            const pendingRequestsCount = await SpaceRequest.countDocuments({ status: 'pending' });
+            const [
+                totalUsers, 
+                totalSpaceHubs, 
+                activeSpaces, 
+                pendingRequestsCount
+            ] = await Promise.all([
+                User.countDocuments({ role: 'user' }),
+                User.countDocuments({ role: 'space' }),
+                Space.countDocuments(),
+                SpaceRequest.countDocuments({ status: 'pending' })
+            ]);
 
             const revenueData = await Space.aggregate([
                 { $group: { _id: null, total: { $sum: "$rate_hour" } } }
@@ -22,7 +26,8 @@ class DashboardController {
                 .sort({ created_at: -1 })
                 .limit(5);
 
-            res.status(HTTP_STATUS.OK).json({
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
                 status: 'success',
                 data: {
                     totalUsers,
@@ -39,9 +44,10 @@ class DashboardController {
                 }
             });
         } catch (error) {
+            console.error("Admin Dashboard Sync Error:", error.message);
             next(error);
         }
-    }
+    };
 }
 
 module.exports = new DashboardController();

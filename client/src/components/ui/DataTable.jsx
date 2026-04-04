@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import {
-    Table, TableHeader, TableBody, TableRow, TableHead, TableCell
-} from './table'; 
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './table'; 
 import { cn } from "@/lib/utils";
 
 function useDebounce(value, delay) {
@@ -14,19 +12,19 @@ function useDebounce(value, delay) {
     return debouncedValue;
 }
 
-export function DataTable({
-    columns,
-    data,
-    loading,
-    totalCount,
-    onParamsChange,
-    renderMobileCard 
-}) {
+export function DataTable({ columns, data, loading, totalCount, onParamsChange, renderMobileCard }) {
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const debouncedSearch = useDebounce(search, 500);
+    
+    // 🛡️ PREVENT INITIAL INFINITE LOOP
+    const isFirstRender = useRef(true);
 
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
         onParamsChange({ page, search: debouncedSearch });
     }, [page, debouncedSearch, onParamsChange]);
 
@@ -38,6 +36,7 @@ export function DataTable({
     const handlePageChange = (newPage) => {
         if (newPage === page || newPage < 1) return;
         setPage(newPage);
+        // Smooth scroll to top on mobile when page changes
         if (window.innerWidth < 768) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -45,6 +44,7 @@ export function DataTable({
 
     return (
         <div className="space-y-4 md:space-y-6">
+            {/* Search Bar */}
             <div className="relative w-full md:max-w-sm group px-2 md:px-0">
                 <Search className="absolute left-6 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
                 <input
@@ -63,7 +63,7 @@ export function DataTable({
                 </div>
             ) : (
                 <>
-                    {/* Mobile View */}
+                    {/* --- MOBILE VIEW (Restored) --- */}
                     <div className="grid grid-cols-1 gap-4 md:hidden px-2">
                         {data.length === 0 ? (
                             <div className="py-20 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest">
@@ -74,7 +74,7 @@ export function DataTable({
                         )}
                     </div>
 
-                    {/* Desktop View */}
+                    {/* --- DESKTOP VIEW --- */}
                     <div className="hidden md:block bg-[#111114] rounded-[2.5rem] border border-white/5 overflow-hidden shadow-sm">
                         <Table>
                             <TableHeader className="bg-white/2">
@@ -110,6 +110,7 @@ export function DataTable({
                 </>
             )}
 
+            {/* Pagination Controls */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-2 py-4">
                 <div className="flex flex-col items-center md:items-start gap-1 order-2 md:order-1">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">

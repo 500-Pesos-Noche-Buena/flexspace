@@ -1,51 +1,55 @@
-const { User, Space, Booking } = require('@/api/v1/models');
+const { Space, Booking } = require('@/api/v1/models');
+const { HTTP_STATUS } = require('@/utils/constants');
 
 class DashboardController {
-    async index(req, res) {
+    index = async (req, res, next) => {
         try {
-            const ownerId = req.user._id; 
+            const ownerId = req.user?.sub || req.user?._id || req.user?.id;
 
-            // First, get all space IDs owned by this user
+            if (!ownerId) {
+                console.error("Access Denied: No ownerId found. Payload was:", req.user);
+                return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+                    success: false,
+                    message: "Unauthorized: User session missing."
+                });
+            }
+
             const userSpaces = await Space.find({ user_id: ownerId }).distinct('_id');
-
-            // Fetch metrics in parallel
             const [activeSpacesCount, totalBookings, walkinsToday, activeSessions] = await Promise.all([
-                // 1. Count active listings
                 Space.countDocuments({ user_id: ownerId }),
-                
-                // 2. Count bookings for those spaces
-                Booking.countDocuments({ 
-                    space_id: { $in: userSpaces } 
+
+                Booking.countDocuments({
+                    space_id: { $in: userSpaces }
                 }),
-                
-                // 3. Count today's walk-ins
-                Booking.countDocuments({ 
+
+                Booking.countDocuments({
                     booking_type: 'walkin',
                     space_id: { $in: userSpaces },
-                    created_at: { 
+                    created_at: {
                         $gte: new Date().setHours(0, 0, 0, 0),
                         $lt: new Date().setHours(23, 59, 59, 999)
-                    } 
+                    }
                 }),
 
-                // 4. Get live occupants
-                Booking.find({ 
+                Booking.find({
                     status: 'active',
                     space_id: { $in: userSpaces }
                 })
-                .select('guest_name user_id check_in_at _id')
-                .populate('user_id', 'name') 
-                .sort({ check_in_at: -1 })
-                .limit(5)
+                    .select('guest_name user_id check_in_at _id')
+                    .populate('user_id', 'name')
+                    .sort({ check_in_at: -1 })
+                    .limit(5)
             ]);
 
             const formattedSessions = activeSessions.map(session => ({
                 _id: session._id,
                 userName: session.guest_name || (session.user_id ? session.user_id.name : 'Guest'),
-                startTime: session.check_in_at ? new Date(session.check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'
+                startTime: session.check_in_at
+                    ? new Date(session.check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : 'N/A'
             }));
 
-            return res.status(200).json({
+            return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 stats: {
                     spaces: activeSpacesCount,
@@ -56,13 +60,10 @@ class DashboardController {
             });
 
         } catch (error) {
-            console.error("Space Dashboard Sync Error:", error);
-            return res.status(500).json({ 
-                success: false, 
-                message: "Internal Server Error" 
-            });
+            console.error("Dashboard Error:", error);
+            next(error);
         }
-    }
+    };
 }
 
 module.exports = new DashboardController();

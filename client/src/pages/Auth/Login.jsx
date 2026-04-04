@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { apiPost } from '@/utils/Api'; // Using your utility
-import { showToast } from '@/components/ui/SweetAlert2'; // Using your utility
+import { apiPost } from '@/utils/Api'; 
+import { showToast } from '@/components/ui/SweetAlert2';
+import { useAuth } from '@/context/AuthContext';
 
 const Login = () => {
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    const { login } = useAuth();
     
     const [formData, setFormData] = useState({
         email: '',
@@ -23,8 +26,7 @@ const Login = () => {
             const response = await apiPost('/auth/login', formData);
 
             if (response.status === 'success') {
-                localStorage.setItem('authToken', response.token); 
-                localStorage.setItem('user', JSON.stringify(response.user));
+                login(response.user, response.token); 
                 
                 showToast({ icon: 'success', title: `Welcome back, ${response.user.name}!` });
                 
@@ -34,6 +36,7 @@ const Login = () => {
                     user: '/dashboard'
                 };
                 
+                // 4. Navigate after state is updated
                 navigate(roleRedirects[response.user.role] || '/dashboard');
             } 
             else if (response.status === 'pending') {

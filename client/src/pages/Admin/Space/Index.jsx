@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { apiGet, apiPost, apiDelete, apiPut } from '@/utils/Api';
 import { FileText, BadgeCheck, Trash2, Edit3, Building2, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
@@ -7,6 +7,9 @@ import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
 
+// Global reference to prevent zombie intervals during hot-reloads
+let globalSpacePollingInstance = null;
+
 const SpaceManagement = () => {
     const [owners, setOwners] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -14,10 +17,22 @@ const SpaceManagement = () => {
     const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
     const [openModal, setOpenModal] = useState(false);
     const [selectedOwner, setSelectedOwner] = useState(null);
+    
+    // Manage params via state and a Ref for the background interval
     const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
+    const paramsRef = useRef(currentParams);
     const lastDataFingerprint = useRef("");
 
-    const fetchData = async (params = currentParams, isInitial = false) => {
+    // Sync Ref whenever state changes
+    useEffect(() => {
+        paramsRef.current = currentParams;
+    }, [currentParams]);
+
+    /**
+     * Core fetch logic. 
+     * Note: We no longer call setCurrentParams inside here to avoid loops.
+     */
+    const fetchData = async (params = paramsRef.current, isInitial = false) => {
         if (isInitial) setLoading(true);
 
         try {
@@ -30,19 +45,13 @@ const SpaceManagement = () => {
 
             const currentFingerprint = JSON.stringify({ rowData, total, fetchedStats });
 
+            // Only update state if data has actually changed
             if (currentFingerprint !== lastDataFingerprint.current) {
                 lastDataFingerprint.current = currentFingerprint;
-                
                 setOwners(Array.isArray(rowData) ? rowData : []);
                 setTotalCount(total);
                 setStats(fetchedStats);
-                
-                if (!isInitial) {
-                    console.log("🏢 Space Management Synced: Live data updated.");
-                }
             }
-            
-            setCurrentParams(params);
         } catch (err) {
             if (isInitial) {
                 showToast({ icon: 'error', title: 'Failed to load spaces' });
@@ -52,19 +61,37 @@ const SpaceManagement = () => {
         }
     };
 
-    useEffect(() => {
-        fetchData(currentParams, true);
-
-        const interval = setInterval(() => {
-            fetchData(currentParams, false);
-        }, 3000);
-
-        return () => clearInterval(interval);
-    }, [currentParams.page, currentParams.search]);
-
-    const handleParamsChange = (params) => {
+    /**
+     * Wrapped in useCallback so the DataTable doesn't re-trigger its useEffect
+     */
+    const handleParamsChange = useCallback((params) => {
+        setCurrentParams(params);
         fetchData(params);
-    };
+    }, []);
+
+    /**
+     * Managed Heartbeat: Runs once on mount
+     */
+    useEffect(() => {
+        if (globalSpacePollingInstance) clearInterval(globalSpacePollingInstance);
+
+        // Initial Load
+        fetchData(paramsRef.current, true);
+
+        // Background Sync every 5 seconds (standardized)
+        globalSpacePollingInstance = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                fetchData(paramsRef.current, false);
+            }
+        }, 5000);
+
+        return () => {
+            if (globalSpacePollingInstance) {
+                clearInterval(globalSpacePollingInstance);
+                globalSpacePollingInstance = null;
+            }
+        };
+    }, []);
 
     const toggleStatus = async (id) => {
         try {
@@ -98,7 +125,10 @@ const SpaceManagement = () => {
     const handleSave = async () => {
         if (!selectedOwner?._id) return;
         try {
-            await apiPut(`/admin/space/management/${selectedOwner._id}`, { name: selectedOwner.name, email: selectedOwner.email });
+            await apiPut(`/admin/space/management/${selectedOwner._id}`, { 
+                name: selectedOwner.name, 
+                email: selectedOwner.email 
+            });
             showToast({ icon: 'success', title: 'Profile Updated' });
             setOpenModal(false);
             fetchData();
@@ -170,38 +200,29 @@ const SpaceManagement = () => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0">
-            {/* Header */}
             <div className="mb-8">
                 <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Space Management</h1>
                 <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Manage active space owners and their status.</p>
             </div>
 
-            {/* --- STATS GRID --- */}
+            {/* STATISTICS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20">
-                        <Building2 size={20} />
-                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20"><Building2 size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total Spaces</p>
                         <p className="text-2xl font-black text-white italic">{stats.total}</p>
                     </div>
                 </div>
-
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
-                        <ShieldCheck size={20} />
-                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20"><ShieldCheck size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Verified & Active</p>
                         <p className="text-2xl font-black text-white italic">{stats.active}</p>
                     </div>
                 </div>
-
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl">
-                    <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
-                        <ShieldAlert size={20} />
-                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20"><ShieldAlert size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Inactive / Restricted</p>
                         <p className="text-2xl font-black text-white italic">{stats.inactive}</p>
@@ -254,18 +275,9 @@ const SpaceManagement = () => {
             <Modal open={openModal} onClose={() => setOpenModal(false)} title="Edit Space Owner" size="md">
                 {selectedOwner && (
                     <div className="space-y-5 py-2">
-                        <div>
-                            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Full Name</label>
-                            <input type="text" value={selectedOwner.name || ''} onChange={e => setSelectedOwner({...selectedOwner, name: e.target.value})} className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold" />
-                        </div>
-                        <div>
-                            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Email Address</label>
-                            <input type="email" value={selectedOwner.email || ''} onChange={e => setSelectedOwner({...selectedOwner, email: e.target.value})} className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold" />
-                        </div>
-                        <div className="flex justify-end gap-3 pt-6 border-t border-white/5">
-                            <button onClick={() => setOpenModal(false)} className="px-6 py-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-all">Cancel</button>
-                            <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase shadow-lg shadow-indigo-900/40 hover:bg-indigo-500 transition-all">Save Changes</button>
-                        </div>
+                        <input type="text" value={selectedOwner.name || ''} onChange={e => setSelectedOwner({...selectedOwner, name: e.target.value})} className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm outline-none font-bold" />
+                        <input type="email" value={selectedOwner.email || ''} onChange={e => setSelectedOwner({...selectedOwner, email: e.target.value})} className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm outline-none font-bold" />
+                        <div className="flex justify-end gap-3 pt-6"><button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase shadow-lg shadow-indigo-900/40 hover:bg-indigo-500 transition-all">Save Changes</button></div>
                     </div>
                 )}
             </Modal>

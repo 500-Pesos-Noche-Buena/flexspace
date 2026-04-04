@@ -26,6 +26,21 @@ const spaceSchema = new mongoose.Schema({
         type: Number, 
         required: true 
     },
+    // 🔥 Added for UI/UX
+    rating: { 
+        type: Number, 
+        default: 5.0,
+        min: 0,
+        max: 5
+    },
+    review_count: { 
+        type: Number, 
+        default: 0 
+    },
+    amenities: { 
+        type: [String], // Array of strings: ["WiFi", "AC", "Coffee"]
+        default: [] 
+    },
     status: { 
         type: String, 
         default: 'Open Now' 

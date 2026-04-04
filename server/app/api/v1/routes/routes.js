@@ -3,6 +3,7 @@ const authRoutes = require('./authRoutes');
 const adminRoutes = require('./adminRoutes'); 
 const spaceRoutes = require('./spaceRoutes'); 
 const landingRoutes = require('./landingRoutes');
+const userRoutes = require('./userRoutes');
 
 class ApiRouter {
     constructor() {
@@ -16,6 +17,7 @@ class ApiRouter {
         this.router.use('/landing', landingRoutes);
         this.router.use('/admin', adminRoutes);
         this.router.use('/space', spaceRoutes);
+        this.router.use('/user', userRoutes);
     }
     
     getRouter() {
