@@ -12,6 +12,7 @@ import Profile from '@/pages/Profile/Index';
 import Login from '@/pages/Auth/Login';
 import Register from '@/pages/Auth/Register';
 import Pending from '@/pages/Auth/Pending';
+import Spaces from '@/pages/Landing/Spaces';
 
 // Admin Pages
 import AdminDashboard from '@/pages/Admin/Dashboard/Index';
@@ -38,6 +39,7 @@ export const AppRoutes = () => {
                 <Route index element={<LandingPage />} />
                 <Route path="dashboard" element={<UserDashboard />} />
                 <Route path="user/space" element={<UserSpace />} />
+                <Route path="spaces" element={<Spaces />} />
                 
                 {/* Profile for Regular Users */}
                 <Route path="profile" element={<Profile />} />
