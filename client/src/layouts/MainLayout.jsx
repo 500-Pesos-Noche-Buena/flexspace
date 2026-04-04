@@ -21,7 +21,7 @@ const MainLayout = () => {
         <div className="min-h-screen bg-slate-50 flex flex-col antialiased">
             
             {/* --- HEADER --- */}
-            <header className="sticky top-0 z-[100] bg-white/90 backdrop-blur-md border-b border-slate-100">
+            <header className="sticky top-0 z-100 bg-white/90 backdrop-blur-md border-b border-slate-100">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="h-20 flex items-center justify-between gap-3">
 

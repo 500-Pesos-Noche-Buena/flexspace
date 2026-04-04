@@ -142,7 +142,7 @@ const SpaceManagement = () => {
                 {selectedSpace && (
                     <div className="space-y-4 py-2">
                         {/* Header Area */}
-                        <div className="flex items-center justify-between p-5 bg-white/5 rounded-[2rem] border border-white/5">
+                        <div className="flex items-center justify-between p-5 bg-white/5 rounded-4xl border border-white/5">
                             <div className="flex items-center gap-4">
                                 <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/10">
                                     <img src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${selectedSpace.image}`} className="w-full h-full object-cover" />
@@ -158,7 +158,7 @@ const SpaceManagement = () => {
                         </div>
 
                         {/* LEAFLET MAP TOGGLE */}
-<div className="bg-[#0c0c0e] rounded-[2rem] border border-white/5 overflow-hidden">
+<div className="bg-[#0c0c0e] rounded-4xl border border-white/5 overflow-hidden">
     <button onClick={() => setShowMap(!showMap)} className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-all">
         <div className="flex items-center gap-3">
             <Globe size={16} className="text-indigo-500" />
@@ -167,7 +167,7 @@ const SpaceManagement = () => {
         <span className="text-[10px] font-black text-indigo-500 uppercase">{showMap ? 'Close' : 'Open'}</span>
     </button>
     {showMap && (
-    <div className="h-[300px] w-full animate-in slide-in-from-top-2 border-t border-white/5">
+    <div className="h-75 w-full animate-in slide-in-from-top-2 border-t border-white/5">
         <MapExplorer 
             // 1. Pass the hub in the spaces array to show the Blue Hub Marker
             spaces={[selectedSpace]} 

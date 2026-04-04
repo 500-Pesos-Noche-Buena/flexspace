@@ -9,8 +9,8 @@ const SpaceCard = ({ name, location, district, price, rating, image, tags = [] }
     const imageUrl = image ? `${API_BASE_URL}/uploads/spaces/${image}` : null;
 
     return (
-        <div className="bg-white border border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-5 hover:border-indigo-100 transition-all group cursor-pointer shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 flex flex-col h-full">
-            <div className="h-44 sm:h-52 rounded-[1.5rem] sm:rounded-[2rem] bg-slate-100 mb-4 sm:mb-6 overflow-hidden relative">
+        <div className="bg-white border border-slate-100 rounded-4xl sm:rounded-[2.5rem] p-4 sm:p-5 hover:border-indigo-100 transition-all group cursor-pointer shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 flex flex-col h-full">
+            <div className="h-44 sm:h-52 rounded-3xl sm:rounded-4xl bg-slate-100 mb-4 sm:mb-6 overflow-hidden relative">
                 {/* Floating Tags */}
                 <div className="absolute top-3 left-3 flex gap-2 z-10">
                     <span className="px-2.5 py-1 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 shadow-lg shadow-indigo-600/20">
@@ -30,7 +30,7 @@ const SpaceCard = ({ name, location, district, price, rating, image, tags = [] }
                 />
             </div>
 
-            <div className="px-1 flex-grow">
+            <div className="px-1 grow">
                 <div className="flex justify-between items-start gap-2 mb-2">
                     <div className="min-w-0">
                         <p className="text-[9px] text-indigo-600 font-black uppercase tracking-[0.2em] mb-1 truncate">{district || 'Iloilo City'}</p>
@@ -110,12 +110,12 @@ const SpaceIndex = () => {
 
                         {/* Search Input - Mobile Optimized */}
                         <div className="relative w-full lg:max-w-md">
-                            <div className="relative group overflow-hidden rounded-[1.5rem] sm:rounded-[2rem]">
+                            <div className="relative group overflow-hidden rounded-3xl sm:rounded-4xl">
                                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" size={18} />
                                 <input 
                                     type="text"
                                     placeholder="Search location or name..."
-                                    className="w-full pl-14 pr-6 py-5 sm:py-6 bg-slate-100 border-2 border-transparent rounded-[1.5rem] sm:rounded-[2rem] text-xs sm:text-sm font-bold focus:bg-white focus:border-indigo-600 transition-all outline-none"
+                                    className="w-full pl-14 pr-6 py-5 sm:py-6 bg-slate-100 border-2 border-transparent rounded-3xl sm:rounded-4xl text-xs sm:text-sm font-bold focus:bg-white focus:border-indigo-600 transition-all outline-none"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && fetchSpaces(search, selectedDistrict)}
@@ -146,7 +146,7 @@ const SpaceIndex = () => {
                             ))}
                         </div>
                         {/* Fade Effect for scroll */}
-                        <div className="absolute right-0 top-0 bottom-4 w-12 bg-gradient-to-l from-white to-transparent pointer-events-none hidden sm:block"></div>
+                        <div className="absolute right-0 top-0 bottom-4 w-12 bg-linear-to-l from-white to-transparent pointer-events-none hidden sm:block"></div>
                     </div>
                 </div>
             </header>

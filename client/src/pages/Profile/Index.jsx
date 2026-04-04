@@ -48,7 +48,7 @@ const ProfileIndex = () => {
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Header Section */}
             <div className="flex items-center gap-6 bg-[#111114] border border-white/5 p-8 rounded-[3rem]">
-                <div className="w-24 h-24 rounded-[2rem] bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 text-3xl font-black">
+                <div className="w-24 h-24 rounded-4xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 text-3xl font-black">
                     {user?.name?.charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -72,7 +72,7 @@ const ProfileIndex = () => {
 
                     <form onSubmit={handleUpdateInfo} className="space-y-4">
                         <div className="space-y-2">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2 text-indigo-400">Full Name</label>
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">Full Name</label>
                             <input 
                                 type="text"
                                 className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all font-bold"

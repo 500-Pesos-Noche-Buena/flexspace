@@ -10,7 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /** --- SUB-COMPONENTS --- **/
 const StatBox = ({ label, value, color }) => (
-    <div className="bg-white border border-slate-100 p-4 rounded-3xl min-w-[100px] text-center hover:border-indigo-200 transition-all cursor-default shadow-sm hover:shadow-md">
+    <div className="bg-white border border-slate-100 p-4 rounded-3xl min-w-25 text-center hover:border-indigo-200 transition-all cursor-default shadow-sm hover:shadow-md">
         <h3 className={`text-2xl font-[1000] ${color} tracking-tighter`}>{value}</h3>
         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">{label}</p>
     </div>
@@ -22,7 +22,7 @@ const SpaceCard = ({ name, location, price, rating, image, tags = [] }) => {
 
     return (
         <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 hover:border-indigo-100 transition-all group cursor-pointer shadow-sm hover:shadow-xl hover:shadow-indigo-500/5">
-            <div className="h-48 rounded-[2rem] bg-slate-100 mb-6 overflow-hidden relative">
+            <div className="h-48 rounded-4xl bg-slate-100 mb-6 overflow-hidden relative">
                 <div className="absolute top-4 right-4 px-3 py-1 bg-white/90 backdrop-blur-md rounded-full z-10 text-[9px] font-black text-slate-900 uppercase tracking-widest border border-slate-100">
                     ₱{price}/hr
                 </div>
@@ -188,7 +188,7 @@ const UserDashboard = () => {
                             <button className="px-6 py-2.5 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-slate-900 transition-all">Map View</button>
                         </div>
                     </div>
-                    <div className="min-h-[450px]">
+                    <div className="min-h-112.5">
                         <ExplorerView />
                     </div>
                 </div>
@@ -238,7 +238,7 @@ const UserDashboard = () => {
             </section>
 
             {/* 4. STICKY CHECK-IN (FIXED) */}
-            <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[100] transition-all duration-500 ease-in-out ${showSticky ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
+            <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-100 transition-all duration-500 ease-in-out ${showSticky ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
                 <div className="bg-white rounded-[2.5rem] p-4 flex items-center justify-between shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-slate-100">
                     <div className="flex items-center gap-4 ml-2">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white">

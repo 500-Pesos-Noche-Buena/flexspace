@@ -126,14 +126,14 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
     }, [focusedSpace]);
 
     return (
-        <div className="relative w-full h-full min-h-[300px]">
-            <div id="map-container" className="w-full h-full bg-[#f8fafc] rounded-b-[2rem] overflow-hidden" />
+        <div className="relative w-full h-full min-h-75">
+            <div id="map-container" className="w-full h-full bg-[#f8fafc] rounded-b-4xl overflow-hidden" />
 
             {/* Locate Button */}
             {isValid(userLatLng) && (
                 <button
                     onClick={handleLocateMe}
-                    className="absolute top-4 right-4 z-[1000] bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 text-purple-600 active:scale-90 transition-all hover:bg-slate-50"
+                    className="absolute top-4 right-4 z-1000 bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 text-purple-600 active:scale-90 transition-all hover:bg-slate-50"
                 >
                     <Navigation size={20} fill="currentColor" />
                 </button>
