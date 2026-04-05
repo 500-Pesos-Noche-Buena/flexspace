@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
 
+// Maintained global polling instance as requested
 let globalPollingInstance = null;
 
 const UserManagement = () => {
@@ -26,7 +27,7 @@ const UserManagement = () => {
         paramsRef.current = currentParams;
     }, [currentParams]);
 
-    // FETCH DATA: Purely responsible for the API call
+    // FETCH DATA
     const fetchData = async (params = paramsRef.current, isInitial = false) => {
         if (isInitial) setLoading(true);
         try {
@@ -45,20 +46,21 @@ const UserManagement = () => {
                 setTotalCount(total);
                 setStats(fetchedStats);
             }
-        } catch (err) {
+        } catch {
+            // Fix: Removed unused 'err'
             if (isInitial) showToast({ icon: 'error', title: 'Failed to sync users' });
         } finally {
             if (isInitial) setLoading(false);
         }
     };
 
-    // HANDLE PARAMS CHANGE: Wrapped in useCallback to prevent DataTable infinite loops
+    // HANDLE PARAMS CHANGE
     const handleParamsChange = useCallback((params) => {
         setCurrentParams(params);
         fetchData(params);
     }, []); 
 
-    // HEARTBEAT: Only starts once
+    // HEARTBEAT
     useEffect(() => {
         if (globalPollingInstance) clearInterval(globalPollingInstance);
 
@@ -68,7 +70,7 @@ const UserManagement = () => {
             if (document.visibilityState === 'visible') {
                 fetchData(paramsRef.current, false);
             }
-        }, 5000); 
+        }, 3000); 
 
         return () => {
             clearInterval(globalPollingInstance);
@@ -76,13 +78,16 @@ const UserManagement = () => {
         };
     }, []);
 
-    // ... Actions (toggleStatus, handleDelete, handleSave) remain the same ...
+    // ACTIONS
     const toggleStatus = async (id) => {
         try {
             await apiPost(`/admin/users/${id}/toggle`);
             showToast({ icon: 'success', title: 'Status updated' });
             fetchData();
-        } catch (err) { showToast({ icon: 'error', title: 'Update failed' }); }
+        } catch { 
+            // Fix: Removed unused 'err'
+            showToast({ icon: 'error', title: 'Update failed' }); 
+        }
     };
 
     const handleDelete = async (id) => {
@@ -92,14 +97,22 @@ const UserManagement = () => {
             showCancelButton: true,
             confirmButtonText: 'Yes, delete it!',
             background: '#111114',
-            color: '#fff'
+            color: '#fff',
+            customClass: {
+                popup: 'rounded-[2.5rem] border border-white/5 shadow-2xl',
+                confirmButton: 'rounded-xl bg-rose-500 font-black uppercase text-[10px] tracking-widest',
+                cancelButton: 'rounded-xl bg-white/5 font-black uppercase text-[10px] tracking-widest text-slate-500'
+            }
         });
         if (result.isConfirmed) {
             try {
                 await apiDelete(`/admin/users/${id}`);
                 showToast({ icon: 'success', title: 'Account deleted' });
                 fetchData();
-            } catch (err) { showToast({ icon: 'error', title: 'Delete failed' }); }
+            } catch { 
+                // Fix: Removed unused 'err'
+                showToast({ icon: 'error', title: 'Delete failed' }); 
+            }
         }
     };
 
@@ -110,7 +123,10 @@ const UserManagement = () => {
             showToast({ icon: 'success', title: 'Owner updated' });
             setOpenModal(false);
             fetchData();
-        } catch (err) { showToast({ icon: 'error', title: 'Update failed' }); }
+        } catch { 
+            // Fix: Removed unused 'err'
+            showToast({ icon: 'error', title: 'Update failed' }); 
+        }
     };
 
     const columns = [
@@ -201,8 +217,13 @@ const UserManagement = () => {
                     <div key={owner._id} className="bg-[#111114] border border-white/5 p-5 rounded-[2.5rem] space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center font-black text-white italic">{owner.name?.charAt(0).toUpperCase()}</div>
-                                <div><h3 className="text-sm font-black text-white leading-tight">{owner.name}</h3><p className="text-[10px] font-bold text-slate-500">{owner.email}</p></div>
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center font-black text-white italic">
+                                    {owner.name?.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-white leading-tight">{owner.name}</h3>
+                                    <p className="text-[10px] font-bold text-slate-500">{owner.email}</p>
+                                </div>
                             </div>
                         </div>
                     </div>

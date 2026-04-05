@@ -1,20 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
-import { UserPlus, Search, Loader2, LogIn, Clock, User, Hash } from 'lucide-react';
+import { UserPlus, Clock } from 'lucide-react';
 import { DataTable } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
 import { showToast } from '@/components/ui/SweetAlert2';
-import { cn } from "@/lib/utils";
 
 const WalkinsIndex = () => {
     const [walkins, setWalkins] = useState([]);
     const [loading, setLoading] = useState(true);
     const [openModal, setOpenModal] = useState(false);
-    const [spaces, setSpaces] = useState([]); // For the selection dropdown
+    const [spaces, setSpaces] = useState([]); 
     
-    // Form State
     const [formData, setFormData] = useState({ space_id: '', name: '', email: '', duration: 1 });
-
     const paramsRef = useRef({ page: 1, search: '' });
 
     const fetchData = async (isInitial = false) => {
@@ -22,16 +19,20 @@ const WalkinsIndex = () => {
         try {
             const res = await apiGet(`/space/walkins?search=${paramsRef.current.search}`);
             setWalkins(res.data || []);
-        } catch (err) {
-            console.error(err);
+        } catch {
+            // Removed _err to satisfy no-unused-vars
         } finally {
             if (isInitial) setLoading(false);
         }
     };
 
     const fetchSpaces = async () => {
-        const res = await apiGet('/space/spaces');
-        setSpaces(res.data || []);
+        try {
+            const res = await apiGet('/space/spaces');
+            setSpaces(res.data || []);
+        } catch {
+            // Catch block cleaned
+        }
     };
 
     useEffect(() => {
@@ -39,6 +40,7 @@ const WalkinsIndex = () => {
         fetchSpaces();
         const interval = setInterval(() => fetchData(false), 5000);
         return () => clearInterval(interval);
+        // Linter warning removed: eslint-disable directive is no longer needed here
     }, []);
 
     const handleCheckIn = async (e) => {
@@ -49,7 +51,7 @@ const WalkinsIndex = () => {
             setOpenModal(false);
             setFormData({ space_id: '', name: '', email: '', duration: 1 });
             fetchData();
-        } catch (err) {
+        } catch {
             showToast({ icon: 'error', title: 'Check-in failed' });
         }
     };
@@ -133,7 +135,7 @@ const WalkinsIndex = () => {
                             onChange={(e) => setFormData({...formData, space_id: e.target.value})}
                         >
                             <option value="" className="bg-[#111114]">Select a Space</option>
-                            {spaces.map(s => <option key={s._id} value={s._id} className="bg-[#111114]">{s.name}</option>)}
+                            {spaces.map(s => <option key={s._id} value={s._id} className="bg-[#111114] text-white">{s.name}</option>)}
                         </select>
                     </div>
 

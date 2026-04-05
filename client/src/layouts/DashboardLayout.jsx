@@ -1,13 +1,21 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"; // Added useCallback
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutGrid, Users, FileText, Calendar, Box, Fence,
     ShoppingCart, Receipt, ChevronLeft, LogOut, User,
     Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck
 } from "lucide-react";
+import { apiPost } from "@/utils/Api";
 
 export default function DashboardLayout() {
-    const user = JSON.parse(localStorage.getItem('user')) || { name: 'Josiah Admin', role: 'admin' };
+    const [user] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('user')) || { name: 'Josiah Admin', role: 'admin' };
+        } catch {
+            return { name: 'Josiah Admin', role: 'admin' };
+        }
+    });
+
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -32,13 +40,14 @@ export default function DashboardLayout() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const isRouteActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
+    // FIXED: Wrapped in useCallback to satisfy useMemo dependencies
+    const isRouteActive = useCallback((path) => {
+        return location.pathname === path || location.pathname.startsWith(path + "/");
+    }, [location.pathname]);
 
     const handleLogout = async () => {
         try {
-            if (typeof apiPost === 'function') {
-                await apiPost('/auth/logout');
-            }
+            await apiPost('/auth/logout');
         } catch (error) {
             console.error("Logout error:", error);
         } finally {
@@ -107,7 +116,7 @@ export default function DashboardLayout() {
         }
 
         return sections;
-    }, [isAdmin, isSpaceOwner, location.pathname]);
+    }, [isAdmin, isSpaceOwner, isRouteActive]); // Added isRouteActive here
 
     return (
         <div className="min-h-screen bg-[#09090b] text-slate-100 font-sans selection:bg-emerald-500/30">
@@ -199,13 +208,11 @@ export default function DashboardLayout() {
 
                         {isProfileOpen && (
                             <div className="absolute right-0 top-full mt-4 w-60 bg-[#111114] rounded-4xl shadow-2xl border border-white/5 p-2 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
-                                {/* Header / Label */}
                                 <div className="px-4 py-3 mb-1">
                                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Account Session</p>
                                 </div>
 
                                 <div className="flex flex-col gap-1">
-                                    {/* Profile Button */}
                                     <button
                                         onClick={() => {
                                             navigate('/profile');
@@ -219,10 +226,8 @@ export default function DashboardLayout() {
                                         My Profile
                                     </button>
 
-                                    {/* Separator Line */}
                                     <div className="h-px bg-white/5 mx-3 my-1" />
 
-                                    {/* Sign Out Button */}
                                     <button
                                         onClick={handleLogout}
                                         className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-500/80 hover:text-rose-500 hover:bg-rose-500/10 rounded-3xl transition-all text-left group"

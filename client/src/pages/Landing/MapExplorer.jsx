@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Navigation } from 'lucide-react';
@@ -9,7 +9,8 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
     const userMarkerRef = useRef(null);
     const boundaryRef = useRef(null);
 
-    const ILOILO_CENTER = [10.7202, 122.5621];
+    // 1. Memoize constant to satisfy linter dependency rules
+    const ILOILO_CENTER = useMemo(() => [10.7202, 122.5621], []);
 
     const isValid = (coords) => Array.isArray(coords) && coords.length === 2 &&
         typeof coords[0] === 'number' && !isNaN(coords[0]) &&
@@ -42,12 +43,12 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
             fetch('/iloilo-boundary.json')
                 .then(res => res.json())
                 .then(data => {
-                    if (boundaryRef.current) mapRef.current.removeLayer(boundaryRef.current);
+                    if (boundaryRef.current && mapRef.current) mapRef.current.removeLayer(boundaryRef.current);
                     boundaryRef.current = L.geoJSON(data, {
                         style: { color: '#a855f7', weight: 5, opacity: 0.8, fill: false }
                     }).addTo(mapRef.current);
                     boundaryRef.current.bringToFront();
-                    mapRef.current.fitBounds(boundaryRef.current.getBounds(), { padding: [30, 30] });
+                    if (mapRef.current) mapRef.current.fitBounds(boundaryRef.current.getBounds(), { padding: [30, 30] });
                 })
                 .catch(err => console.error("Boundary load error:", err));
         }
@@ -60,11 +61,13 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
                 boundaryRef.current = null;
             }
         };
-    }, []);
+    }, [ILOILO_CENTER]); // Included ILOILO_CENTER to satisfy linter
 
-    // MARKERS
+    // MARKERS - Updated to handle 3s rapid data refreshes
     useEffect(() => {
         if (!mapRef.current) return;
+        
+        // Clear old markers before drawing new ones from real-time data
         markersRef.current.clearLayers();
 
         spaces.forEach(s => {
@@ -83,13 +86,12 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
                         </div>`)
             .addTo(markersRef.current);
 
-            // ✅ Click marker -> fly to
             marker.on('click', () => {
                 if (mapRef.current) mapRef.current.flyTo([s.lat, s.lng], 17, { animate: true });
-                onMarkerClick && onMarkerClick(s);
+                if (onMarkerClick) onMarkerClick(s);
             });
         });
-    }, [spaces]);
+    }, [spaces, onMarkerClick]); // Added dependencies
 
     // USER LOCATION
     useEffect(() => {
@@ -103,7 +105,7 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
                     <div class="absolute w-10 h-10 bg-purple-500 rounded-full animate-ping opacity-20"></div>
                     <div class="relative w-4 h-4 bg-purple-600 border-2 border-white rounded-full shadow-lg"></div>
                     <div class="absolute -top-10 bg-slate-900 text-white text-[9px] font-black px-2 py-1 rounded-md uppercase whitespace-nowrap shadow-2xl">
-                        You are here
+                        You
                     </div>
                 </div>
             `,
@@ -119,21 +121,21 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
         }
     }, [userLatLng]);
 
-    // ✅ FOCUS SPACE (click from sidebar)
+    // FOCUS SPACE (sidebar sync)
     useEffect(() => {
         if (!mapRef.current || !focusedSpace || !isValid([focusedSpace.lat, focusedSpace.lng])) return;
         mapRef.current.flyTo([focusedSpace.lat, focusedSpace.lng], 17, { animate: true });
     }, [focusedSpace]);
 
     return (
-        <div className="relative w-full h-full min-h-75">
-            <div id="map-container" className="w-full h-full bg-[#f8fafc] rounded-b-4xl overflow-hidden" />
+        <div className="relative w-full h-full min-h-75 group">
+            <div id="map-container" className="w-full h-full bg-[#f8fafc] rounded-b-4xl overflow-hidden border-t border-white/5" />
 
             {/* Locate Button */}
             {isValid(userLatLng) && (
                 <button
                     onClick={handleLocateMe}
-                    className="absolute top-4 right-4 z-1000 bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 text-purple-600 active:scale-90 transition-all hover:bg-slate-50"
+                    className="absolute top-4 right-4 z-1000 bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-2xl border border-white text-purple-600 active:scale-90 transition-all hover:bg-white"
                 >
                     <Navigation size={20} fill="currentColor" />
                 </button>

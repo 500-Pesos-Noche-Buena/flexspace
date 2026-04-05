@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiGet } from '@/utils/Api';
 import { Search, MapPin, Star, Loader2, ArrowRight, Zap, SlidersHorizontal, LayoutGrid } from 'lucide-react';
 
@@ -55,7 +55,6 @@ const SpaceCard = ({ name, location, district, price, rating, image, tags = [] }
                 </div>
             </div>
 
-            {/* Mobile-Friendly Action Button */}
             <button className="w-full py-3.5 sm:py-4 bg-slate-900 text-white rounded-[1.2rem] sm:rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 group-hover:bg-indigo-600 transition-all active:scale-95 shadow-lg shadow-slate-900/10">
                 Book Space <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
             </button>
@@ -72,7 +71,8 @@ const SpaceIndex = () => {
 
     const districts = ['All', 'City Proper', 'Jaro', 'Molo', 'Mandurriao', 'Arevalo', 'La Paz', 'Lapuz'];
 
-    const fetchSpaces = async (query = '', district = 'All') => {
+    // FIXED: Wrapped in useCallback to satisfy dependency rules
+    const fetchSpaces = useCallback(async (query = '', district = 'All') => {
         setLoading(true);
         try {
             const districtParam = district !== 'All' ? `&district=${district}` : '';
@@ -83,15 +83,15 @@ const SpaceIndex = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
+    // FIXED: Added all necessary dependencies for the effect
     useEffect(() => {
         fetchSpaces(search, selectedDistrict);
-    }, [selectedDistrict]);
+    }, [selectedDistrict, search, fetchSpaces]);
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-24 selection:bg-indigo-100">
-            {/* --- HEADER SECTION --- */}
             <header className="bg-white border-b border-slate-100 pt-10 sm:pt-16 pb-8 sm:pb-12 px-5 sm:px-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
@@ -108,7 +108,6 @@ const SpaceIndex = () => {
                             </p>
                         </div>
 
-                        {/* Search Input - Mobile Optimized */}
                         <div className="relative w-full lg:max-w-md">
                             <div className="relative group overflow-hidden rounded-3xl sm:rounded-4xl">
                                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" size={18} />
@@ -124,7 +123,6 @@ const SpaceIndex = () => {
                         </div>
                     </div>
 
-                    {/* --- DISTRICT PILLS - Mobile Horizontal Scroll --- */}
                     <div className="mt-10 sm:mt-12 overflow-hidden relative">
                         <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
                             <div className="flex items-center gap-2 pr-4 border-r border-slate-100 mr-2 shrink-0">
@@ -145,13 +143,11 @@ const SpaceIndex = () => {
                                 </button>
                             ))}
                         </div>
-                        {/* Fade Effect for scroll */}
                         <div className="absolute right-0 top-0 bottom-4 w-12 bg-linear-to-l from-white to-transparent pointer-events-none hidden sm:block"></div>
                     </div>
                 </div>
             </header>
 
-            {/* --- GRID LISTING --- */}
             <main className="max-w-7xl mx-auto px-5 sm:px-8 mt-8 sm:mt-12">
                 {loading ? (
                     <div className="py-32 flex flex-col items-center gap-6">

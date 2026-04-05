@@ -12,7 +12,15 @@ function useDebounce(value, delay) {
     return debouncedValue;
 }
 
-export function DataTable({ columns, data, loading, totalCount, onParamsChange, renderMobileCard }) {
+export function DataTable({ 
+    columns, 
+    data, 
+    loading, 
+    totalCount, 
+    onParamsChange, 
+    renderMobileCard,
+    className // Added for extensibility
+}) {
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const debouncedSearch = useDebounce(search, 500);
@@ -43,7 +51,7 @@ export function DataTable({ columns, data, loading, totalCount, onParamsChange, 
     };
 
     return (
-        <div className="space-y-4 md:space-y-6">
+        <div className={cn("space-y-4 md:space-y-6", className)}>
             {/* Search Bar */}
             <div className="relative w-full md:max-w-sm group px-2 md:px-0">
                 <Search className="absolute left-6 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
@@ -52,7 +60,12 @@ export function DataTable({ columns, data, loading, totalCount, onParamsChange, 
                     placeholder="Search records..."
                     value={search}
                     onChange={handleSearchChange}
-                    className="w-full pl-12 md:pl-10 pr-4 py-4 md:py-2.5 bg-[#111114] border border-white/5 rounded-2xl text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all shadow-xl md:shadow-none placeholder:text-slate-600 font-bold"
+                    className={cn(
+                        "w-full pl-12 md:pl-10 pr-4 py-4 md:py-2.5",
+                        "bg-[#111114] border border-white/5 rounded-2xl",
+                        "text-sm text-white focus:outline-none focus:border-indigo-500/50",
+                        "transition-all shadow-xl md:shadow-none placeholder:text-slate-600 font-bold"
+                    )}
                 />
             </div>
 
@@ -63,10 +76,10 @@ export function DataTable({ columns, data, loading, totalCount, onParamsChange, 
                 </div>
             ) : (
                 <>
-                    {/* --- MOBILE VIEW (Restored) --- */}
+                    {/* --- MOBILE VIEW --- */}
                     <div className="grid grid-cols-1 gap-4 md:hidden px-2">
                         {data.length === 0 ? (
-                            <div className="py-20 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest">
+                            <div className="py-20 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest italic">
                                 No matching records found
                             </div>
                         ) : (
@@ -78,7 +91,7 @@ export function DataTable({ columns, data, loading, totalCount, onParamsChange, 
                     <div className="hidden md:block bg-[#111114] rounded-[2.5rem] border border-white/5 overflow-hidden shadow-sm">
                         <Table>
                             <TableHeader className="bg-white/2">
-                                <TableRow className="border-white/5">
+                                <TableRow className="border-white/5 hover:bg-transparent">
                                     {columns.map((col, i) => (
                                         <TableHead key={i} className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                             {col.header}
@@ -89,7 +102,7 @@ export function DataTable({ columns, data, loading, totalCount, onParamsChange, 
                             <TableBody className="divide-y divide-white/5">
                                 {data.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={columns.length} className="h-64 text-center text-slate-600 text-xs font-black uppercase tracking-widest">
+                                        <TableCell colSpan={columns.length} className="h-64 text-center text-slate-600 text-xs font-black uppercase tracking-widest italic">
                                             No records in database
                                         </TableCell>
                                     </TableRow>
@@ -122,7 +135,7 @@ export function DataTable({ columns, data, loading, totalCount, onParamsChange, 
                     <button
                         onClick={() => handlePageChange(page - 1)}
                         disabled={page === 1 || loading}
-                        className="flex-1 md:flex-none flex items-center justify-center p-4 md:p-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 active:bg-emerald-500 active:text-white disabled:opacity-20 transition-all"
+                        className="flex-1 md:flex-none flex items-center justify-center p-4 md:p-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 active:bg-emerald-500 active:text-white disabled:opacity-20 transition-all cursor-pointer disabled:cursor-not-allowed"
                     >
                         <ChevronLeft className="w-5 h-5 md:w-4 md:h-4" />
                     </button>
@@ -134,7 +147,7 @@ export function DataTable({ columns, data, loading, totalCount, onParamsChange, 
                     <button
                         onClick={() => handlePageChange(page + 1)}
                         disabled={data.length < 10 || loading}
-                        className="flex-1 md:flex-none flex items-center justify-center p-4 md:p-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 active:bg-emerald-500 active:text-white disabled:opacity-20 transition-all"
+                        className="flex-1 md:flex-none flex items-center justify-center p-4 md:p-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 active:bg-emerald-500 active:text-white disabled:opacity-20 transition-all cursor-pointer disabled:cursor-not-allowed"
                     >
                         <ChevronRight className="w-5 h-5 md:w-4 md:h-4" />
                     </button>

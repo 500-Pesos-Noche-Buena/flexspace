@@ -3,6 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "author": "Josiah Danielle Gallenero <Lead Developer>",
+  "contributors": [
+    "Neil Mar De Asis <Project Manager>",
+    "Jesmond Sardiniola <UI/UX Designer>",
+    "Ferwin Khen Hautea <UI/UX Designer>",
+    "Jo Vincent Beldad <Documentation Specialist>"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",

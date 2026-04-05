@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
-import { FileSearch, ShieldCheck, Clock, XCircle, Eye, Inbox, Ban } from 'lucide-react';
+import { FileSearch, ShieldCheck, XCircle, Eye, Inbox, Ban } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
 
+// Maintained global polling instance as requested
 let globalAppPollingInstance = null;
 
 const SpaceApplications = () => {
@@ -48,7 +49,8 @@ const SpaceApplications = () => {
                 setTotalCount(total);
                 setStats(fetchedStats);
             }
-        } catch (err) {
+        } catch {
+            // Fix: Removed unused 'err'
             if (isInitial) showToast({ icon: 'error', title: 'Failed to sync requests' });
         } finally {
             if (isInitial) setLoading(false);
@@ -63,8 +65,7 @@ const SpaceApplications = () => {
 
     const handleFilterChange = (newStatus) => {
         setStatusFilter(newStatus);
-        // Reset to page 1 when filter changes
-        const resetParams = { ...currentParams, page: 1 };
+        const resetParams = { ...paramsRef.current, page: 1 };
         setCurrentParams(resetParams);
         fetchData(resetParams, newStatus, true);
     };
@@ -79,11 +80,13 @@ const SpaceApplications = () => {
             if (document.visibilityState === 'visible') {
                 fetchData(paramsRef.current, statusRef.current, false);
             }
-        }, 5000);
+        }, 3000);
 
         return () => {
-            clearInterval(globalAppPollingInstance);
-            globalAppPollingInstance = null;
+            if (globalAppPollingInstance) {
+                clearInterval(globalAppPollingInstance);
+                globalAppPollingInstance = null;
+            }
         };
     }, []);
 
@@ -93,7 +96,8 @@ const SpaceApplications = () => {
             showToast({ icon: 'success', title: `Application ${action}ed` });
             setOpenModal(false);
             fetchData();
-        } catch (err) {
+        } catch {
+            // Fix: Removed unused 'err'
             showToast({ icon: 'error', title: 'Action failed' });
         }
     };
@@ -110,19 +114,19 @@ const SpaceApplications = () => {
                         {req.name?.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <p className="font-bold text-white leading-none">{req.name}</p>
-                        <p className="text-[11px] text-slate-500 mt-1 font-medium">{req.email}</p>
+                        <p className="font-bold text-white leading-none uppercase tracking-tighter">{req.name}</p>
+                        <p className="text-[11px] text-slate-500 mt-1 font-medium italic">{req.email}</p>
                     </div>
                 </div>
             )
         },
         {
             header: "Status",
-            cell: (req) => (
+            cell: () => (
                 <div className="flex items-center gap-2">
                     <div className={cn("w-1.5 h-1.5 rounded-full", statusFilter === 'pending' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500')}></div>
                     <span className={cn("text-[10px] font-black uppercase tracking-tighter", statusFilter === 'pending' ? 'text-amber-500' : 'text-rose-500')}>
-                        {statusFilter === 'pending' ? 'Waiting for Approval' : 'Rejected'}
+                        {statusFilter === 'pending' ? 'Waiting Review' : 'Rejected'}
                     </span>
                 </div>
             )
@@ -131,8 +135,8 @@ const SpaceApplications = () => {
             header: "Actions",
             cell: (req) => (
                 <div className="flex justify-end">
-                    <button onClick={() => { setSelectedReq(req); setOpenModal(true); }} className="px-5 py-2 bg-white/5 text-slate-300 rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all border border-white/5">
-                        {statusFilter === 'pending' ? 'Review Docs' : 'View Details'}
+                    <button onClick={() => { setSelectedReq(req); setOpenModal(true); }} className="px-5 py-2 bg-white/5 text-slate-300 rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all border border-white/5 italic">
+                        {statusFilter === 'pending' ? 'Review Docs' : 'View Audit'}
                     </button>
                 </div>
             )
@@ -166,13 +170,13 @@ const SpaceApplications = () => {
 
             {/* Filter Controls */}
             <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex gap-2 bg-[#111114] p-1.5 rounded-4xl w-full md:w-fit border border-white/5">
+                <div className="flex gap-2 bg-[#111114] p-1.5 rounded-4xl w-full md:w-fit border border-white/5 shadow-2xl">
                     <button onClick={() => handleFilterChange('pending')} className={cn("flex-1 md:flex-none px-8 py-3 rounded-3xl text-[10px] font-black uppercase transition-all", statusFilter === 'pending' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40' : 'text-slate-500 hover:text-white')}>Pending</button>
                     <button onClick={() => handleFilterChange('rejected')} className={cn("flex-1 md:flex-none px-8 py-3 rounded-3xl text-[10px] font-black uppercase transition-all", statusFilter === 'rejected' ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/40' : 'text-slate-500 hover:text-white')}>Rejected</button>
                 </div>
                 <div className="hidden md:flex bg-white/5 px-5 py-3 rounded-2xl border border-white/10 items-center gap-3">
                     <ShieldCheck size={16} className="text-indigo-500" />
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Filtered: {totalCount}</span>
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Queue: {totalCount}</span>
                 </div>
             </div>
 
@@ -188,14 +192,14 @@ const SpaceApplications = () => {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <div className={cn(
-                                    "w-14 h-14 rounded-2xl flex items-center justify-center font-black italic shadow-lg",
+                                    "w-14 h-14 rounded-2xl flex items-center justify-center font-black italic shadow-lg border border-white/5",
                                     statusFilter === 'pending' ? "bg-amber-500/10 text-amber-500" : "bg-rose-500/10 text-rose-500"
                                 )}>
                                     {req.name?.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-black text-white leading-tight">{req.name}</h3>
-                                    <p className="text-[11px] font-bold text-slate-500">{req.email}</p>
+                                    <h3 className="text-base font-black text-white leading-tight uppercase italic">{req.name}</h3>
+                                    <p className="text-[11px] font-bold text-slate-500 italic">{req.email}</p>
                                 </div>
                             </div>
                         </div>
@@ -218,17 +222,17 @@ const SpaceApplications = () => {
                 )}
             />
 
-            {/* Application Modal (Review) */}
+            {/* Modal */}
             <Modal open={openModal} onClose={() => setOpenModal(false)} title={statusFilter === 'pending' ? "Review Application" : "Audit Rejected Application"} size="lg">
                 {selectedReq && (
                     <div className="space-y-6 py-2">
                         <div className={cn(
-                            "p-6 rounded-[2.2rem] border shadow-inner",
+                            "p-6 rounded-[2.2rem] border shadow-inner transition-all",
                             statusFilter === 'pending' ? 'bg-white/5 border-white/10' : 'bg-rose-500/5 border-rose-500/10'
                         )}>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Applicant Space Owner</p>
-                            <p className="text-2xl font-black text-white italic mt-1">{selectedReq.name}</p>
-                            <p className="text-sm text-indigo-400 font-bold">{selectedReq.email}</p>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 italic">Applicant Identity</p>
+                            <p className="text-2xl font-black text-white italic">{selectedReq.name}</p>
+                            <p className="text-sm text-indigo-400 font-bold tracking-tight">{selectedReq.email}</p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -239,10 +243,14 @@ const SpaceApplications = () => {
                                     </label>
                                     <div className="aspect-video md:aspect-4/3 rounded-4xl border border-white/10 bg-[#0a0a0c] flex items-center justify-center overflow-hidden relative shadow-2xl group-hover:border-indigo-500/50 transition-all">
                                         {selectedReq[fileKey] ? (
-                                            <img src={`/uploads/requirements/${selectedReq[fileKey]}`} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-500" alt="doc" />
+                                            <img 
+                                                src={`${import.meta.env.VITE_API_URL}/uploads/requirements/${selectedReq[fileKey]}`} 
+                                                className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-500" 
+                                                alt="Verification Document" 
+                                            />
                                         ) : (
                                             <div className="text-center">
-                                                <FileSearch size={32} className="mx-auto text-rose-500/30 mb-3" />
+                                                <XCircle size={32} className="mx-auto text-rose-500/30 mb-3" />
                                                 <span className="text-[10px] text-rose-500 font-black uppercase">Document Missing</span>
                                             </div>
                                         )}
@@ -253,14 +261,14 @@ const SpaceApplications = () => {
 
                         {statusFilter === 'pending' && (
                             <div className="flex flex-col md:flex-row gap-4 pt-6 border-t border-white/5">
-                                <button onClick={() => handleDecision(selectedReq._id, 'reject')} className="flex-1 py-4.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-3xl font-black uppercase text-[10px] hover:bg-rose-500 hover:text-white transition-all order-2 md:order-1">Deny Application</button>
-                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="flex-2 py-4.5 bg-indigo-600 text-white rounded-3xl font-black uppercase text-[10px] hover:bg-indigo-500 shadow-xl shadow-indigo-900/50 transition-all order-1 md:order-2">Approve & Send Email</button>
+                                <button onClick={() => handleDecision(selectedReq._id, 'reject')} className="flex-1 py-4.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-3xl font-black uppercase text-[10px] hover:bg-rose-500 hover:text-white transition-all order-2 md:order-1 tracking-widest">Deny Application</button>
+                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="flex-2 py-4.5 bg-indigo-600 text-white rounded-3xl font-black uppercase text-[10px] hover:bg-indigo-500 shadow-xl shadow-indigo-900/50 transition-all order-1 md:order-2 tracking-widest">Verify & Approve</button>
                             </div>
                         )}
 
                         {statusFilter === 'rejected' && (
                             <div className="flex gap-4 pt-6 border-t border-white/5">
-                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="w-full py-4.5 bg-white text-black rounded-3xl font-black uppercase text-[10px] hover:bg-emerald-500 hover:text-white transition-all shadow-xl">Re-evaluate & Accept</button>
+                                <button onClick={() => handleDecision(selectedReq._id, 'approve')} className="w-full py-4.5 bg-white text-black rounded-3xl font-black uppercase text-[10px] hover:bg-emerald-500 hover:text-white transition-all shadow-xl tracking-widest">Reverse Decision</button>
                             </div>
                         )}
                     </div>

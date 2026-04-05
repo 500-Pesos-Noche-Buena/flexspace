@@ -1,56 +1,71 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import { 
-    LayoutDashboard, 
     Users, 
     MapPin, 
     Zap, 
     ArrowUpRight, 
     Clock, 
-    QrCode, 
-    MoreHorizontal,
-    CheckCircle2
+    QrCode
 } from 'lucide-react';
-import { cn } from "@/lib/utils";
 import { showToast } from '@/components/ui/SweetAlert2';
 
 const SpaceDashboard = () => {
     const [stats, setStats] = useState({ spaces: 0, bookings: 0, walkins: 0 });
     const [activeSessions, setActiveSessions] = useState([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchDashboardData();
-    }, []);
-
-    const fetchDashboardData = async () => {
-        setLoading(true);
+    // Stable function for manual refreshes (e.g., after checkout)
+    const fetchDashboardData = useCallback(async (isSilent = false) => {
         try {
             const res = await apiGet('/space/dashboard');
             if (res.success) {
                 setStats(res.stats || { spaces: 0, bookings: 0, walkins: 0 });
                 setActiveSessions(res.activeSessions || []);
             }
-        } catch (err) {
-            showToast({ icon: 'error', title: 'Failed to sync dashboard' });
-        } finally {
-            setLoading(false);
+        } catch {
+            // Only show error toast if it's not a silent background poll
+            if (!isSilent) showToast({ icon: 'error', title: 'Failed to sync dashboard' });
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        // 1. Initial Load
+        const loadInitial = async () => {
+            const res = await apiGet('/space/dashboard');
+            if (isMounted && res.success) {
+                setStats(res.stats || { spaces: 0, bookings: 0, walkins: 0 });
+                setActiveSessions(res.activeSessions || []);
+            }
+        };
+        loadInitial();
+
+        // 2. Set up the "Real-Time" subscription (Polling every 10 seconds)
+        const interval = setInterval(() => {
+            if (isMounted) fetchDashboardData(true);
+        }, 10000);
+
+        // 3. Cleanup on unmount
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, [fetchDashboardData]);
 
     const handleCheckout = async (sessionId) => {
         try {
             await apiPost(`/space/walkins/${sessionId}/checkout`);
             showToast({ icon: 'success', title: 'User checked out' });
-            fetchDashboardData();
-        } catch (err) {
+            fetchDashboardData(); // Instant refresh after action
+        } catch {
             showToast({ icon: 'error', title: 'Checkout failed' });
         }
     };
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
-            {/* --- HEADER --- */}
+            {/* Header */}
             <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Space Dashboard</h1>
@@ -62,7 +77,7 @@ const SpaceDashboard = () => {
                 </div>
             </div>
 
-            {/* --- STATS GRID --- */}
+            {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-5 shadow-xl group hover:border-indigo-500/20 transition-all">
                     <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20 shadow-inner group-hover:scale-110 transition-transform">
@@ -95,7 +110,7 @@ const SpaceDashboard = () => {
                 </div>
             </div>
 
-            {/* --- ACTION CARDS --- */}
+            {/* Action Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
                 <div className="p-8 bg-indigo-600 rounded-[2.5rem] text-white flex justify-between items-center group cursor-pointer overflow-hidden relative shadow-2xl shadow-indigo-900/40 active:scale-[0.98] transition-all">
                     <div className="relative z-10">
@@ -115,7 +130,7 @@ const SpaceDashboard = () => {
                 </div>
             </div>
 
-            {/* --- LIVE SESSIONS SECTION --- */}
+            {/* Live Occupancy */}
             <div className="mt-12">
                 <div className="flex items-center justify-between mb-6 px-2">
                     <div className="flex items-center gap-3">

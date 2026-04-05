@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import { 
     Plus, Image as ImageIcon, Trash2, Edit3, Users, 
     MapPin, DollarSign, ChevronDown, Activity, 
-    CheckCircle, PieChart, Info 
+    CheckCircle, PieChart 
 } from 'lucide-react';
 import { showToast, showConfirm } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
@@ -33,9 +33,7 @@ const MySpaces = () => {
         };
     }, [spaces]);
 
-    useEffect(() => { fetchInitialData(); }, []);
-
-    const fetchInitialData = async () => {
+    const fetchInitialData = useCallback(async () => {
         setLoading(true);
         try {
             const [spaceRes, districtRes] = await Promise.all([
@@ -44,12 +42,16 @@ const MySpaces = () => {
             ]);
             if (spaceRes.success) setSpaces(spaceRes.data || []);
             if (districtRes.success) setDistricts(districtRes.data || []);
-        } catch (err) {
+        } catch {
             showToast({ icon: 'error', title: 'Failed to sync data' });
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => { 
+        fetchInitialData(); 
+    }, [fetchInitialData]);
 
     const handleOpenCreate = () => {
         setIsEditing(false);
@@ -66,7 +68,7 @@ const MySpaces = () => {
         setSelectedSpace(space);
         setFormData({
             ...space,
-            image: space.image, // Keep existing filename for preview logic
+            image: space.image, 
             lat: space.lat || '',
             lng: space.lng || ''
         });
@@ -80,7 +82,6 @@ const MySpaces = () => {
             
             Object.keys(formData).forEach(key => {
                 if (key === 'image') {
-                    // Only append if it's a new file upload
                     if (formData.image instanceof File) data.append('image', formData.image);
                 } else {
                     data.append(key, formData[key] || '');
@@ -93,7 +94,7 @@ const MySpaces = () => {
                 setOpenModal(false);
                 fetchInitialData();
             }
-        } catch (err) { 
+        } catch { 
             showToast({ icon: 'error', title: 'Action failed' }); 
         }
     };
@@ -106,7 +107,7 @@ const MySpaces = () => {
                     showToast({ icon: 'success', title: 'Space removed' });
                     setSpaces(prev => prev.filter(s => s._id !== id));
                 }
-            } catch (err) { 
+            } catch { 
                 showToast({ icon: 'error', title: 'Delete failed' }); 
             }
         }
@@ -115,19 +116,19 @@ const MySpaces = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
             
-         {/* Header Section */}
-        <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-            <div>
-                <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Space Gallery</h1>
-                <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Inventory & Environment Management</p>
+            {/* Header Section */}
+            <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                    <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Space Gallery</h1>
+                    <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Inventory & Environment Management</p>
+                </div>
+                <button 
+                    onClick={handleOpenCreate} 
+                    className="w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 group active:scale-95"
+                >
+                    <Plus size={14} className="group-hover:rotate-90 transition-transform" /> New Listing
+                </button>
             </div>
-            <button 
-                onClick={handleOpenCreate} 
-                className="w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 group active:scale-95"
-            >
-                <Plus size={14} className="group-hover:rotate-90 transition-transform" /> New Listing
-            </button>
-        </div>
 
             {/* Stats Dashboard */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
@@ -200,11 +201,9 @@ const MySpaces = () => {
                     )}
             </div>
 
-            {/* Modal - Optimized for Mobile Viewports */}
             <Modal open={openModal} onClose={() => setOpenModal(false)} title={isEditing ? "Modify Space" : "Create Listing"} size="lg">
                 <div className="space-y-6 py-2 max-h-[75vh] overflow-y-auto px-1 custom-scrollbar">
                     
-                    {/* Row 1: Name and District */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Space Name</label>
@@ -229,7 +228,6 @@ const MySpaces = () => {
                         </div>
                     </div>
 
-                    {/* Row 2: Rate and Capacity */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Hourly Rate (PHP)</label>
@@ -247,7 +245,6 @@ const MySpaces = () => {
                         </div>
                     </div>
 
-                    {/* Row 3: Coordinates */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Latitude</label>
@@ -259,7 +256,6 @@ const MySpaces = () => {
                         </div>
                     </div>
 
-                    {/* Row 4: Rooms and Status */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Available Rooms</label>
@@ -275,7 +271,6 @@ const MySpaces = () => {
                         </div>
                     </div>
 
-                    {/* Image Upload with Preview */}
                     <div>
                         <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Cover Image</label>
                         <div className="mt-2 h-48 border-2 border-dashed border-white/5 rounded-4xl flex flex-col items-center justify-center gap-3 group hover:border-indigo-500/30 transition-all relative overflow-hidden bg-white/2 cursor-pointer">
@@ -305,7 +300,6 @@ const MySpaces = () => {
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex gap-3 pt-4">
                         <button onClick={() => setOpenModal(false)} className="flex-1 py-4 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">Discard</button>
                         <button onClick={handleSave} className="flex-2 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase shadow-lg shadow-indigo-900/40 hover:bg-indigo-500 transition-all active:scale-[0.98]">

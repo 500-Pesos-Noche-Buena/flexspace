@@ -21,6 +21,8 @@ export const useRealTimeSync = (endpoint, initialParams = {}, initialStats = {})
 
             const rowData = res.requests || res.owners || res.data?.requests || res.data?.owners || res.data?.rows || [];
             const total = res.total || res.data?.total || 0;
+            
+            // Dynamic stats extraction
             const fetchedStats = res.stats || res.data?.stats || (res.data && Object.keys(res.data).length > 0 ? res.data : res) || initialStats;
 
             const currentFingerprint = JSON.stringify({ rowData, total, fetchedStats });
@@ -31,8 +33,11 @@ export const useRealTimeSync = (endpoint, initialParams = {}, initialStats = {})
                 setTotalCount(total);
                 setStats(fetchedStats);
             }
-        } catch (err) {
-            if (isInitial) showToast({ icon: 'error', title: 'Failed to sync with server' });
+        } catch {
+            // FIXED: Removed 'err' variable to clear the linting warning
+            if (isInitial) {
+                showToast({ icon: 'error', title: 'Failed to sync with system core' });
+            }
         } finally {
             if (isInitial) setLoading(false);
         }
@@ -53,8 +58,16 @@ export const useRealTimeSync = (endpoint, initialParams = {}, initialStats = {})
     }, []);
 
     useEffect(() => {
+        // Initial fetch
         fetchData(true);
-        const interval = setInterval(() => fetchData(false), 3000);
+
+        // 3-second heartbeat sync
+        const interval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                fetchData(false);
+            }
+        }, 3000);
+
         return () => clearInterval(interval);
     }, [fetchData]);
 

@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import { 
-    CalendarCheck, Clock, CheckCircle2, XCircle, 
-    User, Hash, MapPin, ReceiptText 
+    Clock, CheckCircle2, User, ReceiptText 
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
-
-let bookingPolling = null;
 
 const BookingsIndex = () => {
     const [bookings, setBookings] = useState([]);
@@ -20,13 +17,12 @@ const BookingsIndex = () => {
     const paramsRef = useRef(currentParams);
     const lastDataFingerprint = useRef("");
 
-    // Sync Ref
+    // Sync Ref to ensure the interval always uses the latest page/search
     useEffect(() => {
         paramsRef.current = currentParams;
     }, [currentParams]);
 
-    const fetchData = async (params = paramsRef.current, isInitial = false) => {
-        if (isInitial) setLoading(true);
+    const fetchData = useCallback(async (params = paramsRef.current, isSilent = false) => {
         try {
             const { page, search } = params;
             const res = await apiGet(`/space/bookings?page=${page}&search=${search}`);
@@ -35,6 +31,7 @@ const BookingsIndex = () => {
             const total = res.data?.total || 0;
             const fetchedStats = res.data?.stats || { total: 0, pending: 0, confirmed: 0 };
 
+            // Only update state if data actually changed (prevents unnecessary re-renders)
             const currentFingerprint = JSON.stringify({ rowData, total, fetchedStats });
 
             if (currentFingerprint !== lastDataFingerprint.current) {
@@ -43,39 +40,52 @@ const BookingsIndex = () => {
                 setTotalCount(total);
                 setStats(fetchedStats);
             }
-        } catch (err) {
-            if (isInitial) showToast({ icon: 'error', title: 'Failed to sync bookings' });
-        } finally {
-            if (isInitial) setLoading(false);
+        } catch {
+            // Removed 'err' to satisfy linter
+            if (!isSilent) showToast({ icon: 'error', title: 'Failed to sync bookings' });
         }
-    };
+    }, []);
 
     // 🛡️ ANTI-LOOP: Memoized param handler
     const handleParamsChange = useCallback((params) => {
         setCurrentParams(params);
-        fetchData(params);
-    }, []);
+        setLoading(true);
+        fetchData(params).finally(() => setLoading(false));
+    }, [fetchData]);
 
-    // Heartbeat
+    // Real-time Heartbeat (3 seconds)
     useEffect(() => {
-        if (bookingPolling) clearInterval(bookingPolling);
-        fetchData(paramsRef.current, true);
+        let isMounted = true;
 
-        bookingPolling = setInterval(() => {
-            if (document.visibilityState === 'visible') {
-                fetchData(paramsRef.current, false);
+        // Initial Load
+        const loadInitial = async () => {
+            setLoading(true);
+            await fetchData(paramsRef.current, false);
+            if (isMounted) setLoading(false);
+        };
+        
+        loadInitial();
+
+        // 3-second Polling
+        const interval = setInterval(() => {
+            if (isMounted && document.visibilityState === 'visible') {
+                fetchData(paramsRef.current, true);
             }
-        }, 5000);
+        }, 3000);
 
-        return () => clearInterval(bookingPolling);
-    }, []);
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, [fetchData]);
 
     const updateBookingStatus = async (id, action) => {
         try {
             await apiPost(`/space/bookings/${id}/${action}`);
             showToast({ icon: 'success', title: `Booking ${action}ed` });
-            fetchData();
-        } catch (err) {
+            fetchData(paramsRef.current, false);
+        } catch {
+            // Removed 'err' to satisfy linter
             showToast({ icon: 'error', title: 'Action failed' });
         }
     };

@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { apiGet } from '@/utils/Api';
-import { Eye, Building2, MapPin, Users, Banknote, ShieldCheck, ShieldAlert, Globe, Clock, Layers } from 'lucide-react';
+import { Eye, Building2, MapPin, ShieldCheck, ShieldAlert, Globe } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
-import MapExplorer from '@/pages/Landing/MapExplorer'; // The component you provided
+import MapExplorer from '@/pages/Landing/MapExplorer'; 
 import { cn } from "@/lib/utils";
 
 const SpaceManagement = () => {
@@ -16,12 +16,12 @@ const SpaceManagement = () => {
     const [selectedSpace, setSelectedSpace] = useState(null);
     const [showMap, setShowMap] = useState(false);
     
-    const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
+    // Fix: Removed 'setCurrentParams' warning by using the state directly in refs
+    const [currentParams] = useState({ page: 1, search: '' });
     const paramsRef = useRef(currentParams);
     const lastDataFingerprint = useRef("");
 
-    useEffect(() => { paramsRef.current = currentParams; }, [currentParams]);
-
+    // FETCH DATA
     const fetchData = async (params = paramsRef.current, isInitial = false) => {
         if (isInitial) setLoading(true);
         try {
@@ -30,22 +30,29 @@ const SpaceManagement = () => {
             const rowData = res.data || []; 
             const fetchedStats = res.stats || { total: 0, active: 0, inactive: 0 };
 
-            if (JSON.stringify({ rowData, fetchedStats }) !== lastDataFingerprint.current) {
-                lastDataFingerprint.current = JSON.stringify({ rowData, fetchedStats });
+            const fingerprint = JSON.stringify({ rowData, fetchedStats });
+            if (fingerprint !== lastDataFingerprint.current) {
+                lastDataFingerprint.current = fingerprint;
                 setSpaces(Array.isArray(rowData) ? rowData : []);
                 setTotalCount(fetchedStats.total || 0);
                 setStats(fetchedStats);
             }
-        } catch (err) {
+        } catch {
+            // Fix: Removed unused 'err'
             if (isInitial) showToast({ icon: 'error', title: 'Failed to load hubs' });
-        } finally { if (isInitial) setLoading(false); }
+        } finally { 
+            if (isInitial) setLoading(false); 
+        }
     };
 
+    // Real-time Heartbeat
     useEffect(() => {
         fetchData(paramsRef.current, true);
         const interval = setInterval(() => {
-            if (document.visibilityState === 'visible') fetchData(paramsRef.current, false);
-        }, 5000);
+            if (document.visibilityState === 'visible') {
+                fetchData(paramsRef.current, false);
+            }
+        }, 3000);
         return () => clearInterval(interval);
     }, []);
 
@@ -56,7 +63,7 @@ const SpaceManagement = () => {
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
                         {space.image ? (
-                            <img src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${space.image}`} className="w-full h-full object-cover" />
+                            <img src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${space.image}`} className="w-full h-full object-cover" alt={space.name} />
                         ) : <Building2 className="text-indigo-500" size={18} />}
                     </div>
                     <div>
@@ -110,23 +117,23 @@ const SpaceManagement = () => {
                 <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Global hub monitoring system</p>
             </div>
 
-            {/* RESTORED STATISTICS GRID */}
+            {/* STATISTICS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl">
+                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-indigo-500/20 transition-all">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20"><Building2 size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total Registered</p>
                         <p className="text-2xl font-black text-white italic">{stats.total}</p>
                     </div>
                 </div>
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl">
+                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-emerald-500/20 transition-all">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20"><ShieldCheck size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Currently Active</p>
                         <p className="text-2xl font-black text-white italic">{stats.active}</p>
                     </div>
                 </div>
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl">
+                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-rose-500/20 transition-all">
                     <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20"><ShieldAlert size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Inactive / Closed</p>
@@ -141,11 +148,10 @@ const SpaceManagement = () => {
             <Modal open={openModal} onClose={() => setOpenModal(false)} title="Hub Specifications" size="lg">
                 {selectedSpace && (
                     <div className="space-y-4 py-2">
-                        {/* Header Area */}
                         <div className="flex items-center justify-between p-5 bg-white/5 rounded-4xl border border-white/5">
                             <div className="flex items-center gap-4">
                                 <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/10">
-                                    <img src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${selectedSpace.image}`} className="w-full h-full object-cover" />
+                                    <img src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${selectedSpace.image}`} className="w-full h-full object-cover" alt={selectedSpace.name} />
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-black text-white uppercase italic">{selectedSpace.name}</h2>
@@ -153,60 +159,49 @@ const SpaceManagement = () => {
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="text-[10px] font-black text-white italic">₱{selectedSpace.rate_hour}/hr</p>
+                                <p className="text-lg font-black text-white italic tracking-tighter">₱{selectedSpace.rate_hour}<span className="text-[10px] text-slate-500 not-italic">/hr</span></p>
                             </div>
                         </div>
 
-                        {/* LEAFLET MAP TOGGLE */}
-<div className="bg-[#0c0c0e] rounded-4xl border border-white/5 overflow-hidden">
-    <button onClick={() => setShowMap(!showMap)} className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-all">
-        <div className="flex items-center gap-3">
-            <Globe size={16} className="text-indigo-500" />
-            <span className="text-[10px] font-black uppercase text-slate-300 tracking-widest">Interactive Location Map</span>
-        </div>
-        <span className="text-[10px] font-black text-indigo-500 uppercase">{showMap ? 'Close' : 'Open'}</span>
-    </button>
-    {showMap && (
-    <div className="h-75 w-full animate-in slide-in-from-top-2 border-t border-white/5">
-        <MapExplorer 
-            // 1. Pass the hub in the spaces array to show the Blue Hub Marker
-            spaces={[selectedSpace]} 
-            
-            // 2. Pass the coordinates here so the MapExplorer's 
-            // useEffect(..., [userLatLng]) triggers the flyTo animation
-            userLatLng={[selectedSpace.lat, selectedSpace.lng]} 
-            
-            // 3. To prevent the "You are here" text from showing, 
-            // we have to ensure the MapExplorer knows this is a hub, not a user.
-            // If your MapExplorer doesn't have a 'hideUserLabel' prop, 
-            // see the small CSS fix below.
-        />
-    </div>
-)}
-</div>
+                        <div className="bg-[#0c0c0e] rounded-4xl border border-white/5 overflow-hidden">
+                            <button onClick={() => setShowMap(!showMap)} className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-all">
+                                <div className="flex items-center gap-3">
+                                    <Globe size={16} className="text-indigo-500" />
+                                    <span className="text-[10px] font-black uppercase text-slate-300 tracking-widest">Interactive Location Map</span>
+                                </div>
+                                <span className="text-[10px] font-black text-indigo-500 uppercase">{showMap ? 'Close' : 'Open'}</span>
+                            </button>
+                            {showMap && (
+                                <div className="h-75 w-full animate-in slide-in-from-top-2 border-t border-white/5">
+                                    <MapExplorer 
+                                        spaces={[selectedSpace]} 
+                                        userLatLng={[selectedSpace.lat, selectedSpace.lng]} 
+                                    />
+                                </div>
+                            )}
+                        </div>
 
-                        {/* Specs Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
+                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
                                 <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Seats</p>
-                                <p className="text-sm font-black text-white">{selectedSpace.capacity}</p>
+                                <p className="text-sm font-black text-white italic">{selectedSpace.capacity}</p>
                             </div>
-                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
+                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
                                 <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Rooms</p>
-                                <p className="text-sm font-black text-white">{selectedSpace.available_rooms}</p>
+                                <p className="text-sm font-black text-white italic">{selectedSpace.available_rooms}</p>
                             </div>
-                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
+                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
                                 <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Status</p>
                                 <p className="text-sm font-black text-emerald-500 uppercase tracking-tighter">{selectedSpace.status}</p>
                             </div>
-                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
+                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
                                 <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Rating</p>
-                                <p className="text-sm font-black text-yellow-500">{selectedSpace.rating} / 5</p>
+                                <p className="text-sm font-black text-yellow-500 italic">{selectedSpace.rating} / 5</p>
                             </div>
                         </div>
 
                         <div className="flex justify-end pt-2">
-                            <button onClick={() => setOpenModal(false)} className="text-[9px] font-black uppercase text-slate-500 hover:text-white transition-all">Dismiss View</button>
+                            <button onClick={() => setOpenModal(false)} className="text-[9px] font-black uppercase text-slate-500 hover:text-white transition-all tracking-widest">Dismiss View</button>
                         </div>
                     </div>
                 )}

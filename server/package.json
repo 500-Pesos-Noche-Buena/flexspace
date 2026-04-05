@@ -2,6 +2,13 @@
   "name": "server",
   "version": "1.0.0",
   "main": "index.js",
+  "author": "Josiah Danielle Gallenero <Lead Developer>",
+  "contributors": [
+    "Neil Mar De Asis <Project Manager>",
+    "Jesmond Sardiniola <UI/UX Designer>",
+    "Ferwin Khen Hautea <UI/UX Designer>",
+    "Jo Vincent Beldad <Documentation Specialist>"
+  ],
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"

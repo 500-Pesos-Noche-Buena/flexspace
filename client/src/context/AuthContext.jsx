@@ -1,8 +1,8 @@
-import React, { createContext, useState, useEffect, useContext } from 'react'; // 1. Added useContext
+import React, { createContext, useState, useEffect, useContext } from 'react';
 
 export const AuthContext = createContext(null);
 
-// 2. 🔥 ADD THIS EXPORT: This is what MainLayout is looking for!
+// Custom hook for easier access
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -16,7 +16,9 @@ export const AuthProvider = ({ children }) => {
         const savedUser = localStorage.getItem('user');
         try {
             return savedUser ? JSON.parse(savedUser) : null;
-        } catch (e) {
+        } catch {
+            // FIXED: Removed 'e' to satisfy the linter. 
+            // If JSON.parse fails, we just default to null.
             return null;
         }
     });
