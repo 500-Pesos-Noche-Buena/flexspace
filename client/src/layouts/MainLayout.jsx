@@ -106,7 +106,7 @@ const MainLayout = () => {
                                                     <button onClick={() => handleNavigate('/dashboard')} className="md:hidden w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
                                                         <LayoutDashboard size={14} /> Dashboard
                                                     </button>
-                                                    <button onClick={() => handleNavigate('/profile')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
+                                                    <button onClick={() => handleNavigate('/account')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
                                                         <User className="w-3.5 h-3.5" /> My Profile
                                                     </button>
                                                     <div className="h-px bg-slate-100 mx-4 my-2" />
