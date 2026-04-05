@@ -108,7 +108,7 @@ const Login = () => {
             </form>
 
             <p className="text-center mt-8 md:mt-12 text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                New to IloiloWork? <Link to="/register" className="text-indigo-600 hover:underline underline-offset-4 decoration-2">Create account</Link>
+                New to FlexSpace? <Link to="/register" className="text-indigo-600 hover:underline underline-offset-4 decoration-2">Create account</Link>
             </p>
         </div>
     );

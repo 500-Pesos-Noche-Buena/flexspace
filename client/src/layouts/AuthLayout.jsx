@@ -15,7 +15,7 @@ const AuthLayout = () => {
                         <div className="bg-slate-900 p-2 rounded-xl shadow-lg shadow-slate-200">
                             <MapPin className="text-white" size={20} />
                         </div>
-                        <span className="font-black text-xl tracking-tighter text-slate-900 uppercase">IloiloWork</span>
+                        <span className="font-black text-xl tracking-tighter text-slate-900 uppercase">FlexSpace</span>
                     </div>
 
                     <Outlet />
