@@ -106,13 +106,18 @@
       gtag('config', 'G-9QDPCS4LV5');
     </script>
 
+    <script>
+      window.__DEFINES__ = window.__DEFINES__ || {};
+      window.process = window.process || { env: { NODE_ENV: 'production' } };
+    </script>
+<!-- 
     <script type="module">
       import { injectIntoGlobalHook } from "/@react-refresh";
       injectIntoGlobalHook(window);
       window.$RefreshReg$ = () => {};
       window.$RefreshSig$ = () => (type) => type;
     </script>
-    <script type="module" src="/@vite/client"></script>
+    <script type="module" src="/@vite/client"></script> -->
   </head>
   <body>
     <div id="root"></div>
