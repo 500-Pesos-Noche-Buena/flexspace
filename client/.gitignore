@@ -12,16 +12,6 @@ dist
 dist-ssr
 *.local
 
-
-# Environment Variables (CRITICAL for security)
-# VITE usually reads .env, .env.local, .env.production, etc.
-.env
-.env.local
-.env.development
-.env.production
-.env.staging
-
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
