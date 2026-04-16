@@ -6,7 +6,6 @@ const AuthLayout = () => {
     return (
         <div className="grid h-dvh lg:grid-cols-2 bg-white dark:bg-slate-950 font-sans antialiased overflow-hidden">
 
-            {/* LEFT SIDE: Form Content Area */}
             <main className="flex flex-col items-center lg:justify-center p-6 md:p-8 overflow-y-auto custom-scrollbar">
                 <div className="w-full max-w-md py-4 md:py-0">
                     {/* Mobile-only Logo: Smaller margins for mobile */}
