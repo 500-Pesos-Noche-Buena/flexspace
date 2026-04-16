@@ -4,7 +4,6 @@ import { MapPin, Coffee, Laptop, Zap } from 'lucide-react';
 
 const AuthLayout = () => {
     return (
-        // h-dvh (Dynamic Viewport Height) prevents mobile browser bars from breaking the layout
         <div className="grid h-dvh lg:grid-cols-2 bg-white dark:bg-slate-950 font-sans antialiased overflow-hidden">
 
             {/* LEFT SIDE: Form Content Area */}
