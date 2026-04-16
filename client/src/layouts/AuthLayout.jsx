@@ -8,7 +8,6 @@ const AuthLayout = () => {
 
             <main className="flex flex-col items-center lg:justify-center p-6 md:p-8 overflow-y-auto custom-scrollbar">
                 <div className="w-full max-w-md py-4 md:py-0">
-                    {/* Mobile-only Logo: Smaller margins for mobile */}
                     <div className="lg:hidden flex items-center gap-2 mb-6 md:mb-8 justify-center">
                         <div className="bg-slate-900 p-2 rounded-xl shadow-lg shadow-slate-200">
                             <MapPin className="text-white" size={20} />
