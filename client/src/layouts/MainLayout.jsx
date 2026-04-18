@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, User, LogOut, Globe } from "lucide-react";
+import { Menu, X, LayoutDashboard, User, LogOut, Globe, ReceiptText } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 
 const MainLayout = () => {
@@ -105,6 +105,9 @@ const MainLayout = () => {
                                                 <div className="flex flex-col gap-1">
                                                     <button onClick={() => handleNavigate('/dashboard')} className="md:hidden w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
                                                         <LayoutDashboard size={14} /> Dashboard
+                                                    </button>
+                                                    <button onClick={() => handleNavigate('/user/bookings')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
+                                                        <ReceiptText className="w-3.5 h-3.5" /> My Bookings
                                                     </button>
                                                     <button onClick={() => handleNavigate('/account')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
                                                         <User className="w-3.5 h-3.5" /> My Profile

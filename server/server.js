@@ -17,7 +17,13 @@ app.set('trust proxy', true);
 
 app.use(
     cors({
-        origin: [ALLOWED_ORIGIN, 'http://localhost:5173'],
+        origin: function (origin, callback) {
+            if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://192.168.1')) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'x-app-fingerprint', 'accept'],

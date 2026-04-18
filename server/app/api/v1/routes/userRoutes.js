@@ -3,6 +3,7 @@ const auth = require('@/api/v1/middleware/authMiddleware');
 const profileController = require('@/api/v1/controllers/profileController');
 const dashboardController = require('@/api/v1/controllers/user/dashboardController');
 const spaceController = require('@/api/v1/controllers/user/spaceController');
+const bookingController = require('@/api/v1/controllers/user/bookingController');
 
 class UserRoutes {
     constructor() {
@@ -17,6 +18,11 @@ class UserRoutes {
         
         this.router.get('/dashboard', auth, dashboardController.getUserDashboard);
         this.router.get('/spaces', auth, spaceController.getAllSpaces);
+        
+        this.router.get('/bookings', auth, bookingController.getMyBookings); 
+        this.router.post('/bookings', auth, bookingController.createBooking);
+        this.router.post('/bookings/scan', auth, bookingController.scanHubQRCode);
+
     }
 
     getRouter() {

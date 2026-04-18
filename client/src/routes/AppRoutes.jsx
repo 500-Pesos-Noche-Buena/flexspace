@@ -30,6 +30,7 @@ import EarningsTracker from '@/pages/Space/Earnings/Index';
 // Regular User Pages
 import UserDashboard from '@/pages/User/Dashboard/Index';
 import UserSpace from '@/pages/User/Space/Index';
+import UserBookings from '@/pages/User/Bookings/Index';
 
 export const AppRoutes = () => {
     return (
@@ -43,6 +44,7 @@ export const AppRoutes = () => {
                 {/* Regular User Dashboard Area */}
                 <Route path="dashboard" element={<UserDashboard />} />
                 <Route path="user/space" element={<UserSpace />} />
+                <Route path="user/bookings" element={<UserBookings />} />
 
                 {/* --- NEW SEPARATED ROUTE FOR USERS --- */}
                 <Route path="account" element={<UserProfile />} />

@@ -1,77 +1,33 @@
+// User/Space/Index.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { apiGet } from '@/utils/Api';
-import { Search, MapPin, Star, Loader2, ArrowRight, Zap, SlidersHorizontal, LayoutGrid } from 'lucide-react';
+import { apiGet, apiPost } from '@/utils/Api';
+import { Search, MapPin, Loader2, ArrowRight, LayoutGrid, Check } from 'lucide-react';
+import { showToast } from '@/components/ui/SweetAlert2';
+import { Modal } from '@/components/ui/Modal';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-/** --- SUB-COMPONENT: SpaceCard --- **/
-const SpaceCard = ({ name, location, district, price, rating, image, tags = [] }) => {
-    const imageUrl = image ? `${API_BASE_URL}/uploads/spaces/${image}` : null;
-
-    return (
-        <div className="bg-white border border-slate-100 rounded-4xl sm:rounded-[2.5rem] p-4 sm:p-5 hover:border-indigo-100 transition-all group cursor-pointer shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 flex flex-col h-full">
-            <div className="h-44 sm:h-52 rounded-3xl sm:rounded-4xl bg-slate-100 mb-4 sm:mb-6 overflow-hidden relative">
-                {/* Floating Tags */}
-                <div className="absolute top-3 left-3 flex gap-2 z-10">
-                    <span className="px-2.5 py-1 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 shadow-lg shadow-indigo-600/20">
-                        <Zap size={8} fill="currentColor" /> Active
-                    </span>
-                </div>
-                
-                <div className="absolute top-3 right-3 px-3 py-1 bg-white/90 backdrop-blur-md rounded-full z-10 text-[10px] font-black text-slate-900 tracking-tighter border border-slate-100">
-                    ₱{price}<span className="text-slate-400 font-bold">/hr</span>
-                </div>
-
-                <img 
-                    src={imageUrl || '/placeholder.jpg'} 
-                    alt={name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    loading="lazy"
-                />
-            </div>
-
-            <div className="px-1 grow">
-                <div className="flex justify-between items-start gap-2 mb-2">
-                    <div className="min-w-0">
-                        <p className="text-[9px] text-indigo-600 font-black uppercase tracking-[0.2em] mb-1 truncate">{district || 'Iloilo City'}</p>
-                        <h3 className="text-slate-900 font-[1000] uppercase text-sm sm:text-base tracking-tight leading-none truncate">{name}</h3>
-                    </div>
-                    <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg text-amber-600 shrink-0">
-                        <Star size={10} fill="currentColor" />
-                        <span className="text-[10px] font-black">{rating || '5.0'}</span>
-                    </div>
-                </div>
-
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1 mt-2">
-                    <MapPin size={10} className="text-slate-300" /> {location}
-                </p>
-
-                <div className="flex flex-wrap gap-1.5 mt-4 mb-6">
-                    {(tags?.length > 0 ? tags : ["Fast WiFi", "Quiet"]).slice(0, 3).map((tag, idx) => (
-                        <span key={idx} className="px-2.5 py-1 bg-slate-50 rounded-md text-[8px] font-black text-slate-400 uppercase tracking-widest group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                            {tag}
-                        </span>
-                    ))}
-                </div>
-            </div>
-
-            <button className="w-full py-3.5 sm:py-4 bg-slate-900 text-white rounded-[1.2rem] sm:rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 group-hover:bg-indigo-600 transition-all active:scale-95 shadow-lg shadow-slate-900/10">
-                Book Space <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
-            </button>
-        </div>
-    );
+const getPHDateString = () => {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 };
 
-/** --- MAIN COMPONENT --- **/
 const SpaceIndex = () => {
     const [spaces, setSpaces] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [selectedDistrict, setSelectedDistrict] = useState('All');
 
-    const districts = ['All', 'City Proper', 'Jaro', 'Molo', 'Mandurriao', 'Arevalo', 'La Paz', 'Lapuz'];
+    const [openModal, setOpenModal] = useState(false);
+    const [selectedSpace, setSelectedSpace] = useState(null);
+    const [isBooking, setIsBooking] = useState(false);
+    const [isOpenTime, setIsOpenTime] = useState(false);
+    const [bookingData, setBookingData] = useState({
+        date: getPHDateString(), // ✅ FIXED
+        start_time: '',
+        end_time: '',
+        notes: ''
+    });
 
-    // FIXED: Wrapped in useCallback to satisfy dependency rules
     const fetchSpaces = useCallback(async (query = '', district = 'All') => {
         setLoading(true);
         try {
@@ -85,10 +41,46 @@ const SpaceIndex = () => {
         }
     }, []);
 
-    // FIXED: Added all necessary dependencies for the effect
     useEffect(() => {
         fetchSpaces(search, selectedDistrict);
     }, [selectedDistrict, search, fetchSpaces]);
+
+    const handleOpenBooking = (space) => {
+        setSelectedSpace(space);
+        setOpenModal(true);
+    };
+
+    const handleConfirmBooking = async () => {
+        setIsBooking(true);
+        try {
+            const payload = {
+                space_id: selectedSpace._id,
+                date: bookingData.date,
+                notes: bookingData.notes,
+                is_open_time: isOpenTime,
+                start_time: !isOpenTime ? bookingData.start_time : null,
+                end_time: !isOpenTime ? bookingData.end_time : null
+            };
+
+            const res = await apiPost('/user/bookings', payload);
+
+            if (res.success || res.status === 'success') {
+                showToast({ icon: 'success', title: 'Booking Confirmed!' });
+                setOpenModal(false);
+                setIsOpenTime(false);
+                setBookingData({
+                    date: getPHDateString(), // ✅ FIXED
+                    start_time: '',
+                    end_time: '',
+                    notes: ''
+                });
+            }
+        } catch (err) {
+            showToast({ icon: 'error', title: err.message || 'Booking failed' });
+        } finally {
+            setIsBooking(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-24 selection:bg-indigo-100">
@@ -103,90 +95,110 @@ const SpaceIndex = () => {
                             <h1 className="text-[2.75rem] sm:text-6xl lg:text-7xl font-[1000] italic tracking-tighter uppercase text-slate-900 leading-[0.85] mb-6">
                                 Find Your <br /> <span className="text-indigo-600">Workstation.</span>
                             </h1>
-                            <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-[0.3em] italic">
-                                Premium Hubs • Real-time Availability
-                            </p>
                         </div>
 
                         <div className="relative w-full lg:max-w-md">
                             <div className="relative group overflow-hidden rounded-3xl sm:rounded-4xl">
                                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" size={18} />
-                                <input 
+                                <input
                                     type="text"
-                                    placeholder="Search location or name..."
-                                    className="w-full pl-14 pr-6 py-5 sm:py-6 bg-slate-100 border-2 border-transparent rounded-3xl sm:rounded-4xl text-xs sm:text-sm font-bold focus:bg-white focus:border-indigo-600 transition-all outline-none"
+                                    placeholder="Search location..."
+                                    className="w-full pl-14 pr-6 py-5 sm:py-6 bg-slate-100 border-2 border-transparent rounded-3xl sm:rounded-4xl text-xs sm:text-sm font-bold focus:bg-white focus:border-indigo-600 transition-all outline-none text-slate-900"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && fetchSpaces(search, selectedDistrict)}
                                 />
                             </div>
                         </div>
-                    </div>
-
-                    <div className="mt-10 sm:mt-12 overflow-hidden relative">
-                        <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
-                            <div className="flex items-center gap-2 pr-4 border-r border-slate-100 mr-2 shrink-0">
-                                <SlidersHorizontal size={14} className="text-slate-900" />
-                                <span className="text-[9px] font-black uppercase text-slate-900 tracking-widest">Filter</span>
-                            </div>
-                            {districts.map((d) => (
-                                <button
-                                    key={d}
-                                    onClick={() => setSelectedDistrict(d)}
-                                    className={`px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 ${
-                                        selectedDistrict === d 
-                                        ? 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/20' 
-                                        : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
-                                    }`}
-                                >
-                                    {d}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="absolute right-0 top-0 bottom-4 w-12 bg-linear-to-l from-white to-transparent pointer-events-none hidden sm:block"></div>
                     </div>
                 </div>
             </header>
 
             <main className="max-w-7xl mx-auto px-5 sm:px-8 mt-8 sm:mt-12">
                 {loading ? (
-                    <div className="py-32 flex flex-col items-center gap-6">
-                        <div className="relative">
-                            <Loader2 className="text-indigo-600 animate-spin" size={40} />
-                        </div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic">Scanning City Hubs...</p>
-                    </div>
-                ) : spaces.length > 0 ? (
+                    <div className="py-32 flex flex-col items-center"><Loader2 className="text-indigo-600 animate-spin" size={40} /></div>
+                ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10">
                         {spaces.map((space) => (
-                            <SpaceCard 
-                                key={space._id}
-                                name={space.name}
-                                district={space.district_id?.name || space.area}
-                                location={space.area || 'Iloilo City'}
-                                price={space.rate_hour}
-                                rating={space.rating}
-                                tags={space.amenities}
-                                image={space.image}
-                            />
+                            <div key={space._id} className="bg-white border border-slate-100 rounded-[2.5rem] p-5 hover:border-indigo-100 transition-all group shadow-sm hover:shadow-2xl flex flex-col h-full">
+                                <div className="h-44 sm:h-52 rounded-4xl bg-slate-100 mb-6 overflow-hidden relative">
+                                    <img src={space.image ? `${API_BASE_URL}/uploads/spaces/${space.image}` : '/placeholder.jpg'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
+                                </div>
+                                <div className="grow px-1">
+                                    <h3 className="text-slate-900 font-[1000] uppercase text-base tracking-tight mb-2 truncate">{space.name}</h3>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1 mb-6"><MapPin size={10} /> {space.area}</p>
+                                </div>
+                                <button
+                                    onClick={() => handleOpenBooking(space)}
+                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 group-hover:bg-indigo-600 transition-all shadow-lg shadow-slate-900/10"
+                                >
+                                    Book Space <ArrowRight size={12} />
+                                </button>
+                            </div>
                         ))}
-                    </div>
-                ) : (
-                    <div className="py-24 text-center">
-                        <div className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                            <Search className="text-slate-200" size={24} />
-                        </div>
-                        <h3 className="text-slate-900 font-black uppercase text-base italic tracking-tight">No Results Found</h3>
-                        <p className="text-slate-400 font-bold uppercase text-[9px] tracking-widest mt-2 mb-8">Try another district or keyword.</p>
-                        <button 
-                            onClick={() => { setSearch(''); setSelectedDistrict('All'); fetchSpaces('', 'All'); }}
-                            className="px-8 py-3 bg-white border-2 border-slate-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:border-indigo-600 hover:text-indigo-600 transition-all shadow-sm"
-                        >
-                            Reset
-                        </button>
                     </div>
                 )}
             </main>
+
+            <Modal open={openModal} onClose={() => setOpenModal(false)} title="Confirm Booking" size="xl" variant="light">
+                {selectedSpace && (
+                    <div className="space-y-5 py-2">
+                        <div
+                            onClick={() => setIsOpenTime(!isOpenTime)}
+                            className={`flex items-center gap-4 p-5 rounded-3xl cursor-pointer transition-all border-2 ${
+                                isOpenTime ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 border-transparent text-slate-600'
+                            }`}
+                        >
+                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${isOpenTime ? 'bg-indigo-500' : 'bg-white border border-slate-200'}`}>
+                                {isOpenTime && <Check size={14} className="text-white" />}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest italic">Open Time Booking</p>
+                                <p className="text-[9px] font-bold opacity-60 uppercase">I will scan in/out whenever I arrive.</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Booking Date</label>
+                            <input
+                                type="date"
+                                min={getPHDateString()} // ✅ FIXED
+                                value={bookingData.date}
+                                onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
+                                className="w-full mt-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:border-indigo-500 outline-none text-sm font-bold text-slate-900"
+                            />
+                        </div>
+
+                        {!isOpenTime && (
+                            <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-300">
+                                <div>
+                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Start Time</label>
+                                    <input type="time" value={bookingData.start_time} onChange={(e) => setBookingData({ ...bookingData, start_time: e.target.value })} className="w-full mt-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:border-indigo-500 outline-none text-sm font-bold text-slate-900" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">End Time</label>
+                                    <input type="time" value={bookingData.end_time} onChange={(e) => setBookingData({ ...bookingData, end_time: e.target.value })} className="w-full mt-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:border-indigo-500 outline-none text-sm font-bold text-slate-900" />
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Special Notes</label>
+                            <textarea placeholder="Optional notes..." value={bookingData.notes} onChange={(e) => setBookingData({ ...bookingData, notes: e.target.value })} className="w-full mt-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:border-indigo-500 min-h-20 text-slate-900" />
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                            <button onClick={() => setOpenModal(false)} className="flex-1 py-4 text-[10px] font-black uppercase text-slate-500">Cancel</button>
+                            <button
+                                onClick={handleConfirmBooking}
+                                disabled={isBooking}
+                                className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase shadow-lg shadow-indigo-900/20 hover:bg-indigo-500 flex items-center justify-center gap-2"
+                            >
+                                {isBooking ? <Loader2 size={14} className="animate-spin" /> : 'Confirm Booking'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

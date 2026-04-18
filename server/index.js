@@ -1,4 +1,9 @@
 require('module-alias/register');
+
+// --- FORCE PHILIPPINES TIMEZONE ---
+process.env.TZ = 'Asia/Manila'; 
+// ----------------------------------
+
 const dotenv = require('dotenv');
 const path = require('path');
 const https = require('https');
@@ -9,6 +14,7 @@ if (process.env.NODE_ENV === 'production') {
     dotenv.config();
     console.log('-----------------------------------------');
     console.log('🚀 [Env] Mode: PRODUCTION');
+    console.log(`⏰ [TZ]: ${process.env.TZ} (Forced)`); // Verify TZ
     console.log('📌 Source: System Environment Variables');
     console.log('-----------------------------------------');
 } else {
@@ -17,6 +23,7 @@ if (process.env.NODE_ENV === 'production') {
     });
     console.log('-----------------------------------------');
     console.log('🛠️ [Env] Mode: DEVELOPMENT');
+    console.log(`⏰ [TZ]: ${process.env.TZ} (Forced)`);
     console.log('📌 Source: .env file');
     console.log('-----------------------------------------');
 }
@@ -45,9 +52,12 @@ async function startServer() {
         const LOCAL_IP = getLocalIp();
 
         app.listen(PORT, '0.0.0.0', () => {
+            // Log current time to verify it's working
+            const serverTime = new Date().toString();
             console.log(`✅ [Server] Status: ONLINE`);
-            console.log(`🔗 [Local]:   http://localhost:${PORT}`);
-            console.log(`📱 [Network]: http://${LOCAL_IP}:${PORT}  <-- USE THIS ON YOUR PHONE`);
+            console.log(`📅 [Time]:   ${serverTime}`);
+            console.log(`🔗 [Local]:  http://localhost:${PORT}`);
+            console.log(`📱 [Network]: http://${LOCAL_IP}:${PORT}`);
             console.log(`🌍 [Mode]:    ${process.env.NODE_ENV || 'development'}`);
             console.log('-----------------------------------------');
 
@@ -66,8 +76,9 @@ async function startServer() {
                         
                         protocol.get(PING_URL, (res) => {
                             if (res.statusCode === 200) {
+                                // Since we forced TZ at the top, we don't strictly need the option here,
+                                // but it's good practice.
                                 const now = new Date().toLocaleTimeString('en-US', { 
-                                    timeZone: 'Asia/Manila', 
                                     hour12: true 
                                 });
                                 console.log(`✨ [Keep-Alive]: Heartbeat successful at ${now}`);
@@ -76,8 +87,6 @@ async function startServer() {
                             console.error('❌ [Keep-Alive]: Ping failed:', err.message);
                         });
                     }, FIVE_MINUTES);
-                } else {
-                    console.warn('⚠️ [Keep-Alive]: VITE_API_URL is missing or invalid.');
                 }
             }
         });

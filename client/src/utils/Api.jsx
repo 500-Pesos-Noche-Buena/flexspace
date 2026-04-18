@@ -1,5 +1,11 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-const API_VERSION = import.meta.env.VITE_API_VERSION;
+const getBaseUrl = () => {
+    // If the browser is at localhost:5173, return localhost:5000
+    const hostname = window.location.hostname;
+    return `http://${hostname}:5000`;
+};
+
+const API_BASE_URL = getBaseUrl();
+const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
 const API_PREFIX = `/api/${API_VERSION}`;
 const FULL_BASE_URL = `${API_BASE_URL}${API_PREFIX}`;
