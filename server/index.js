@@ -14,7 +14,7 @@ if (process.env.NODE_ENV === 'production') {
     dotenv.config();
     console.log('-----------------------------------------');
     console.log('🚀 [Env] Mode: PRODUCTION');
-    console.log(`⏰ [TZ]: ${process.env.TZ} (Forced)`); // Verify TZ
+    console.log(`⏰ [TZ]: ${process.env.TZ} (Forced)`);
     console.log('📌 Source: System Environment Variables');
     console.log('-----------------------------------------');
 } else {
@@ -51,8 +51,7 @@ async function startServer() {
         const PORT = process.env.PORT || config.port || 5000;
         const LOCAL_IP = getLocalIp();
 
-        app.listen(PORT, '0.0.0.0', () => {
-            // Log current time to verify it's working
+        const server = app.listen(PORT, '0.0.0.0', () => {
             const serverTime = new Date().toString();
             console.log(`✅ [Server] Status: ONLINE`);
             console.log(`📅 [Time]:   ${serverTime}`);
@@ -62,32 +61,54 @@ async function startServer() {
             console.log('-----------------------------------------');
 
             if (process.env.NODE_ENV === 'production') {
-                const siteUrl = process.env.VITE_API_URL; 
-                const FIVE_MINUTES = 5 * 60 * 1000;
-
-                if (siteUrl && siteUrl.startsWith('http')) {
-                    const baseUrl = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
-                    const PING_URL = `${baseUrl}/health`;
-
-                    console.log(`📡 [Keep-Alive]: Monitoring initialized for ${PING_URL}`);
-
-                    setInterval(() => {
-                        const protocol = PING_URL.startsWith('https') ? https : http;
-                        
-                        protocol.get(PING_URL, (res) => {
-                            if (res.statusCode === 200) {
-                                // Since we forced TZ at the top, we don't strictly need the option here,
-                                // but it's good practice.
-                                const now = new Date().toLocaleTimeString('en-US', { 
-                                    hour12: true 
-                                });
-                                console.log(`✨ [Keep-Alive]: Heartbeat successful at ${now}`);
-                            }
-                        }).on('error', (err) => {
-                            console.error('❌ [Keep-Alive]: Ping failed:', err.message);
+                const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || 
+                    process.env.BACKEND_URL || 
+                    `http://localhost:${PORT}`;
+                
+                const cleanBackendUrl = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
+                const PING_URL = `${cleanBackendUrl}/ping`;
+                
+                const ONE_MINUTE = 60 * 1000;
+                
+                console.log(`📡 [Keep-Alive]: Monitoring initialized`);
+                console.log(`🎯 [Target]: ${PING_URL}`);
+                console.log(`⏱️  [Interval]: Every 1 minute`);
+                console.log('-----------------------------------------');
+                
+                const ping = () => {
+                    const protocol = cleanBackendUrl.startsWith('https') ? https : http;
+                    
+                    protocol.get(PING_URL, (res) => {
+                        const now = new Date().toLocaleTimeString('en-US', { 
+                            timeZone: 'Asia/Manila',
+                            hour12: true 
                         });
-                    }, FIVE_MINUTES);
-                }
+                        
+                        if (res.statusCode === 200) {
+                            console.log(`💓 [Keep-Alive]: Heartbeat successful at ${now}`);
+                        } else {
+                            console.log(`⚠️ [Keep-Alive]: Ping responded with ${res.statusCode} at ${now}`);
+                        }
+                    }).on('error', (err) => {
+                        console.error(`❌ [Keep-Alive]: Ping failed at ${new Date().toLocaleTimeString()}:`, err.message);
+                    });
+                };
+                
+                ping();
+                
+                const intervalId = setInterval(ping, ONE_MINUTE);
+                
+                const gracefulShutdown = () => {
+                    console.log('🛑 [Keep-Alive]: Stopping keep-alive pings...');
+                    clearInterval(intervalId);
+                    server.close(() => {
+                        console.log('✅ [Server]: Gracefully shut down');
+                        process.exit(0);
+                    });
+                };
+                
+                process.on('SIGTERM', gracefulShutdown);
+                process.on('SIGINT', gracefulShutdown);
             }
         });
 

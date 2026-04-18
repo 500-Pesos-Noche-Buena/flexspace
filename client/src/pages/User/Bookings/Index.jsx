@@ -124,7 +124,7 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
                     #qr-reader video { border-radius: 1.5rem; width: 100% !important; }
                 `}</style>
 
-                <div className="relative overflow-hidden rounded-[2rem] bg-slate-900 mb-6" style={{ minHeight: 260 }}>
+                <div className="relative overflow-hidden rounded-4xl bg-slate-900 mb-6" style={{ minHeight: 260 }}>
                     <div id="qr-reader" className="w-full" />
 
                     {scanning && !processing && (
@@ -140,7 +140,7 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
                     )}
 
                     {processing && (
-                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3 rounded-[2rem]">
+                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3 rounded-4xl">
                             <Loader2 size={28} className="text-indigo-400 animate-spin" />
                             <p className="text-[10px] text-white font-black uppercase tracking-widest">Processing...</p>
                         </div>
@@ -355,7 +355,7 @@ const MyBookingsList = () => {
                     </div>
 
                     {/* Filter Toggle - Dashboard Style */}
-                    <div className="flex bg-white p-1.5 rounded-[2rem] border border-slate-100 shadow-sm overflow-x-auto scrollbar-hide">
+                    <div className="flex bg-white p-1.5 rounded-4xl border border-slate-100 shadow-sm overflow-x-auto scrollbar-hide">
                         {STATUS_FILTERS.slice(0, 4).map((f) => ( // Showing top 4 for cleaner UI
                             <button
                                 key={f}

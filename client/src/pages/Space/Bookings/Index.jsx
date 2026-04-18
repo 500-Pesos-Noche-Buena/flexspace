@@ -568,7 +568,7 @@ const BookingsIndex = () => {
            {/* Stats Grid */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
     {/* 1. Active Now - The heartbeat of the hub */}
-    <div className="bg-indigo-500/5 border border-indigo-500/10 p-5 rounded-[2rem] flex items-center gap-4">
+    <div className="bg-indigo-500/5 border border-indigo-500/10 p-5 rounded-4xl flex items-center gap-4">
         <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
             <Activity size={20} className="animate-pulse" />
         </div>
@@ -579,7 +579,7 @@ const BookingsIndex = () => {
     </div>
 
     {/* 2. Walk-ins vs Online */}
-    <div className="bg-[#111114] border border-white/5 p-5 rounded-[2rem] flex items-center justify-between">
+    <div className="bg-[#111114] border border-white/5 p-5 rounded-4xl flex items-center justify-between">
         <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-slate-400">
                 <Users size={20} />
@@ -595,7 +595,7 @@ const BookingsIndex = () => {
     </div>
 
     {/* 3. Pending Approvals */}
-    <div className="bg-amber-500/5 border border-amber-500/10 p-5 rounded-[2rem] flex items-center gap-4">
+    <div className="bg-amber-500/5 border border-amber-500/10 p-5 rounded-4xl flex items-center gap-4">
         <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
             <Clock size={20} />
         </div>
@@ -606,7 +606,7 @@ const BookingsIndex = () => {
     </div>
 
     {/* 4. Daily Revenue */}
-    <div className="bg-emerald-500/5 border border-emerald-500/10 p-5 rounded-[2rem] flex items-center gap-4 shadow-lg shadow-emerald-900/5">
+    <div className="bg-emerald-500/5 border border-emerald-500/10 p-5 rounded-4xl flex items-center gap-4 shadow-lg shadow-emerald-900/5">
         <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
             <Banknote size={20} />
         </div>
@@ -619,7 +619,7 @@ const BookingsIndex = () => {
     </div>
 </div>
 
-            <div className="flex items-center gap-2 mb-6 bg-white/5 p-1.5 rounded-[1.5rem] border border-white/5 w-fit">
+            <div className="flex items-center gap-2 mb-6 bg-white/5 p-1.5 rounded-3xl border border-white/5 w-fit">
                 {[
                     { id: 'all', label: 'All' },
                     { id: 'online', label: 'Online' },
@@ -672,7 +672,7 @@ const BookingsIndex = () => {
 
                                 {/* Show QR only while session still running */}
                                 {!showPayment && (
-                                    <div className="bg-white p-5 rounded-[2rem] inline-block mb-4 shadow-xl">
+                                    <div className="bg-white p-5 rounded-4xl inline-block mb-4 shadow-xl">
                                         <QRCodeSVG
                                             value={booking.qr_code_token || "no-token"}
                                             size={180}

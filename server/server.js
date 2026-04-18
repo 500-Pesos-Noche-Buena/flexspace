@@ -32,10 +32,10 @@ app.set('trust proxy', true);
 app.use(
     cors({
         origin: (origin, callback) => {
-            // Allow no-origin requests (mobile apps, Postman, etc.)
             if (!origin) return callback(null, true);
 
             const allowed = [
+                ALLOWED_ORIGIN,
                 // Production frontend
                 process.env.VITE_API_URL,
                 // Any localhost (any port)
@@ -45,7 +45,7 @@ app.use(
                 // Any 10.x.x.x
                 /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
                 // Any public IP (x.x.x.x)
-                /^http:\/\/\d+\.\d+\.\d+\.\d+(:\d+)?$/,
+                /^http:\/\/\d+\.\d+\.\d+\.\d+(:\d+)?$/
             ].filter(Boolean);
 
             const isAllowed = allowed.some(p =>
@@ -62,9 +62,11 @@ app.use(
 
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
+// Health endpoint - no auth required, lightweight response
 app.get('/health', (req, res) => {
     const now = new Date();
-
+    
+    // Force Philippines timezone for display
     const timeString = now.toLocaleTimeString('en-US', {
         timeZone: 'Asia/Manila',
         hour: '2-digit',
@@ -72,19 +74,25 @@ app.get('/health', (req, res) => {
         second: '2-digit',
         hour12: true
     });
-
+    
     const dateString = now.toLocaleDateString('en-US', {
         timeZone: 'Asia/Manila',
         month: 'long',
         day: 'numeric',
         year: 'numeric'
     });
-
+    
     res.status(200).json({
         success: true,
-        message: 'Welcome to FlexSpace API - System Online',
-        timestamp: `${dateString} | ${timeString}`
+        message: 'FlexSpace API - System Online',
+        timestamp: `${dateString} | ${timeString}`,
+        uptime: process.uptime(),
+        memory: process.memoryUsage().rss / 1024 / 1024 // MB
     });
+});
+
+app.get('/ping', (req, res) => {
+    res.status(200).send('pong');
 });
 
 app.use('/api/v1', routes);

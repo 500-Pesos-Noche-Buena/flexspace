@@ -111,7 +111,7 @@ const EarningsTracker = () => {
                         type="date"
                         value={dateFrom}
                         onChange={(e) => handleDateFrom(e.target.value)}
-                        className="bg-transparent text-white text-xs outline-none [color-scheme:dark] placeholder:text-slate-600 font-medium"
+                        className="bg-transparent text-white text-xs outline-none scheme-dark placeholder:text-slate-600 font-medium"
                         placeholder="From"
                     />
                     <span className="text-slate-600 text-xs">→</span>
@@ -119,13 +119,13 @@ const EarningsTracker = () => {
                         type="date"
                         value={dateTo}
                         onChange={(e) => handleDateTo(e.target.value)}
-                        className="bg-transparent text-white text-xs outline-none [color-scheme:dark] placeholder:text-slate-600 font-medium"
+                        className="bg-transparent text-white text-xs outline-none scheme-dark placeholder:text-slate-600 font-medium"
                         placeholder="To"
                     />
                 </div>
 
                 {/* Search - enhanced style */}
-                <div className="flex items-center gap-2 bg-[#111114] border border-white/5 rounded-2xl px-4 py-2 flex-1 min-w-[200px] hover:border-emerald-500/30 transition-all duration-300">
+                <div className="flex items-center gap-2 bg-[#111114] border border-white/5 rounded-2xl px-4 py-2 flex-1 min-w-50 hover:border-emerald-500/30 transition-all duration-300">
                     <Search size={13} className="text-emerald-500" />
                     <input
                         type="text"
@@ -320,7 +320,7 @@ const StatCard = ({ title, value, icon, trend, color }) => {
 
     return (
         <div className={cn(
-            "relative overflow-hidden bg-[#0a0a0c] border border-white/[0.03] p-6 rounded-[2rem] flex flex-col justify-between group hover:transition-all duration-500 shadow-2xl",
+            "relative overflow-hidden bg-[#0a0a0c] border border-white/3 p-6 rounded-4xl flex flex-col justify-between group hover:transition-all duration-500 shadow-2xl",
             c.hover
         )}>
             <div className="flex justify-between items-start mb-4">

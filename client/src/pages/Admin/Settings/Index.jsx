@@ -167,7 +167,7 @@ const AdminSettings = () => {
                         <div
                             key={key}
                             className={cn(
-                                "bg-[#111114] border rounded-[2rem] p-6 transition-all duration-300 shadow-xl",
+                                "bg-[#111114] border rounded-4xl p-6 transition-all duration-300 shadow-xl",
                                 dirty ? `${c.border} shadow-lg ${c.glow}` : "border-white/5"
                             )}
                         >

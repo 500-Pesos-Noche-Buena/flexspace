@@ -107,7 +107,7 @@ const SpaceDashboard = () => {
 
                 {/* REVENUE CARD - High Contrast Emerald */}
                 {/* Optional: wrap in !isStaff if you don't want staff seeing the total money */}
-                <div className="relative overflow-hidden bg-[#0a0a0c] border border-white/[0.03] p-6 rounded-[2rem] flex flex-col justify-between group hover:border-emerald-500/30 transition-all duration-500 shadow-2xl">
+                <div className="relative overflow-hidden bg-[#0a0a0c] border border-white/3 p-6 rounded-4xl flex flex-col justify-between group hover:border-emerald-500/30 transition-all duration-500 shadow-2xl">
                     <div className="flex justify-between items-start mb-4">
                         <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-all duration-500">
                             <TrendingUp size={20} />
@@ -124,7 +124,7 @@ const SpaceDashboard = () => {
 
                 {/* SPACES / ACTIVE LOAD - Indigo */}
                 {!isStaff ? (
-                    <div className="bg-[#0a0a0c] border border-white/[0.03] p-6 rounded-[2rem] flex flex-col justify-between group hover:border-indigo-500/30 transition-all duration-500 shadow-2xl">
+                    <div className="bg-[#0a0a0c] border border-white/3 p-6 rounded-4xl flex flex-col justify-between group hover:border-indigo-500/30 transition-all duration-500 shadow-2xl">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-500 mb-4">
                             <MapPin size={20} />
                         </div>
@@ -135,7 +135,7 @@ const SpaceDashboard = () => {
                     </div>
                 ) : (
                     /* If Staff, show 'Today's Goal' or 'Active Sessions' instead of 'Your Spaces' */
-                    <div className="bg-[#0a0a0c] border border-white/[0.03] p-6 rounded-[2rem] flex flex-col justify-between group hover:border-sky-500/30 transition-all duration-500 shadow-2xl">
+                    <div className="bg-[#0a0a0c] border border-white/3 p-6 rounded-4xl flex flex-col justify-between group hover:border-sky-500/30 transition-all duration-500 shadow-2xl">
                         <div className="w-12 h-12 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-500 border border-sky-500/20 mb-4">
                             <Zap size={20} />
                         </div>
@@ -147,7 +147,7 @@ const SpaceDashboard = () => {
                 )}
 
                 {/* TOTAL BOOKINGS - Amber */}
-                <div className="bg-[#0a0a0c] border border-white/[0.03] p-6 rounded-[2rem] flex flex-col justify-between group hover:border-amber-500/30 transition-all duration-500 shadow-2xl">
+                <div className="bg-[#0a0a0c] border border-white/3 p-6 rounded-4xl flex flex-col justify-between group hover:border-amber-500/30 transition-all duration-500 shadow-2xl">
                     <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 group-hover:bg-amber-500 group-hover:text-black transition-all duration-500 mb-4">
                         <Users size={20} />
                     </div>
@@ -158,7 +158,7 @@ const SpaceDashboard = () => {
                 </div>
 
                 {/* WALKINS - Slate/White */}
-                <div className="bg-[#0a0a0c] border border-white/[0.03] p-6 rounded-[2rem] flex flex-col justify-between group hover:border-white/30 transition-all duration-500 shadow-2xl">
+                <div className="bg-[#0a0a0c] border border-white/3 p-6 rounded-4xl flex flex-col justify-between group hover:border-white/30 transition-all duration-500 shadow-2xl">
                     <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white border border-white/10 group-hover:bg-white group-hover:text-black transition-all duration-500 mb-4">
                         <Zap size={20} />
                     </div>
@@ -211,7 +211,7 @@ const SpaceDashboard = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {activeSessions.length > 0 ? (
                         activeSessions.map((session) => (
-                            <div key={session._id} className="bg-[#111114] border border-white/5 p-6 rounded-[2rem] flex items-center justify-between group hover:border-indigo-500/30 transition-all shadow-lg">
+                            <div key={session._id} className="bg-[#111114] border border-white/5 p-6 rounded-4xl flex items-center justify-between group hover:border-indigo-500/30 transition-all shadow-lg">
                                 <div className="flex items-center gap-5">
                                     <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-indigo-400 font-black text-xl italic border border-white/5">
                                         {session.userName?.charAt(0).toUpperCase()}
