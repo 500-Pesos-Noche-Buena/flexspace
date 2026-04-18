@@ -7,8 +7,22 @@ const { errorConverter, errorHandler } = require('@/api/v1/middleware/errorHandl
 const ApiError = require('@/utils/ApiError');
 const path = require('path');
 const app = express();
+const os = require('os');
 
-const ALLOWED_ORIGIN = process.env.VITE_API_URL || 'http://localhost:5173';
+const getLocalIp = () => {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const net of interfaces[name]) {
+            if (net.family === 'IPv4' && !net.internal) {
+                return net.address;
+            }
+        }
+    }
+    return 'localhost';
+};
+const NETWORK_URL = `http://${getLocalIp()}:5173`;
+
+const ALLOWED_ORIGIN = process.env.VITE_API_URL || NETWORK_URL;
 
 app.use(morgan('dev'));
 app.use(express.json());
@@ -17,13 +31,7 @@ app.set('trust proxy', true);
 
 app.use(
     cors({
-        origin: function (origin, callback) {
-            if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://192.168.1')) {
-                callback(null, true);
-            } else {
-                callback(new Error('Not allowed by CORS'));
-            }
-        },
+        origin: [ALLOWED_ORIGIN, 'http://localhost:5173'],
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'x-app-fingerprint', 'accept'],
