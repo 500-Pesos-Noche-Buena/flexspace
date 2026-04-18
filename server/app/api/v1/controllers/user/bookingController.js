@@ -63,19 +63,18 @@ class BookingController {
     scanHubQRCode = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
-            const { space_id } = req.body;
+            const { token } = req.body;
 
             const booking = await Booking.findOne({
+                qr_code_token: token,
                 user_id: userId,
-                space_id: space_id,
                 status: { $in: ['confirmed', 'active'] }
-            }).sort({ created_at: -1 });
+            });
 
             if (!booking) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'No valid booking found.');
 
             const now = new Date();
 
-            // Prevent late check-in (1 hour late max)
             if (booking.status === 'confirmed' && !booking.is_open_time) {
                 const limit = new Date(booking.start_time.getTime() + (60 * 60 * 1000));
                 if (now > limit) {

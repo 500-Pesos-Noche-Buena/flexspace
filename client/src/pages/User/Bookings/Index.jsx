@@ -40,12 +40,11 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
         const startScanner = async () => {
             const { Html5Qrcode } = await import('html5-qrcode');
 
-            // verbose: false suppresses the built-in camera selector UI
             html5QrCode = new Html5Qrcode('qr-reader', { verbose: false });
             instanceRef.current = html5QrCode;
 
             await html5QrCode.start(
-                { facingMode: 'environment' }, // force rear camera directly — no selector shown
+                { facingMode: 'environment' },
                 { fps: 10, qrbox: { width: 220, height: 220 } },
                 async (decodedText) => {
                     if (processing) return;
@@ -54,7 +53,7 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
                     setScanning(false);
 
                     try {
-                        const res = await apiPost('/user/bookings/scan', { space_id: decodedText });
+                        const res = await apiPost('/user/bookings/scan', { token: decodedText });
                         if (res.success) {
                             const action = res.data?.check_out_at ? 'Checked out' : 'Checked in';
                             showToast({ icon: 'success', title: `${action} successfully!` });
