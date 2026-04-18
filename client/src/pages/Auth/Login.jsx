@@ -33,6 +33,7 @@ const Login = () => {
                 const roleRedirects = {
                     admin: '/admin/dashboard',
                     space: '/space/dashboard',
+                    staff: '/space/dashboard',
                     user: '/dashboard'
                 };
                 

@@ -73,7 +73,7 @@ const ProfileIndex = () => {
     );
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="animate-in space-y-8  fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header Section */}
             <div className="flex items-center gap-6 bg-[#111114] border border-white/5 p-8 rounded-[3rem]">
                 <div className="w-24 h-24 rounded-4xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 text-3xl font-black italic">

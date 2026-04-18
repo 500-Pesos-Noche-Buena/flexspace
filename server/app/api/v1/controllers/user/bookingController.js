@@ -7,26 +7,27 @@ const crypto = require('crypto');
 class BookingController {
     getUserId = (req) => req.user?.sub || req.user?._id || req.user?.id;
 
-    getMyBookings = async (req, res, next) => {
-        try {
-            const userId = this.getUserId(req);
-            const { page = 1, limit = 10, status = '' } = req.query;
+   getMyBookings = async (req, res, next) => {
+    try {
+        const userId = this.getUserId(req);
+        const { page = 1, limit = 10, status = '' } = req.query;
 
-            let query = { user_id: userId };
-            if (status) query.status = status;
+        let query = { user_id: userId };
+        if (status) query.status = status;
 
-            const total = await Booking.countDocuments(query);
-            const bookings = await Booking.find(query)
-                .populate('space_id', 'name image area')
-                .sort({ created_at: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit);
+        const total = await Booking.countDocuments(query);
+        const bookings = await Booking.find(query)
+            // ✅ ADDED rate_hour HERE
+            .populate('space_id', 'name image area rate_hour') 
+            .sort({ created_at: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
 
-            return res.status(HTTP_STATUS.OK).json({ success: true, data: { bookings, total } });
-        } catch (error) {
-            next(error);
-        }
-    };
+        return res.status(HTTP_STATUS.OK).json({ success: true, data: { bookings, total } });
+    } catch (error) {
+        next(error);
+    }
+};
 
     createBooking = async (req, res, next) => {
         try {
@@ -44,7 +45,6 @@ class BookingController {
                 ticket_number: `FLX-${Math.floor(1000 + Math.random() * 9000)}`
             };
 
-            // Force Philippines Offset (+08:00) so it doesn't shift back to yesterday
             if (is_open_time) {
                 bookingData.start_time = new Date(`${date}T00:00:00+08:00`);
                 bookingData.end_time = new Date(`${date}T23:59:59+08:00`);
@@ -65,18 +65,23 @@ class BookingController {
             const userId = this.getUserId(req);
             const { token } = req.body;
 
+            // Find the booking
             const booking = await Booking.findOne({
                 qr_code_token: token,
                 user_id: userId,
+                // Only look for confirmed (waiting to enter) or active (already inside)
                 status: { $in: ['confirmed', 'active'] }
-            });
+            }).populate('space_id');
 
-            if (!booking) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'No valid booking found.');
+            if (!booking) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'No valid confirmed or active booking found.');
+            }
 
             const now = new Date();
 
+            // 1. LATENESS CHECK (Only for hourly bookings that haven't checked in yet)
             if (booking.status === 'confirmed' && !booking.is_open_time) {
-                const limit = new Date(booking.start_time.getTime() + (60 * 60 * 1000));
+                const limit = new Date(booking.start_time.getTime() + (60 * 60 * 1000)); // 1 hour grace
                 if (now > limit) {
                     booking.status = 'cancelled';
                     booking.notes = 'Expired: Scanned too late.';
@@ -85,16 +90,30 @@ class BookingController {
                 }
             }
 
-            if (!booking.check_in_at) {
+            // 2. CHECK-IN LOGIC
+            // If status is confirmed, this is their first scan. Set check_in_at.
+            if (booking.status === 'confirmed') {
                 booking.check_in_at = now;
                 booking.status = 'active';
-            } else if (!booking.check_out_at) {
-                booking.check_out_at = now;
-                booking.status = 'completed';
+                await booking.save();
+                return res.status(HTTP_STATUS.OK).json({ 
+                    success: true, 
+                    message: "Check-in successful! Enjoy your stay.", 
+                    data: booking 
+                });
             }
 
-            await booking.save();
-            return res.status(HTTP_STATUS.OK).json({ success: true, message: "Status Updated", data: booking });
+            // 3. ALREADY ACTIVE LOGIC
+            // If they scan again while status is 'active', just acknowledge it.
+            // DO NOT set check_out_at here.
+            if (booking.status === 'active') {
+                return res.status(HTTP_STATUS.OK).json({ 
+                    success: true, 
+                    message: "Session is already active. No need to scan out!", 
+                    data: booking 
+                });
+            }
+
         } catch (error) {
             next(error);
         }

@@ -1,77 +1,359 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiGet } from '@/utils/Api';
-import { Receipt, TrendingUp, Wallet, ArrowUpRight, History } from 'lucide-react';
+import { Receipt, TrendingUp, Wallet, ArrowUpRight, History, Calendar, Search, Loader2, Zap } from 'lucide-react';
 import { DataTable } from '@/components/ui/DataTable';
+import { cn } from '@/utils/cn';
+
+const PERIODS = [
+    { id: 'daily',   label: 'Today' },
+    { id: 'weekly',  label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'yearly',  label: 'Yearly' },
+];
 
 const EarningsTracker = () => {
-    const [data, setData] = useState(null);
+    const [data,    setData]    = useState(null);
     const [loading, setLoading] = useState(true);
+    const [period,  setPeriod]  = useState('daily');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo,   setDateTo]   = useState('');
+    const [search,   setSearch]   = useState('');
+    const [page,     setPage]     = useState(1);
 
-    useEffect(() => {
-        const fetchEarnings = async () => {
-            try {
-                const res = await apiGet('/space/earnings');
-                setData(res.data);
-            } catch (err) {
-                console.error("Failed to load earnings", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchEarnings();
+    const paramsRef = useRef({ period, dateFrom, dateTo, search, page });
+
+    const fetchEarnings = useCallback(async () => {
+        setLoading(true);
+        try {
+            const { period, dateFrom, dateTo, search, page } = paramsRef.current;
+            const params = new URLSearchParams({ period, page, search });
+            if (dateFrom) params.append('dateFrom', dateFrom);
+            if (dateTo)   params.append('dateTo',   dateTo);
+
+            const res = await apiGet(`/space/earnings?${params.toString()}`);
+            if (res.success) setData(res.data);
+        } catch (err) {
+            console.error("Failed to load earnings", err);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
-    if (loading) return <div className="p-10 text-white italic opacity-50">Calculating revenue...</div>;
+    // Sync ref and refetch whenever filters change
+    useEffect(() => {
+        paramsRef.current = { period, dateFrom, dateTo, search, page };
+        fetchEarnings();
+    }, [period, dateFrom, dateTo, search, page, fetchEarnings]);
+
+    // Clear period selection when manual date range is set
+    const handleDateFrom = (v) => { setDateFrom(v); setPeriod(''); setPage(1); };
+    const handleDateTo   = (v) => { setDateTo(v);   setPeriod(''); setPage(1); };
+    const handlePeriod   = (p) => { setPeriod(p); setDateFrom(''); setDateTo(''); setPage(1); };
+
+    if (loading && !data) {
+        return (
+            <div className="h-[60vh] flex flex-col items-center justify-center gap-4 px-6 text-center">
+                <div className="relative">
+                    <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                    </div>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 italic">
+                    Loading Financial Data...
+                </p>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-700">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
+            
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-black text-white uppercase italic tracking-tighter">Earnings Tracker</h1>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Financial performance & payout history</p>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="Gross Revenue" value={`₱${data?.totalRevenue?.toLocaleString()}`} icon={<TrendingUp className="text-emerald-400" />} color="bg-emerald-500/10" />
-                <StatCard title="Net Earnings" value={`₱${data?.netEarnings?.toLocaleString()}`} icon={<Wallet className="text-indigo-400" />} color="bg-indigo-500/10" />
-                <StatCard title="Platform Fees" value={`₱${data?.platformFee?.toLocaleString()}`} icon={<ArrowUpRight className="text-rose-400" />} color="bg-rose-500/10" />
-            </div>
-
-            {/* Transactions */}
-            <div className="bg-[#111114] border border-white/5 rounded-[2.5rem] p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <History size={18} className="text-slate-500" />
-                    <h2 className="text-sm font-black text-white uppercase italic">Transaction History</h2>
+            <div className="mb-6 md:mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-white uppercase italic">Earnings Tracker</h1>
+                    <p className="text-[10px] md:text-xs text-slate-500 font-medium uppercase tracking-widest">Financial performance & payout history</p>
                 </div>
                 
-                <DataTable 
+                <div className="flex items-center gap-3">
+                    <div className="text-[9px] font-black text-emerald-500 flex items-center gap-1.5 uppercase tracking-tighter bg-emerald-500/10 px-3 py-1.5 rounded-full">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                        Live Data
+                    </div>
+                </div>
+            </div>
+
+            {/* Filters */}
+            <div className="mb-8 flex flex-wrap items-center gap-3">
+                {/* Period pills - matching SpaceDashboard style */}
+                <div className="flex bg-[#111114] border border-white/5 p-1 rounded-2xl shadow-2xl">
+                    {PERIODS.map(p => (
+                        <button
+                            key={p.id}
+                            onClick={() => handlePeriod(p.id)}
+                            className={cn(
+                                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                                period === p.id
+                                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/20"
+                                    : "text-slate-500 hover:text-slate-300"
+                            )}
+                        >
+                            {p.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Date range - enhanced style */}
+                <div className="flex items-center gap-2 bg-[#111114] border border-white/5 rounded-2xl px-4 py-2 hover:border-emerald-500/30 transition-all duration-300">
+                    <Calendar size={13} className="text-emerald-500" />
+                    <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => handleDateFrom(e.target.value)}
+                        className="bg-transparent text-white text-xs outline-none [color-scheme:dark] placeholder:text-slate-600 font-medium"
+                        placeholder="From"
+                    />
+                    <span className="text-slate-600 text-xs">→</span>
+                    <input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => handleDateTo(e.target.value)}
+                        className="bg-transparent text-white text-xs outline-none [color-scheme:dark] placeholder:text-slate-600 font-medium"
+                        placeholder="To"
+                    />
+                </div>
+
+                {/* Search - enhanced style */}
+                <div className="flex items-center gap-2 bg-[#111114] border border-white/5 rounded-2xl px-4 py-2 flex-1 min-w-[200px] hover:border-emerald-500/30 transition-all duration-300">
+                    <Search size={13} className="text-emerald-500" />
+                    <input
+                        type="text"
+                        placeholder="Search ticket or guest..."
+                        value={search}
+                        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                        className="bg-transparent text-white text-xs outline-none placeholder:text-slate-600 w-full font-medium"
+                    />
+                </div>
+            </div>
+
+            {/* Stats Grid - Matching SpaceDashboard card style */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                <StatCard
+                    title="Gross Revenue"
+                    value={`₱${(data?.totalRevenue || 0).toLocaleString()}`}
+                    icon={<TrendingUp size={20} />}
+                    trend="Total Sales"
+                    color="emerald"
+                />
+                <StatCard
+                    title="Net Earnings"
+                    value={`₱${(data?.netEarnings || 0).toLocaleString()}`}
+                    icon={<Wallet size={20} />}
+                    trend="Your Share"
+                    color="indigo"
+                />
+                <StatCard
+                    title={`Platform Fee (${data?.feePercent ?? 3}%)`}
+                    value={`₱${(data?.platformFee || 0).toLocaleString()}`}
+                    icon={<ArrowUpRight size={20} />}
+                    trend="Commission"
+                    color="rose"
+                />
+            </div>
+
+            {/* Transactions Table - Matching dashboard table style */}
+            <div className="bg-[#111114] rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
+                <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <History size={16} className="text-slate-500" />
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">
+                            Transaction History
+                        </h3>
+                    </div>
+                    <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">
+                        {data?.total || 0} records
+                    </div>
+                </div>
+
+                <DataTable
                     columns={[
-                        { header: "Reference", cell: (r) => <span className="font-mono text-indigo-400 font-bold">{r.reference}</span> },
-                        { header: "Space", cell: (r) => <span className="text-white font-bold">{r.space}</span> },
-                        { header: "Amount", cell: (r) => <span className="text-emerald-500 font-black">₱{r.amount?.toLocaleString()}</span> },
-                        { header: "Date", cell: (r) => <span className="text-slate-500 text-xs font-medium">{new Date(r.date).toLocaleDateString()}</span> }
+                        {
+                            header: "Reference",
+                            cell: (r) => (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                                        <span className="text-[8px] font-black text-indigo-400">#</span>
+                                    </div>
+                                    <span className="font-mono text-indigo-400 font-black text-xs tracking-tighter">
+                                        {r.reference}
+                                    </span>
+                                </div>
+                            )
+                        },
+                        {
+                            header: "Guest",
+                            cell: (r) => (
+                                <div>
+                                    <p className="text-white font-black text-xs uppercase italic tracking-tight">{r.guest}</p>
+                                </div>
+                            )
+                        },
+                        {
+                            header: "Space",
+                            cell: (r) => (
+                                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">{r.space}</span>
+                            )
+                        },
+                        {
+                            header: "Type",
+                            cell: (r) => (
+                                <span className={cn(
+                                    "px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-tighter border",
+                                    r.type === 'walkin'
+                                        ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                                        : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                )}>
+                                    {r.type}
+                                </span>
+                            )
+                        },
+                        {
+                            header: "Amount",
+                            cell: (r) => (
+                                <span className="text-emerald-400 font-black text-sm">
+                                    ₱{(r.amount || 0).toLocaleString()}
+                                </span>
+                            )
+                        },
+                        {
+                            header: "Date",
+                            cell: (r) => (
+                                <div className="flex items-center gap-1.5">
+                                    <Calendar size={10} className="text-slate-600" />
+                                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                                        {new Date(r.date).toLocaleDateString('en-PH', {
+                                            month: 'short', 
+                                            day: 'numeric',
+                                            year: '2-digit'
+                                        })}
+                                    </span>
+                                </div>
+                            )
+                        }
                     ]}
                     data={data?.transactions || []}
-                    // 🔥 ADD THIS LINE to prevent the crash
-                    onParamsChange={(params) => console.log("Params changed:", params)} 
-                    totalCount={data?.transactions?.length || 0}
+                    loading={loading}
+                    totalCount={data?.total || 0}
+                    onParamsChange={(p) => setPage(p.page || 1)}
+                    renderMobileCard={(r) => (
+                        <div className="bg-[#111114] border border-white/5 rounded-2xl p-5 space-y-3">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                                            <span className="text-indigo-400 font-black text-xs">#</span>
+                                        </div>
+                                        <p className="font-mono text-indigo-400 font-black text-xs">{r.reference}</p>
+                                    </div>
+                                    <p className="text-white font-black text-sm mt-2">{r.guest}</p>
+                                    <p className="text-[9px] text-slate-500">{r.space}</p>
+                                </div>
+                                <span className={cn(
+                                    "px-2 py-1 rounded-lg text-[8px] font-black uppercase",
+                                    r.type === 'walkin'
+                                        ? "bg-purple-500/10 text-purple-400"
+                                        : "bg-blue-500/10 text-blue-400"
+                                )}>
+                                    {r.type}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                                <div className="flex items-center gap-1.5">
+                                    <Calendar size={10} className="text-slate-600" />
+                                    <span className="text-slate-500 text-[9px] font-bold">
+                                        {new Date(r.date).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <span className="text-emerald-400 font-black text-lg">
+                                    ₱{(r.amount || 0).toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 />
             </div>
         </div>
     );
 };
 
-const StatCard = ({ title, value, icon, color }) => (
-    <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center justify-between shadow-xl shadow-black/20">
-        <div>
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">{title}</p>
-            <h3 className="text-2xl font-black text-white">{value}</h3>
+// Enhanced StatCard matching SpaceDashboard style with hover animations
+const StatCard = ({ title, value, icon, trend, color }) => {
+    const colorClasses = {
+        emerald: {
+            bg: 'bg-emerald-500/10',
+            border: 'border-emerald-500/20',
+            hover: 'group-hover:border-emerald-500/30',
+            icon: 'text-emerald-500',
+            iconHover: 'group-hover:bg-emerald-500 group-hover:text-black',
+            pulse: 'bg-emerald-500'
+        },
+        indigo: {
+            bg: 'bg-indigo-500/10',
+            border: 'border-indigo-500/20',
+            hover: 'group-hover:border-indigo-500/30',
+            icon: 'text-indigo-500',
+            iconHover: 'group-hover:bg-indigo-500 group-hover:text-white',
+            pulse: 'bg-indigo-500'
+        },
+        rose: {
+            bg: 'bg-rose-500/10',
+            border: 'border-rose-500/20',
+            hover: 'group-hover:border-rose-500/30',
+            icon: 'text-rose-500',
+            iconHover: 'group-hover:bg-rose-500 group-hover:text-white',
+            pulse: 'bg-rose-500'
+        }
+    };
+
+    const c = colorClasses[color] || colorClasses.emerald;
+
+    return (
+        <div className={cn(
+            "relative overflow-hidden bg-[#0a0a0c] border border-white/[0.03] p-6 rounded-[2rem] flex flex-col justify-between group hover:transition-all duration-500 shadow-2xl",
+            c.hover
+        )}>
+            <div className="flex justify-between items-start mb-4">
+                <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500",
+                    c.bg,
+                    c.border,
+                    c.iconHover
+                )}>
+                    <div className={cn("transition-all duration-500", c.icon)}>
+                        {icon}
+                    </div>
+                </div>
+                <div className={cn(
+                    "text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter",
+                    c.bg,
+                    c.icon
+                )}>
+                    <div className="flex items-center gap-1">
+                        <div className={cn("w-1 h-1 rounded-full animate-pulse", c.pulse)} />
+                        {trend}
+                    </div>
+                </div>
+            </div>
+            <div>
+                <p className="text-[9px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">{title}</p>
+                <p className="text-2xl font-black text-white tracking-tighter group-hover:scale-105 transition-transform duration-300">
+                    {value}
+                </p>
+            </div>
+            <Zap size={80} className="absolute -right-6 -bottom-6 opacity-5 rotate-12 group-hover:rotate-25 transition-transform duration-700" />
         </div>
-        <div className={`p-4 rounded-2xl ${color}`}>
-            {icon}
-        </div>
-    </div>
-);
+    );
+};
 
 export default EarningsTracker;

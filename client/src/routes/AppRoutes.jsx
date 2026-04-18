@@ -21,11 +21,15 @@ import AdminDashboard from '@/pages/Admin/Dashboard/Index';
 import UserManagement from '@/pages/Admin/User/Index';
 import SpaceManagement from '@/pages/Admin/Space/Index';
 import SpaceApplication from '@/pages/Admin/Space/Application';
+import AdminSettings from '@/pages/Admin/Settings/Index';
+import AdminEarnings from '@/pages/Admin/Earnings/Index';
+
 import SpaceDashboard from '@/pages/Space/Dashboard/Index';
 import MySpaces from '@/pages/Space/MySpaces/Index';
 import Bookings from '@/pages/Space/Bookings/Index';
 import Walkins from '@/pages/Space/Walkins/Index';
 import EarningsTracker from '@/pages/Space/Earnings/Index';
+import StaffManagement from '@/pages/Space/Staff/Index';
 
 // Regular User Pages
 import UserDashboard from '@/pages/User/Dashboard/Index';
@@ -63,6 +67,8 @@ export const AppRoutes = () => {
                     <Route path="users" element={<UserManagement />} />
                     <Route path="spaces" element={<SpaceManagement />} />
                     <Route path="space/applications" element={<SpaceApplication />} />
+                    <Route path="settings" element={<AdminSettings />} />
+                    <Route path="earnings" element={<AdminEarnings />} />
                 </Route>
 
                 {/* Space Owner Section */}
@@ -73,6 +79,7 @@ export const AppRoutes = () => {
                     <Route path="bookings" element={<Bookings />} />
                     <Route path="walkins" element={<Walkins />} />
                     <Route path="earnings" element={<EarningsTracker />} />
+                    <Route path="staff" element={<StaffManagement />} />
                 </Route>
             </Route>
 

@@ -58,6 +58,22 @@ class UserService {
         ]);
         return !!(user || pending);
     }
+
+    // Add this to your UserService class
+    async createStaff(data) {
+        if (!data.password) throw new Error("Password missing for hashing");
+        
+        const hashedPassword = await hashPassword(data.password);
+        
+        return await User.create({
+            name: data.name,
+            email: data.email,
+            password: hashedPassword,
+            role: 'staff',      // Hardcoded for security
+            parent_id: data.parent_id, 
+            isActive: true
+        });
+    }
 }
 
 module.exports = new UserService();

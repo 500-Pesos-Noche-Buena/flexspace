@@ -7,7 +7,7 @@ import Contact from './Contact';
 
 const LandingPage = () => {
     return (
-        <div className="bg-white min-h-screen selection:bg-indigo-100 selection:text-indigo-900">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* 1. HERO SECTION */}
             <div className="relative overflow-hidden pt-10 md:pt-16 pb-12 md:pb-20">
                 <div className="max-w-7xl mx-auto px-4 md:px-6">

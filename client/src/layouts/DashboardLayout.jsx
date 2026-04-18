@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"; // Added useCallback
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutGrid, Users, FileText, Calendar, Box, Fence,
     ShoppingCart, Receipt, ChevronLeft, LogOut, User,
     Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck
 } from "lucide-react";
-import { apiPost } from "@/utils/Api";
+import { apiPost, apiGet } from "@/utils/Api";
 
 export default function DashboardLayout() {
     const [user] = useState(() => {
@@ -16,15 +16,17 @@ export default function DashboardLayout() {
         }
     });
 
-    const location = useLocation();
-    const navigate = useNavigate();
+    const location  = useLocation();
+    const navigate  = useNavigate();
 
-    const isAdmin = user.role === "admin";
-    const isSpaceOwner = user.role === "space";
+    const isAdmin       = user.role === "admin";
+    const hasSpaceAccess = ["space", "staff"].includes(user.role);
+    const isActualOwner  = user.role === "space";
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isSidebarOpen,    setIsSidebarOpen]    = useState(true);
+    const [isProfileOpen,    setIsProfileOpen]    = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [parentName,       setParentName]       = useState(null);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -34,13 +36,20 @@ export default function DashboardLayout() {
 
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsProfileOpen(false);
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target))
+                setIsProfileOpen(false);
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // FIXED: Wrapped in useCallback to satisfy useMemo dependencies
+    useEffect(() => {
+        if (user.role !== 'staff') return;
+        apiGet('/auth/me/parent')
+            .then(res => { if (res.success) setParentName(res.parentName); })
+            .catch(() => {});
+    }, [user.role]);
+
     const isRouteActive = useCallback((path) => {
         return location.pathname === path || location.pathname.startsWith(path + "/");
     }, [location.pathname]);
@@ -59,15 +68,14 @@ export default function DashboardLayout() {
     const sidebarSections = useMemo(() => {
         const sections = [];
 
-        // MANAGEMENT
         sections.push({
             title: "Management",
             items: [
                 {
-                    href: isAdmin ? "/admin/dashboard" : "/space/dashboard",
+                    href:   isAdmin ? "/admin/dashboard" : "/space/dashboard",
                     active: isRouteActive(isAdmin ? "/admin/dashboard" : "/space/dashboard"),
-                    icon: <LayoutGrid />,
-                    label: "Dashboard"
+                    icon:   <LayoutGrid />,
+                    label:  "Dashboard"
                 },
                 ...(isAdmin ? [
                     { href: "/admin/users", active: isRouteActive("/admin/users"), icon: <Users />, label: "Users" }
@@ -75,48 +83,48 @@ export default function DashboardLayout() {
             ],
         });
 
-        // CORE BUSINESS
         sections.push({
             title: "Core Business",
             items: [
                 ...(isAdmin ? [
-                    { href: "/admin/spaces", active: isRouteActive("/admin/spaces"), icon: <MapPin />, label: "Co-Working Hubs" },
+                    { href: "/admin/spaces",             active: isRouteActive("/admin/spaces"),             icon: <MapPin />,      label: "Co-Working Hubs" },
                     { href: "/admin/space/applications", active: isRouteActive("/admin/space/applications"), icon: <ShieldCheck />, label: "Space Applications" },
                 ] : []),
 
-                ...(isSpaceOwner ? [
-                    { href: "/space/my-spaces", active: isRouteActive("/space/my-spaces"), icon: <MapPin />, label: "My Spaces" },
+                ...(hasSpaceAccess ? [
+                    ...(isActualOwner ? [
+                        { href: "/space/staff",      active: isRouteActive("/space/staff"),      icon: <Users />,  label: "Staff Management" },
+                        { href: "/space/my-spaces",  active: isRouteActive("/space/my-spaces"),  icon: <MapPin />, label: "My Spaces" },
+                    ] : []),
                     { href: "/space/bookings", active: isRouteActive("/space/bookings"), icon: <Calendar />, label: "Bookings" },
-                    { href: "/space/walkins", active: isRouteActive("/space/walkins"), icon: <Users />, label: "Walk-ins" },
+                    { href: "/space/walkins",  active: isRouteActive("/space/walkins"),  icon: <Users />,    label: "Walk-ins" },
                 ] : []),
             ],
         });
 
-        // FINANCE
         sections.push({
             title: "Finance",
             items: [
                 ...(isAdmin ? [
                     { href: "/admin/earnings", active: isRouteActive("/admin/earnings"), icon: <Receipt />, label: "Earnings Tracker" }
                 ] : []),
-                ...(isSpaceOwner ? [
+                ...(isActualOwner ? [
                     { href: "/space/earnings", active: isRouteActive("/space/earnings"), icon: <Receipt />, label: "Earnings Tracker" }
                 ] : []),
             ],
         });
 
-        // SYSTEM
         if (isAdmin) {
             sections.push({
                 title: "System",
                 items: [
-                    { href: "/admin/logs", active: isRouteActive("/admin/logs"), icon: <History />, label: "Activity Logs" },
+                    { href: "/admin/logs",     active: isRouteActive("/admin/logs"),     icon: <History />,      label: "Activity Logs" },
                 ],
             });
         }
 
-        return sections;
-    }, [isAdmin, isSpaceOwner, isRouteActive]); // Added isRouteActive here
+        return sections.filter(section => section.items.length > 0);
+    }, [isAdmin, hasSpaceAccess, isActualOwner, isRouteActive]);
 
     return (
         <div className="min-h-screen bg-[#09090b] text-slate-100 font-sans selection:bg-emerald-500/30">
@@ -131,7 +139,7 @@ export default function DashboardLayout() {
                 ${isSidebarOpen ? "lg:w-64" : "lg:w-20"}`}
             >
                 <div className="flex flex-col h-full p-4">
-                    {/* LOGO SECTION */}
+                    {/* LOGO */}
                     <div className="flex items-center justify-between mb-6 px-1 h-14">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-900/40">
@@ -176,7 +184,7 @@ export default function DashboardLayout() {
                 </div>
             </aside>
 
-            {/* MAIN CONTENT AREA */}
+            {/* MAIN CONTENT */}
             <div className={`transition-all duration-300 ${isSidebarOpen ? "lg:ml-64" : "lg:ml-20"}`}>
                 <header className="mb-5 px-4 lg:px-8 py-4 flex items-center justify-between sticky top-0 bg-[#09090b]/80 backdrop-blur-md z-40 border-b border-white/5">
                     <div className="flex items-center gap-3">
@@ -195,8 +203,14 @@ export default function DashboardLayout() {
                     <div className="relative flex items-center gap-3" ref={dropdownRef}>
                         <div className="text-right hidden sm:flex flex-col leading-tight mr-1">
                             <p className="text-sm font-black tracking-tight text-white">{user.name}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{user.role}</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                                {user.role === 'staff' && parentName
+                                    ? `Staff of ${parentName}`
+                                    : user.role
+                                }
+                            </p>
                         </div>
+
                         <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="relative flex items-center group focus:outline-none">
                             <div className={`absolute -inset-1 bg-linear-to-tr from-emerald-600 to-emerald-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300 ${isProfileOpen ? 'opacity-60' : ''}`} />
                             <img
@@ -213,11 +227,9 @@ export default function DashboardLayout() {
                                 </div>
 
                                 <div className="flex flex-col gap-1">
+                                    {/* My Profile */}
                                     <button
-                                        onClick={() => {
-                                            navigate('/profile');
-                                            setIsProfileOpen(false);
-                                        }}
+                                        onClick={() => { navigate('/profile'); setIsProfileOpen(false); }}
                                         className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 rounded-3xl transition-all text-left group"
                                     >
                                         <div className="p-2 rounded-xl bg-white/5 group-hover:bg-indigo-500/20 group-hover:text-indigo-400 transition-all duration-300">
@@ -226,8 +238,22 @@ export default function DashboardLayout() {
                                         My Profile
                                     </button>
 
+                                    {/* Settings — admin only */}
+                                    {isAdmin && (
+                                        <button
+                                            onClick={() => { navigate('/admin/settings'); setIsProfileOpen(false); }}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 rounded-3xl transition-all text-left group"
+                                        >
+                                            <div className="p-2 rounded-xl bg-white/5 group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition-all duration-300">
+                                                <SettingsIcon className="w-3.5 h-3.5" />
+                                            </div>
+                                            System Settings
+                                        </button>
+                                    )}
+
                                     <div className="h-px bg-white/5 mx-3 my-1" />
 
+                                    {/* Sign Out */}
                                     <button
                                         onClick={handleLogout}
                                         className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-500/80 hover:text-rose-500 hover:bg-rose-500/10 rounded-3xl transition-all text-left group"

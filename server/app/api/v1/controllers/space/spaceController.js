@@ -1,4 +1,4 @@
-const { Space } = require('@/api/v1/models');
+const { Space, User } = require('@/api/v1/models');
 const ApiError = require('@/utils/ApiError');
 const { HTTP_STATUS } = require('@/utils/constants');
 const fs = require('fs');
@@ -9,27 +9,35 @@ class SpaceController {
         return path.join(process.cwd(), 'server/public/uploads/spaces', filename);
     };
 
-    getUserId = (req) => {
-        return req.user?.id || req.user?._id || req.user?.sub;
+     // Replace getUserId with getOwnerId
+    getOwnerId = async (req) => {
+        const userId = req.user?.id || req.user?._id || req.user?.sub;
+
+        if (req.user?.role === 'staff') {
+            const staffRecord = await User.findById(userId).select('parent_id');
+            if (staffRecord?.parent_id) {
+                return staffRecord.parent_id.toString();
+            }
+        }
+
+        return userId?.toString();
     };
 
     index = async (req, res, next) => {
         try {
-            const userId = this.getUserId(req);
-            if (!userId) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Session expired.');
+            const ownerId = await this.getOwnerId(req); // ← async now
+            if (!ownerId) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Session expired.');
 
-            const spaces = await Space.find({ user_id: userId })
+            const spaces = await Space.find({ user_id: ownerId })
                 .populate('district_id', 'name')
                 .sort({ created_at: -1 });
 
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: spaces
-            });
+            return res.status(HTTP_STATUS.OK).json({ success: true, data: spaces });
         } catch (error) {
             next(error);
         }
     };
+
 
     store = async (req, res, next) => {
         try {
