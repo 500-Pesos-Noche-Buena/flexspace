@@ -31,7 +31,29 @@ app.set('trust proxy', true);
 
 app.use(
     cors({
-        origin: [ALLOWED_ORIGIN, 'http://localhost:5173'],
+        origin: (origin, callback) => {
+            // Allow no-origin requests (mobile apps, Postman, etc.)
+            if (!origin) return callback(null, true);
+
+            const allowed = [
+                // Production frontend
+                process.env.VITE_API_URL,
+                // Any localhost (any port)
+                /^http:\/\/localhost(:\d+)?$/,
+                // Any 192.168.x.x — local WiFi
+                /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
+                // Any 10.x.x.x
+                /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
+                // Any public IP (x.x.x.x)
+                /^http:\/\/\d+\.\d+\.\d+\.\d+(:\d+)?$/,
+            ].filter(Boolean);
+
+            const isAllowed = allowed.some(p =>
+                p instanceof RegExp ? p.test(origin) : p === origin
+            );
+
+            isAllowed ? callback(null, true) : callback(new Error(`CORS blocked: ${origin}`));
+        },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'x-app-fingerprint', 'accept'],

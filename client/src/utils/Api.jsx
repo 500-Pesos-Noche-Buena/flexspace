@@ -3,16 +3,19 @@ const getBaseUrl = () => {
     const protocol = window.location.protocol;
 
     if (host.includes('vercel.app')) {
-        return import.meta.env.VITE_API_URL; 
+        return import.meta.env.VITE_API_URL;
     }
 
-    if (host === 'localhost' || host.startsWith('192.168.')) {
+    // localhost, any 192.168.x.x, any 10.x.x.x, OR any raw IP address
+    if (
+        host === 'localhost' ||
+        /^\d+\.\d+\.\d+\.\d+$/.test(host) // covers ALL IPs including public
+    ) {
         return `${protocol}//${host}:5000`;
     }
 
     return import.meta.env.VITE_API_URL || `${protocol}//${host}:5000`;
 };
-
 const API_BASE_URL = getBaseUrl();
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
@@ -20,6 +23,7 @@ const FULL_BASE_URL = `${API_BASE_URL}/api/${API_VERSION}`;
 
 const INTERNAL_SECRET = import.meta.env.VITE_INTERNAL_SECRET;
 
+// Ensure this key matches what you use in your Login function!
 const getToken = () => localStorage.getItem('authToken');
 
 async function apiRequest(method, endpoint, data = null) {
@@ -34,6 +38,7 @@ async function apiRequest(method, endpoint, data = null) {
         },
     };
 
+    // Attach Bearer Token if available
     if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
