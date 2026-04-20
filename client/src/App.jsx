@@ -2,6 +2,7 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import { AppRoutes } from '@/routes/AppRoutes';
 import { AppLayout } from './layouts/AppLayout';
 import { AuthProvider } from './context/AuthContext'; 
+import AnalyticsTracker from '@/components/ui/AnalyticsTracker';
 
 // Only import Analytics in production
 const Analytics = process.env.NODE_ENV === 'production' 
@@ -14,6 +15,7 @@ const App = () => {
       <AuthProvider>
         <AppLayout>
           <AppRoutes />
+          <AnalyticsTracker />
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </AppLayout>
       </AuthProvider>

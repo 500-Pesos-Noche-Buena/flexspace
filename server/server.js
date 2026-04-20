@@ -60,6 +60,7 @@ app.use(
     })
 );
 
+
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // Health endpoint - no auth required, lightweight response
@@ -96,6 +97,7 @@ app.get('/ping', (req, res) => {
 });
 
 app.use('/api/v1', routes);
+
 app.use((req, res, next) => {
     next(new ApiError(404, `Route ${req.method} ${req.originalUrl} not found`));
 });

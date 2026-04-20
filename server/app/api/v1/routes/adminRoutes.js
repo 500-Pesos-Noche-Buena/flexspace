@@ -44,7 +44,9 @@ class AdminRoutes {
         this.router.post('/vouchers', auth, (req, res, next) => voucherController.create(req, res, next));
         this.router.post('/vouchers/:id/delete', auth, (req, res, next) => voucherController.delete(req, res, next));
 
+        // Use these routes (keep the same URLs your frontend expects)
         this.router.get('/insights', auth, (req, res, next) => insightsController.getStats(req, res, next));
+        this.router.put('/analytics', auth, (req, res, next) => insightsController.updateStats(req, res, next));
     };
 
     getRouter = () => this.router;
