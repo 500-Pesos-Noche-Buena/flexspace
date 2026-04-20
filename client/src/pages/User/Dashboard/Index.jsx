@@ -2,21 +2,32 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiGet } from '@/utils/Api';
 import { 
     MapPin, Calendar, Star, 
-    ArrowRight, Zap, Loader2, RefreshCw 
+    ArrowRight, Zap, Loader2, RefreshCw, Coins, Clock, TrendingUp 
 } from 'lucide-react';
 import ExplorerView from '@/pages/Landing/ExplorerView';
 import { useAuth } from '@/context/AuthContext';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /** --- SUB-COMPONENTS --- **/
-const StatBox = ({ label, value, color }) => (
-    <div className="bg-white border border-slate-100 p-4 rounded-3xl min-w-25 text-center hover:border-indigo-200 transition-all cursor-default shadow-sm hover:shadow-md">
+const StatBox = ({ label, value, color, icon: Icon, subtitle, tooltip }) => (
+    <div className="bg-white border border-slate-100 p-4 rounded-3xl min-w-25 text-center hover:border-indigo-200 transition-all cursor-default shadow-sm hover:shadow-md group relative">
+        <div className="flex items-center justify-center mb-2">
+            {Icon && <Icon size={20} className={`${color} opacity-70 group-hover:opacity-100 transition-opacity`} />}
+        </div>
         <h3 className={`text-2xl font-[1000] ${color} tracking-tighter`}>{value}</h3>
         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">{label}</p>
+        {subtitle && (
+            <p className="text-[7px] text-slate-300 font-bold uppercase tracking-wider mt-1">{subtitle}</p>
+        )}
+        {tooltip && (
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-[8px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                {tooltip}
+            </div>
+        )}
     </div>
 );
 
-/** --- SUB-COMPONENTS --- **/
+/** --- SPACE CARD COMPONENT --- **/
 const SpaceCard = ({ name, location, price, rating, image, tags = [] }) => {
     const imageUrl = image ? `${API_BASE_URL}/uploads/spaces/${image}` : null;
 
@@ -26,7 +37,6 @@ const SpaceCard = ({ name, location, price, rating, image, tags = [] }) => {
                 <div className="absolute top-4 right-4 px-3 py-1 bg-white/90 backdrop-blur-md rounded-full z-10 text-[9px] font-black text-slate-900 uppercase tracking-widest border border-slate-100">
                     ₱{price}/hr
                 </div>
-
                 <img 
                     src={imageUrl} 
                     alt={name}
@@ -38,7 +48,6 @@ const SpaceCard = ({ name, location, price, rating, image, tags = [] }) => {
                     }} 
                 />
             </div>
-
             <div className="flex justify-between items-start mb-2">
                 <div>
                     <h3 className="text-slate-900 font-[1000] uppercase text-sm tracking-tight">{name}</h3>
@@ -51,7 +60,6 @@ const SpaceCard = ({ name, location, price, rating, image, tags = [] }) => {
                     <span className="text-xs font-black">{rating}</span>
                 </div>
             </div>
-
             <div className="flex flex-wrap gap-2 mt-4">
                 {tags && tags.length > 0 ? (
                     tags.slice(0, 3).map((tag, idx) => (
@@ -74,9 +82,19 @@ const UserDashboard = () => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
-    const [showSticky, setShowSticky] = useState(true); // Control visibility
+    const [showSticky, setShowSticky] = useState(true);
     
-    const [stats, setStats] = useState({ bookings: '00', hours: '00', points: '000' });
+    const [stats, setStats] = useState({ 
+        bookings: '00', 
+        hours: '00', 
+        points: '000',
+        pointsValue: 0,
+        hoursValue: 0,
+        pointsValueInPesos: 0,
+        redemptionRatio: 20,
+        minPoints: 100
+    });
+
     const [trending, setTrending] = useState([]);
     const [greeting, setGreeting] = useState({ hiligaynon: 'Maayong Adlaw', english: 'Good Day' });
 
@@ -94,11 +112,21 @@ const UserDashboard = () => {
             if (currentFingerprint !== lastDataFingerprint.current) {
                 lastDataFingerprint.current = currentFingerprint;
                 
+                const totalBookings = parseInt(freshData.stats?.total_bookings) || 0;
+                const totalHours = parseInt(freshData.stats?.total_hours) || 0;
+                const loyaltyPoints = parseInt(freshData.stats?.loyalty_points) || 0;
+                
                 setStats({
-                    bookings: String(freshData.stats?.total_bookings || 0).padStart(2, '0'),
-                    hours: String(freshData.stats?.total_hours || 0).padStart(2, '0'),
-                    points: String(freshData.stats?.loyalty_points || 0).padStart(3, '0')
+                    bookings: String(totalBookings).padStart(2, '0'),
+                    hours: String(totalHours).padStart(2, '0'),
+                    points: String(loyaltyPoints).padStart(3, '0'),
+                    pointsValue: loyaltyPoints,
+                    hoursValue: totalHours,
+                    pointsValueInPesos: freshData.stats?.points_value || 0,
+                    redemptionRatio: freshData.stats?.redemption_ratio || 20,
+                    minPoints: freshData.stats?.min_points || 100
                 });
+
                 setTrending(freshData.trending || []);
             }
         } catch (err) {
@@ -118,7 +146,6 @@ const UserDashboard = () => {
 
         fetchDashboardData(true);
 
-        // --- FIXED: Hide sticky when scrolling deep into the Explorer ---
         const handleScroll = () => {
             if (window.scrollY > 200 && window.scrollY < 1200) {
                 setShowSticky(false);
@@ -146,6 +173,13 @@ const UserDashboard = () => {
         );
     }
 
+    // Calculate potential savings (each point = ₱1 discount)
+    const potentialSavings = stats.pointsValue;
+    // Calculate average hours per booking
+    const avgHoursPerBooking = stats.bookings !== '00' && parseInt(stats.bookings) > 0 
+        ? (stats.hoursValue / parseInt(stats.bookings)).toFixed(1) 
+        : 0;
+
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 pb-32 selection:bg-indigo-100 animate-in fade-in duration-700">
             
@@ -165,12 +199,44 @@ const UserDashboard = () => {
                         <p className="text-sm text-slate-500 font-medium max-w-md">
                             Ready to stay productive in {greeting.english.toLowerCase()}?
                         </p>
+                        
+                        {stats.pointsValue > 0 && (
+                            <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
+                                <Coins size={14} className="text-amber-600" />
+                                <span className="text-[9px] font-black uppercase text-amber-700">
+                                    {stats.pointsValue} points = ₱{stats.pointsValueInPesos} savings available
+                                </span>
+                                <span className="text-[7px] text-amber-500 ml-1">
+                                    ({stats.redemptionRatio} points = ₱1)
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-3 gap-4 w-full md:w-auto">
-                        <StatBox label="Bookings" value={stats.bookings} color="text-indigo-600" />
-                        <StatBox label="Hrs Saved" value={stats.hours} color="text-emerald-600" />
-                        <StatBox label="Points" value={stats.points} color="text-amber-600" />
+                        <StatBox 
+                            label="Bookings" 
+                            value={stats.bookings} 
+                            color="text-indigo-600" 
+                            icon={Calendar}
+                            tooltip={`${parseInt(stats.bookings)} total sessions`}
+                        />
+                        <StatBox 
+                            label="Hrs Saved" 
+                            value={stats.hours} 
+                            color="text-emerald-600" 
+                            icon={Clock}
+                            subtitle={avgHoursPerBooking > 0 ? `avg ${avgHoursPerBooking}h/session` : ''}
+                            tooltip={`${stats.hoursValue} total hours worked`}
+                        />
+                        <StatBox 
+                            label="Points" 
+                            value={stats.points} 
+                            color="text-amber-600" 
+                            icon={Coins}
+                            subtitle={`worth ₱${stats.pointsValueInPesos}`}
+                            tooltip={`${stats.redemptionRatio} points = ₱1 discount | Minimum ${stats.minPoints} points to redeem`}
+                        />
                     </div>
                 </div>
             </section>
@@ -199,11 +265,10 @@ const UserDashboard = () => {
                 <div className="flex items-center justify-between mb-10">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-                            <Star size={20} className="text-indigo-600 fill-indigo-600" />
+                            <TrendingUp size={20} className="text-indigo-600" />
                         </div>
                         <div>
                             <h2 className="text-xl font-black uppercase italic text-slate-900 tracking-tight">Trending Now</h2>
-                            {/* Clickable Link to Index */}
                             <button 
                                 onClick={() => window.location.href = '/user/space'} 
                                 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline mt-1"
@@ -222,12 +287,11 @@ const UserDashboard = () => {
                         <SpaceCard 
                             key={space._id}
                             name={space.name}
-                            location={space.district_id?.name || 'Iloilo City'}
+                            location={space.location}
                             price={space.rate_hour}
-                            rating={space.rating || '5.0'}
+                            rating={space.rating}
                             tags={space.amenities}
                             image={space.image}
-                            
                         />
                     )) : (
                         <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-100 rounded-[3rem]">
@@ -237,7 +301,7 @@ const UserDashboard = () => {
                 </div>
             </section>
 
-            {/* 4. STICKY CHECK-IN (FIXED) */}
+            {/* 4. STICKY CHECK-IN */}
             <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-100 transition-all duration-500 ease-in-out ${showSticky ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
                 <div className="bg-white rounded-[2.5rem] p-4 flex items-center justify-between shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-slate-100">
                     <div className="flex items-center gap-4 ml-2">
@@ -249,7 +313,7 @@ const UserDashboard = () => {
                             <p className="text-sm font-bold text-slate-900 tracking-tight italic">Ready for session</p>
                         </div>
                     </div>
-                    <button  onClick={() => window.location.href = '/user/space'}  className="px-8 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.03] transition-all shadow-xl shadow-indigo-600/20">
+                    <button onClick={() => window.location.href = '/user/space'} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.03] transition-all shadow-xl shadow-indigo-600/20">
                         Check In
                     </button>
                 </div>

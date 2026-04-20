@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutGrid, Users, FileText, Calendar, Box, Fence,
     ShoppingCart, Receipt, ChevronLeft, LogOut, User,
-    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck
+    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket 
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
 
@@ -89,15 +89,17 @@ export default function DashboardLayout() {
                 ...(isAdmin ? [
                     { href: "/admin/spaces",             active: isRouteActive("/admin/spaces"),             icon: <MapPin />,      label: "Co-Working Hubs" },
                     { href: "/admin/space/applications", active: isRouteActive("/admin/space/applications"), icon: <ShieldCheck />, label: "Space Applications" },
+                    { href: "/admin/vouchers", active: isRouteActive("/admin/vouchers"), icon: <Ticket />, label: "Vouchers" },
                 ] : []),
 
                 ...(hasSpaceAccess ? [
                     ...(isActualOwner ? [
                         { href: "/space/staff",      active: isRouteActive("/space/staff"),      icon: <Users />,  label: "Staff Management" },
                         { href: "/space/my-spaces",  active: isRouteActive("/space/my-spaces"),  icon: <MapPin />, label: "My Spaces" },
+                        { href: "/space/vouchers", active: isRouteActive("/space/vouchers"), icon: <Ticket />, label: "Vouchers" },
                     ] : []),
                     { href: "/space/bookings", active: isRouteActive("/space/bookings"), icon: <Calendar />, label: "Bookings" },
-                    { href: "/space/walkins",  active: isRouteActive("/space/walkins"),  icon: <Users />,    label: "Walk-ins" },
+                    // { href: "/space/walkins",  active: isRouteActive("/space/walkins"),  icon: <Users />,    label: "Walk-ins" },
                 ] : []),
             ],
         });

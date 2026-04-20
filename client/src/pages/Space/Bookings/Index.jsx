@@ -3,13 +3,16 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import {
     Clock, CheckCircle2, User, ReceiptText, LogIn, LogOut, Activity,
-    XCircle, QrCode, Banknote, Loader2, BadgeCheck, AlertCircle, Users
+    XCircle, QrCode, Banknote, Loader2, BadgeCheck, AlertCircle, Users, UserPlus
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
 import { QRCodeSVG } from "qrcode.react";
-
+import { Modal } from '@/components/ui/Modal';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatPHTime = (dateStr) => new Date(dateStr).toLocaleTimeString('en-PH', {
     hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila'
@@ -19,56 +22,53 @@ const formatPHDate = (dateStr) => new Date(dateStr).toLocaleDateString('en-PH', 
 });
 
 // ─── Live Billing Timer ───────────────────────────────────────────────────────
-// Ticks every second while active. Freezes instantly when checkOutAt is set.
-const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, isOpenTime, onAmountUpdate }) => {
+const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, booking }) => {
     const [elapsed, setElapsed] = useState('00:00:00');
-    const [amount,  setAmount]  = useState(0);
+    const [amount, setAmount] = useState(0);
+
+    const hasVoucher = booking?.voucher_discount > 0;
+    const voucherDiscount = booking?.voucher_discount || 0;
+    const isOpenTime = booking?.is_open_time;
 
     useEffect(() => {
         if (!checkInAt) return;
 
         const calculate = (toTime) => {
-            const seconds       = Math.max(0, Math.floor((new Date(toTime) - new Date(checkInAt)) / 1000));
-            const hrs           = Math.floor(seconds / 3600);
-            const mins          = Math.floor((seconds % 3600) / 60);
-            const secs          = seconds % 60;
-            const ratePerSecond = (rateHour || 0) / 3600;
-            const total         = isOpenTime ? (rateHour || 0) : seconds * ratePerSecond;
+            const seconds = Math.max(0, Math.floor((new Date(toTime) - new Date(checkInAt)) / 1000));
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
 
-            setElapsed(`${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`);
+            let total = 0;
+
+            if (isOpenTime) {
+                // Open time: flat rate
+                total = rateHour || 0;
+            } else {
+                // Hourly rate: calculate based on actual time
+                const hoursSpent = seconds / 3600;
+                total = hoursSpent * (rateHour || 0);
+            }
+
+            // Apply voucher discount if available
+            if (hasVoucher && total > 0) {
+                total = Math.max(0, total - voucherDiscount);
+            }
+
+            setElapsed(`${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
             setAmount(total);
             if (onAmountUpdate) onAmountUpdate(total);
         };
 
-        // Frozen — just show final value, no interval
-        if (checkOutAt) { calculate(checkOutAt); return; }
+        if (checkOutAt) {
+            calculate(checkOutAt);
+            return;
+        }
 
-        // Ticking
         calculate(Date.now());
         const id = setInterval(() => calculate(Date.now()), 1000);
         return () => clearInterval(id);
-    }, [checkInAt, checkOutAt, rateHour, isOpenTime]);
-
-    // Open-time: show flat fee banner instead of ticking clock
-    if (isOpenTime) return (
-        <div className="mt-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-2xl">
-            <p className="text-[9px] font-black uppercase tracking-widest text-purple-400 mb-2 text-center">
-                Open Time Session
-            </p>
-            <div className="flex justify-between items-center">
-                <span className="text-xs text-purple-300 font-bold uppercase">Flat Rate</span>
-                <span className={cn(
-                    "text-xl font-[1000] italic tracking-tighter",
-                    checkOutAt ? "text-emerald-400" : "text-purple-300"
-                )}>₱{(rateHour || 0).toFixed(2)}</span>
-            </div>
-            {checkOutAt && (
-                <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest text-center mt-2 animate-pulse">
-                    Session Complete
-                </p>
-            )}
-        </div>
-    );
+    }, [checkInAt, checkOutAt, rateHour, hasVoucher, voucherDiscount, isOpenTime]);
 
     return (
         <div className={cn(
@@ -77,6 +77,14 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, isOpenTime, onAmoun
                 ? "bg-emerald-500/10 border-emerald-500/20"
                 : "bg-indigo-500/10 border-indigo-500/20"
         )}>
+            {hasVoucher && !checkOutAt && (
+                <div className="mb-3 p-2 bg-emerald-500/20 rounded-xl text-center">
+                    <p className="text-emerald-400 font-black uppercase text-[8px] tracking-widest">
+                        Voucher Applied: {booking.voucher_applied} (-₱{voucherDiscount.toFixed(2)})
+                    </p>
+                </div>
+            )}
+
             <div className="flex items-center justify-between">
                 <div className="text-left">
                     <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1">
@@ -107,27 +115,148 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, isOpenTime, onAmoun
 };
 
 // ─── Payment Panel ────────────────────────────────────────────────────────────
-const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting }) => {
-    const [method,   setMethod]   = useState('cash');
+const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting, onApplyVoucher }) => {
+    const [method, setMethod] = useState('cash');
     const [received, setReceived] = useState('');
+    const [voucherCode, setVoucherCode] = useState('');
+    const [applyingVoucher, setApplyingVoucher] = useState(false);
+    const [voucherDiscount, setVoucherDiscount] = useState(0);
+    const [appliedVoucher, setAppliedVoucher] = useState(null);
 
     const numericReceived = parseFloat(received) || 0;
-    const change          = numericReceived - totalAmount;
-    const cashValid       = numericReceived >= totalAmount;
-    const qrPaymentImage  = booking?.space_id?.qr_payment_image;
+    const change = numericReceived - totalAmount;
+    const cashValid = numericReceived >= totalAmount;
+    const qrPaymentImage = booking?.space_id?.qr_payment_image;
+
+    // Check if voucher was already applied to this booking
+    const hasExistingVoucher = booking?.voucher_discount > 0;
+    const existingDiscount = booking?.voucher_discount || 0;
+    const originalAmount = hasExistingVoucher ? (totalAmount + existingDiscount) : totalAmount;
+
+    // Current total (either original or with existing voucher)
+    const currentTotal = totalAmount;
+    const finalTotal = hasExistingVoucher ? totalAmount : Math.max(0, currentTotal - voucherDiscount);
+
+    const handleApplyVoucher = async () => {
+        if (!voucherCode.trim()) {
+            showToast({ icon: 'warning', title: 'Please enter a voucher code' });
+            return;
+        }
+
+        setApplyingVoucher(true);
+        try {
+            const res = await apiPost(`/space/bookings/${booking._id}/apply-voucher`, {
+                voucherCode: voucherCode.trim().toUpperCase()
+            });
+
+            if (res.success) {
+                setVoucherDiscount(res.data.discount_amount);
+                setAppliedVoucher({
+                    code: voucherCode.trim().toUpperCase(),
+                    discount: res.data.discount_amount
+                });
+                showToast({
+                    icon: 'success',
+                    title: `Voucher applied! Save ₱${res.data.discount_amount}`
+                });
+                // Refresh the booking to update total amount
+                if (onApplyVoucher) onApplyVoucher(res.data.booking);
+            }
+        } catch (err) {
+            showToast({ icon: 'error', title: err.message || 'Invalid voucher code' });
+        } finally {
+            setApplyingVoucher(false);
+        }
+    };
+
+    const handleRemoveVoucher = () => {
+        setAppliedVoucher(null);
+        setVoucherDiscount(0);
+        setVoucherCode('');
+    };
 
     return (
         <div className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/5 overflow-hidden">
             {/* Total header */}
             <div className="px-5 pt-5 pb-3 border-b border-white/10">
                 <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Payment</p>
+
+                {/* Show original price if voucher applied */}
+                {(hasExistingVoucher || appliedVoucher) && (
+                    <div className="flex justify-between items-center mb-1">
+                        <span className="text-[8px] text-slate-500">Original amount</span>
+                        <span className="text-[10px] text-slate-500 line-through">
+                            ₱{(hasExistingVoucher ? originalAmount : currentTotal + voucherDiscount).toFixed(2)}
+                        </span>
+                    </div>
+                )}
+
+                {/* Voucher discount */}
+                {(hasExistingVoucher || appliedVoucher) && (
+                    <div className="flex justify-between items-center mb-2">
+                        <span className="text-[8px] text-emerald-400 font-bold uppercase">Voucher discount</span>
+                        <span className="text-[10px] text-emerald-400 font-bold">
+                            -₱{(hasExistingVoucher ? existingDiscount : voucherDiscount).toFixed(2)}
+                        </span>
+                    </div>
+                )}
+
                 <div className="flex items-baseline justify-between">
                     <span className="text-xs text-slate-400 font-bold uppercase">Total Due</span>
                     <span className="text-2xl font-[1000] italic text-white tracking-tighter">
-                        ₱{totalAmount.toFixed(2)}
+                        ₱{(hasExistingVoucher ? currentTotal : finalTotal).toFixed(2)}
                     </span>
                 </div>
+
+                {/* Show voucher code if applied */}
+                {(hasExistingVoucher || appliedVoucher) && (
+                    <div className="mt-2 pt-2 border-t border-white/10">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[8px] text-emerald-400 font-black uppercase">Voucher Applied</span>
+                            <span className="text-[8px] font-mono text-emerald-400">
+                                {hasExistingVoucher ? booking.voucher_applied : appliedVoucher?.code}
+                            </span>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Voucher Input Section - Only show if no voucher applied yet */}
+            {!hasExistingVoucher && !appliedVoucher && (
+                <div className="px-4 pt-4 pb-2 border-b border-white/10">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                        Have a voucher?
+                    </p>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="Enter voucher code"
+                            value={voucherCode}
+                            onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                            className="flex-1 px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-white text-xs font-mono uppercase focus:border-indigo-500 outline-none"
+                        />
+                        <button
+                            onClick={handleApplyVoucher}
+                            disabled={applyingVoucher || !voucherCode.trim()}
+                            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest disabled:opacity-50"
+                        >
+                            {applyingVoucher ? <Loader2 size={12} className="animate-spin" /> : 'Apply'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Remove voucher button if applied but not yet confirmed */}
+            {appliedVoucher && !hasExistingVoucher && (
+                <div className="px-4 pt-2 pb-2">
+                    <button
+                        onClick={handleRemoveVoucher}
+                        className="text-[8px] text-red-400 hover:text-red-300"
+                    >
+                        Remove voucher
+                    </button>
+                </div>
+            )}
 
             {/* Method toggle */}
             <div className="flex gap-2 p-4">
@@ -198,7 +327,7 @@ const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting }) => {
                             )}>
                                 ₱{cashValid
                                     ? change.toFixed(2)
-                                    : (totalAmount - numericReceived).toFixed(2)
+                                    : ((hasExistingVoucher ? currentTotal : finalTotal) - numericReceived).toFixed(2)
                                 }
                             </span>
                         </div>
@@ -243,7 +372,11 @@ const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting }) => {
             <div className="px-4 pb-5">
                 <button
                     disabled={isSubmitting || (method === 'cash' && !cashValid)}
-                    onClick={() => onComplete({ method, amount_received: numericReceived })}
+                    onClick={() => onComplete({
+                        method,
+                        amount_received: numericReceived,
+                        voucher_code: appliedVoucher?.code || null
+                    })}
                     className={cn(
                         "w-full py-4 rounded-2xl font-black uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl",
                         method === 'cash'
@@ -263,7 +396,6 @@ const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting }) => {
 };
 
 // ─── Receipt ──────────────────────────────────────────────────────────────────
-// Reads from the freshly-updated booking returned by the checkout API response
 const ReceiptScreen = ({ booking, onClose }) => (
     <div className="text-center py-2">
         <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
@@ -289,9 +421,34 @@ const ReceiptScreen = ({ booking, onClose }) => (
                 <span className="text-[10px] text-slate-500 font-black uppercase">Space</span>
                 <span className="text-[10px] text-white font-black">{booking?.space_id?.name}</span>
             </div>
-            <div className="flex justify-between px-4 py-3">
-                <span className="text-[10px] text-slate-500 font-black uppercase">Total Paid</span>
-                <span className="text-[10px] text-emerald-400 font-[1000] italic">
+
+            {/* Show voucher discount if applied */}
+            {booking?.voucher_discount > 0 && (
+                <>
+                    <div className="flex justify-between px-4 py-3">
+                        <span className="text-[10px] text-slate-500 font-black uppercase">Subtotal</span>
+                        <span className="text-[10px] text-slate-400 line-through">
+                            ₱{(booking.total_amount + booking.voucher_discount).toFixed(2)}
+                        </span>
+                    </div>
+                    <div className="flex justify-between px-4 py-3">
+                        <span className="text-[10px] text-emerald-400 font-black uppercase">Voucher Savings</span>
+                        <span className="text-[10px] text-emerald-400 font-bold">
+                            -₱{booking.voucher_discount.toFixed(2)}
+                        </span>
+                    </div>
+                    <div className="flex justify-between px-4 py-3 bg-emerald-500/5">
+                        <span className="text-[10px] text-slate-500 font-black uppercase">Voucher Code</span>
+                        <span className="text-[10px] font-mono text-emerald-400">
+                            {booking.voucher_applied}
+                        </span>
+                    </div>
+                </>
+            )}
+
+            <div className="flex justify-between px-4 py-3 bg-white/5">
+                <span className="text-[10px] font-black uppercase text-white">Total Paid</span>
+                <span className="text-lg font-[1000] italic text-emerald-400">
                     ₱{(booking?.total_amount || 0).toFixed(2)}
                 </span>
             </div>
@@ -308,23 +465,69 @@ const ReceiptScreen = ({ booking, onClose }) => (
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const BookingsIndex = () => {
-    const [bookings,      setBookings]      = useState([]);
-    const [loading,       setLoading]       = useState(true);
-    const [totalCount,    setTotalCount]    = useState(0);
-    const [stats,         setStats]         = useState({ total: 0, pending: 0, confirmed: 0 });
+    const [bookings, setBookings] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [totalCount, setTotalCount] = useState(0);
+    const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0 });
     const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
     const [bookingType, setBookingType] = useState('all');
 
     // Modal state
-    const [selectedQR,    setSelectedQR]    = useState(null);
-    const [liveAmount,    setLiveAmount]    = useState(0);    
+    const [selectedQR, setSelectedQR] = useState(null);
+    const [liveAmount, setLiveAmount] = useState(0);
     const [isCalculating, setIsCalculating] = useState(false);
-    const [isSubmitting,  setIsSubmitting]  = useState(false);
-    const [showReceipt,   setShowReceipt]   = useState(false);
-    const [receiptData,   setReceiptData]   = useState(null); 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showReceipt, setShowReceipt] = useState(false);
+    const [receiptData, setReceiptData] = useState(null);
 
-    const paramsRef           = useRef(currentParams);
+    const [showWalkinModal, setShowWalkinModal] = useState(false);
+    const [walkinForm, setWalkinForm] = useState({
+        space_id: '',
+        name: '',
+        is_open_time: true,
+        start_time: '',
+        end_time: ''
+    });
+    const [spaces, setSpaces] = useState([]);
+    const [submitting, setSubmitting] = useState(false);
+
+    const paramsRef = useRef(currentParams);
     const lastDataFingerprint = useRef("");
+
+    const fetchSpaces = useCallback(async () => {
+        try {
+            const res = await apiGet('/space/spaces');
+            setSpaces(res.data || []);
+        } catch (err) {
+            console.error("Failed to fetch spaces", err);
+        }
+    }, []);
+
+    // Call fetchSpaces in useEffect
+    useEffect(() => {
+        fetchSpaces();
+    }, [fetchSpaces]);
+
+    // Add this function to handle walk-in check-in
+    const handleWalkinCheckin = async (e) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            const res = await apiPost('/space/walkins/store', walkinForm);
+            if (res.success) {
+                showToast({ icon: 'success', title: 'Walk-in checked in successfully!' });
+                setShowWalkinModal(false);
+                setWalkinForm({ space_id: '', name: '', is_open_time: true, start_time: '', end_time: '' });
+                fetchData(); // Refresh the bookings list
+            }
+        } catch (err) {
+            showToast({ icon: 'error', title: err?.message || 'Check-in failed' });
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+
 
     useEffect(() => { paramsRef.current = currentParams; }, [currentParams]);
 
@@ -333,9 +536,9 @@ const BookingsIndex = () => {
             const { page, search } = params;
             const res = await apiGet(`/space/bookings?page=${page}&search=${search}&type=${bookingType}`);
             const rowData = res.data?.bookings || [];
-            const total   = res.data?.total    || 0;
-            const fetched = res.data?.stats    || { total: 0, pending: 0, confirmed: 0 };
-            const fp      = JSON.stringify({ rowData, total, fetched });
+            const total = res.data?.total || 0;
+            const fetched = res.data?.stats || { total: 0, pending: 0, confirmed: 0 };
+            const fp = JSON.stringify({ rowData, total, fetched });
 
             if (fp !== lastDataFingerprint.current) {
                 lastDataFingerprint.current = fp;
@@ -367,7 +570,7 @@ const BookingsIndex = () => {
 
     useEffect(() => {
         let mounted = true;
-        const load  = async () => {
+        const load = async () => {
             setLoading(true);
             await fetchData(paramsRef.current, false);
             if (mounted) setLoading(false);
@@ -426,15 +629,27 @@ const BookingsIndex = () => {
     };
 
     // Step 2 — hit /checkout, show receipt with data from API response
-    const handleCheckout = async ({ method, amount_received }) => {
+    const handleCheckout = async ({ method, amount_received, voucher_code }) => {
         if (!selectedQR) return;
         setIsSubmitting(true);
         try {
+            // If voucher was applied during checkout, update the booking first
+            if (voucher_code && !selectedQR.voucher_applied) {
+                const voucherRes = await apiPost(`/space/bookings/${selectedQR._id}/apply-voucher`, {
+                    voucherCode: voucher_code
+                });
+                if (voucherRes.success) {
+                    setSelectedQR(voucherRes.data.booking);
+                    // Update totalAmount for payment
+                    setLiveAmount(voucherRes.data.total_amount);
+                }
+            }
+
             const res = await apiPost(`/space/bookings/${selectedQR._id}/checkout`, {
                 payment_method: method,
                 amount_received,
             });
-            // Use the completed booking from the API response — guaranteed to have total_amount
+
             setReceiptData(res.data?.booking || selectedQR);
             setShowReceipt(true);
             await fetchData(paramsRef.current, false);
@@ -461,7 +676,7 @@ const BookingsIndex = () => {
                     <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
                         {row.is_open_time
                             ? `ALL DAY: ${formatPHDate(row.start_time)}`
-                            : `START: ${formatPHTime(row.start_time)}`}
+                            : `START: ${formatPHTime(row.start_time)} - END: ${formatPHTime(row.end_time)}`}
                     </span>
                 </div>
             )
@@ -496,17 +711,17 @@ const BookingsIndex = () => {
             header: "Status",
             cell: (row) => {
                 const styles = {
-                    pending:         "bg-amber-500/10 text-amber-500",
-                    confirmed:       "bg-emerald-500/10 text-emerald-500",
-                    active:          "bg-indigo-500/20 text-indigo-400 border border-indigo-500/20",
+                    pending: "bg-amber-500/10 text-amber-500",
+                    confirmed: "bg-emerald-500/10 text-emerald-500",
+                    active: "bg-indigo-500/20 text-indigo-400 border border-indigo-500/20",
                     pending_payment: "bg-orange-500/20 text-orange-400 border border-orange-500/20",
-                    completed:       "bg-teal-500/10 text-teal-400",
-                    rejected:        "bg-red-500/10 text-red-500",
-                    cancelled:       "bg-slate-800 text-slate-500"
+                    completed: "bg-teal-500/10 text-teal-400",
+                    rejected: "bg-red-500/10 text-red-500",
+                    cancelled: "bg-slate-800 text-slate-500"
                 };
                 return (
                     <div className={cn("px-2 py-1 rounded text-[9px] font-black uppercase inline-flex items-center gap-1", styles[row.status])}>
-                        {row.status === 'active'          && <Activity size={10} className="animate-pulse" />}
+                        {row.status === 'active' && <Activity size={10} className="animate-pulse" />}
                         {row.status === 'pending_payment' && <Banknote size={10} className="animate-pulse" />}
                         {row.status}
                     </div>
@@ -539,9 +754,13 @@ const BookingsIndex = () => {
                                     : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40"
                             )}
                         >
-                            {row.status === 'pending_payment'
-                                ? <><Banknote size={12} /> Collect</>
-                                : <><QrCode size={12} /> Show QR</>}
+                            {row.status === 'pending_payment' ? (
+                                <><Banknote size={12} /> Collect</>
+                            ) : row.booking_type === 'walkin' ? (
+                                <><User size={12} /> View</>
+                            ) : (
+                                <><QrCode size={12} /> Show QR</>
+                            )}
                         </button>
                     )}
                 </div>
@@ -550,13 +769,13 @@ const BookingsIndex = () => {
     ];
 
     // ─── Modal logic helpers ──────────────────────────────────────────────────
-    const booking        = selectedQR;
-    const isActive       = booking?.status === 'active';
+    const booking = selectedQR;
+    const isActive = booking?.status === 'active';
     const isPendingPayDB = booking?.status === 'pending_payment';
     // After calculate: booking is updated in state with new status + total_amount
-    const showPayment    = isPendingPayDB;
+    const showPayment = isPendingPayDB;
     // Total to pass to PaymentPanel: prefer DB value (it was saved), fall back to live timer
-    const totalDue       = isPendingPayDB ? (booking?.total_amount || 0) : liveAmount;
+    const totalDue = isPendingPayDB ? (booking?.total_amount || 0) : liveAmount;
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -565,80 +784,175 @@ const BookingsIndex = () => {
                 <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest italic">Monitoring real-time check-ins.</p>
             </div>
 
-           {/* Stats Grid */}
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-    {/* 1. Active Now - The heartbeat of the hub */}
-    <div className="bg-indigo-500/5 border border-indigo-500/10 p-5 rounded-4xl flex items-center gap-4">
-        <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-            <Activity size={20} className="animate-pulse" />
-        </div>
-        <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Active Sessions</p>
-            <p className="text-xl font-[1000] text-white italic tracking-tighter">{stats.active || 0}</p>
-        </div>
-    </div>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {/* 1. Active Now */}
+                <Card className="bg-indigo-500/5 border-indigo-500/10">
+                    <CardContent className="p-5 flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                            <Activity size={20} className="animate-pulse" />
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Active Sessions</p>
+                            <p className="text-xl font-[1000] text-white italic tracking-tighter">{stats.active || 0}</p>
+                        </div>
+                    </CardContent>
+                </Card>
 
-    {/* 2. Walk-ins vs Online */}
-    <div className="bg-[#111114] border border-white/5 p-5 rounded-4xl flex items-center justify-between">
-        <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-slate-400">
-                <Users size={20} />
+                {/* 2. Traffic Mix */}
+                <Card className="bg-[#111114] border-white/5">
+                    <CardContent className="p-5 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-slate-400">
+                                <Users size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Traffic Mix</p>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-xs font-black text-indigo-400">W: {stats.walkin}</span>
+                                    <span className="text-xs font-black text-emerald-400">O: {stats.online}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 3. Pending Approvals */}
+                <Card className="bg-amber-500/5 border-amber-500/10">
+                    <CardContent className="p-5 flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                            <Clock size={20} />
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Pending</p>
+                            <p className="text-xl font-[1000] text-white italic tracking-tighter">{stats.pending || 0}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 4. Daily Revenue */}
+                <Card className="bg-emerald-500/5 border-emerald-500/10 shadow-lg shadow-emerald-900/5">
+                    <CardContent className="p-5 flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                            <Banknote size={20} />
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Today's Revenue</p>
+                            <p className="text-xl font-[1000] text-emerald-400 italic tracking-tighter">
+                                ₱{(stats.revenue || 0).toLocaleString()}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
-            <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Traffic Mix</p>
-                <div className="flex items-baseline gap-2">
-                    <span className="text-xs font-black text-indigo-400">W: {stats.walkin}</span>
-                    <span className="text-xs font-black text-emerald-400">O: {stats.online}</span>
-                </div>
+
+            <div className="flex items-center justify-between mb-6">
+                <Tabs value={bookingType} onValueChange={setBookingType} className="w-auto">
+                    <TabsList className="bg-white/5 border border-white/5 rounded-3xl p-1.5">
+                        <TabsTrigger
+                            value="all"
+                            className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-900/40 text-slate-500"
+                        >
+                            All
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="online"
+                            className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-900/40 text-slate-500"
+                        >
+                            Online
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="walkin"
+                            className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-900/40 text-slate-500"
+                        >
+                            Walk-ins
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
+
+                <Button
+                    onClick={() => setShowWalkinModal(true)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest px-4 py-2 h-auto shadow-lg shadow-emerald-900/20"
+                >
+                    <UserPlus size={14} className="mr-2" /> New Walk-in
+                </Button>
             </div>
-        </div>
-    </div>
 
-    {/* 3. Pending Approvals */}
-    <div className="bg-amber-500/5 border border-amber-500/10 p-5 rounded-4xl flex items-center gap-4">
-        <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-            <Clock size={20} />
-        </div>
-        <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Pending</p>
-            <p className="text-xl font-[1000] text-white italic tracking-tighter">{stats.pending || 0}</p>
-        </div>
-    </div>
+            <Modal open={showWalkinModal} onClose={() => setShowWalkinModal(false)} title="New Walk-in Check-in" size="md" variant="dark">
+                <form onSubmit={handleWalkinCheckin} className="space-y-4">
+                    <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Select Space</label>
+                        <select
+                            required
+                            className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                            value={walkinForm.space_id}
+                            onChange={(e) => setWalkinForm({ ...walkinForm, space_id: e.target.value })}
+                        >
+                            <option value="" className="bg-[#111114]">Choose space...</option>
+                            {spaces.map(s => (
+                                <option key={s._id} value={s._id} className="bg-[#111114]">{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
 
-    {/* 4. Daily Revenue */}
-    <div className="bg-emerald-500/5 border border-emerald-500/10 p-5 rounded-4xl flex items-center gap-4 shadow-lg shadow-emerald-900/5">
-        <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-            <Banknote size={20} />
-        </div>
-        <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Today's Revenue</p>
-            <p className="text-xl font-[1000] text-emerald-400 italic tracking-tighter">
-                ₱{(stats.revenue || 0).toLocaleString()}
-            </p>
-        </div>
-    </div>
-</div>
+                    <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Guest Name</label>
+                        <input
+                            type="text"
+                            required
+                            placeholder="Enter guest name"
+                            className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                            value={walkinForm.name}
+                            onChange={(e) => setWalkinForm({ ...walkinForm, name: e.target.value })}
+                        />
+                    </div>
 
-            <div className="flex items-center gap-2 mb-6 bg-white/5 p-1.5 rounded-3xl border border-white/5 w-fit">
-                {[
-                    { id: 'all', label: 'All' },
-                    { id: 'online', label: 'Online' },
-                    { id: 'walkin', label: 'Walk-ins' }
-                ].map((type) => (
-                    <button
-                        key={type.id}
-                        onClick={() => setBookingType(type.id)}
-                        className={cn(
-                            "px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                            bookingType === type.id 
-                                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/40" 
-                                : "text-slate-500 hover:text-slate-300"
-                        )}
-                    >
-                        {type.label}
-                    </button>
-                ))}
-            </div>
+                    <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-2xl">
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Open Time (Timer counts up)</span>
+                        <input
+                            type="checkbox"
+                            className="w-5 h-5 accent-emerald-500"
+                            checked={walkinForm.is_open_time}
+                            onChange={(e) => setWalkinForm({ ...walkinForm, is_open_time: e.target.checked })}
+                        />
+                    </div>
+
+                    {!walkinForm.is_open_time && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Start Time</label>
+                                <input
+                                    type="time"
+                                    required
+                                    className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                                    value={walkinForm.start_time}
+                                    onChange={(e) => setWalkinForm({ ...walkinForm, start_time: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">End Time</label>
+                                <input
+                                    type="time"
+                                    required
+                                    className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                                    value={walkinForm.end_time}
+                                    onChange={(e) => setWalkinForm({ ...walkinForm, end_time: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 pt-4">
+                        <button type="button" onClick={() => setShowWalkinModal(false)} className="flex-1 py-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-2xl bg-emerald-600 text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all disabled:opacity-50">
+                            {submitting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                            Check In
+                        </button>
+                    </div>
+                </form>
+            </Modal>
 
             <DataTable
                 columns={columns}
@@ -646,96 +960,172 @@ const BookingsIndex = () => {
                 loading={loading}
                 totalCount={totalCount}
                 onParamsChange={handleParamsChange}
+                renderMobileCard={(booking) => (
+                    <div key={booking._id} className="bg-[#111114] border border-white/5 p-5 rounded-[2.5rem] space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center font-black text-white italic">
+                                    {booking.user_id?.name?.charAt(0) || booking.guest_name?.charAt(0) || 'G'}
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-white leading-tight">
+                                        {booking.user_id?.name || booking.guest_name || 'Guest'}
+                                    </h3>
+                                    <p className="text-[10px] font-bold text-slate-500">
+                                        #{booking.ticket_number}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className={cn(
+                                "px-2 py-1 rounded text-[9px] font-black uppercase",
+                                booking.status === 'active' && "bg-indigo-500/20 text-indigo-400",
+                                booking.status === 'pending_payment' && "bg-orange-500/20 text-orange-400",
+                                booking.status === 'completed' && "bg-teal-500/10 text-teal-400",
+                                booking.status === 'pending' && "bg-amber-500/10 text-amber-500",
+                                booking.status === 'confirmed' && "bg-emerald-500/10 text-emerald-500"
+                            )}>
+                                {booking.status}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-between text-[10px] text-slate-400">
+                            <span>{booking.space_id?.name}</span>
+                            <span>₱{booking.space_id?.rate_hour}/hr</span>
+                        </div>
+
+                        <div className="flex justify-between text-[9px] text-slate-500">
+                            <span>
+                                {booking.is_open_time
+                                    ? `ALL DAY: ${formatPHDate(booking.start_time)}`
+                                    : `${formatPHTime(booking.start_time)} - ${formatPHTime(booking.end_time)}`}
+                            </span>
+                            {booking.check_in_at && (
+                                <span className="text-emerald-400">✓ Checked in</span>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => openModal(booking)}
+                            className={cn(
+                                "w-full py-3 rounded-xl text-[10px] font-black uppercase transition-all",
+                                booking.status === 'pending_payment'
+                                    ? "bg-orange-600 hover:bg-orange-500 text-white"
+                                    : booking.status === 'active' || booking.status === 'confirmed'
+                                        ? "bg-indigo-600 hover:bg-indigo-500 text-white"
+                                        : "bg-white/5 text-slate-400"
+                            )}
+                        >
+                            {booking.status === 'pending_payment' ? 'Collect Payment' :
+                                booking.status === 'active' ? 'View Session' :
+                                    booking.status === 'confirmed' ? 'Show QR' : booking.status}
+                        </button>
+                    </div>
+                )}
             />
 
             {/* ── Modal ── */}
-            {booking && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-                    <div className="bg-[#111114] border border-white/10 p-8 rounded-[3rem] max-w-sm w-full text-center relative shadow-2xl overflow-y-auto max-h-[92vh]">
-                        <button onClick={closeModal}
-                            className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors">
-                            <XCircle size={24} />
-                        </button>
+            <Modal
+                open={!!booking}
+                onClose={closeModal}
+                title="Entry Ticket"
+                size="xl"
+                variant="dark"
+            >
+                {showReceipt ? (
+                    <ReceiptScreen booking={receiptData} onClose={closeModal} />
+                ) : (
+                    <>
+                        <div className="text-center">
+                            <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest">
+                                {booking?.ticket_number} — {booking?.user_id?.name || booking?.guest_name || 'Guest'}
+                            </p>
+                            <p className="text-[9px] text-slate-600 mb-4 uppercase tracking-widest font-bold">
+                                {booking?.space_id?.name}
+                            </p>
+                        </div>
 
-                        {/* Receipt */}
-                        {showReceipt ? (
-                            <ReceiptScreen booking={receiptData} onClose={closeModal} />
-                        ) : (
+                        {/* Show QR for confirmed or active sessions (not walk-ins) */}
+                        {!showPayment && booking?.booking_type !== 'walkin' && booking?.qr_code_token && (
+                            <div className="bg-white p-5 rounded-4xl mb-4 shadow-xl flex justify-center mx-auto" style={{ width: 'fit-content' }}>
+                                <QRCodeSVG
+                                    value={booking.qr_code_token}
+                                    size={180}
+                                    level="H"
+                                    includeMargin={false}
+                                />
+                            </div>
+                        )}
+
+                        {/* Confirmed but not yet checked in - Show QR and waiting message */}
+                        {booking?.status === 'confirmed' && !showPayment && (
                             <>
-                                <h2 className="text-white font-black italic uppercase mb-1 tracking-tight">Entry Ticket</h2>
-                                <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest">
-                                    {booking.ticket_number} — {booking.user_id?.name || booking.guest_name || 'Guest'}
-                                </p>
-                                <p className="text-[9px] text-slate-600 mb-4 uppercase tracking-widest font-bold">
-                                    {booking.space_id?.name}
-                                </p>
-
-                                {/* Show QR only while session still running */}
-                                {!showPayment && (
-                                    <div className="bg-white p-5 rounded-4xl inline-block mb-4 shadow-xl">
+                                {!booking?.qr_code_token && booking?.booking_type !== 'walkin' && (
+                                    <div className="bg-white p-5 rounded-4xl mb-4 shadow-xl flex justify-center mx-auto" style={{ width: 'fit-content' }}>
                                         <QRCodeSVG
-                                            value={booking.qr_code_token || "no-token"}
+                                            value={booking.qr_code_token}
                                             size={180}
                                             level="H"
                                             includeMargin={false}
                                         />
                                     </div>
                                 )}
-
-                                {/* Active session — show timer + calculate button */}
-                                {isActive && booking.check_in_at && (
-                                    <>
-                                        <LiveBillingTimer
-                                            checkInAt={booking.check_in_at}
-                                            checkOutAt={booking.check_out_at}
-                                            rateHour={booking.space_id?.rate_hour || 0}
-                                            isOpenTime={booking.is_open_time}
-                                            onAmountUpdate={setLiveAmount}
-                                        />
-                                        <button
-                                            onClick={handleCalculate}
-                                            disabled={isCalculating}
-                                            className="w-full mt-5 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl font-black uppercase text-xs tracking-wider transition-all shadow-xl shadow-orange-900/20 flex items-center justify-center gap-2 disabled:opacity-40"
-                                        >
-                                            {isCalculating
-                                                ? <><Loader2 size={14} className="animate-spin" /> Calculating...</>
-                                                : <><BadgeCheck size={14} /> Close Session & Calculate Bill</>
-                                            }
-                                        </button>
-                                    </>
-                                )}
-
-                                {/* Pending payment — frozen timer + payment panel */}
-                                {showPayment && booking.check_in_at && (
-                                    <>
-                                        <LiveBillingTimer
-                                            checkInAt={booking.check_in_at}
-                                            checkOutAt={booking.check_out_at}  // frozen
-                                            rateHour={booking.space_id?.rate_hour || 0}
-                                            isOpenTime={booking.is_open_time}
-                                            onAmountUpdate={() => {}}           // no-op — already frozen
-                                        />
-                                        <PaymentPanel
-                                            booking={booking}
-                                            totalAmount={totalDue}
-                                            onComplete={handleCheckout}
-                                            isSubmitting={isSubmitting}
-                                        />
-                                    </>
-                                )}
-
-                                {/* Confirmed but not yet checked in */}
-                                {!isActive && !showPayment && (
-                                    <p className="text-[10px] text-indigo-400 font-black uppercase tracking-tighter animate-pulse mt-2">
-                                        Waiting for scan to check-in...
-                                    </p>
-                                )}
+                                <p className="text-[10px] text-indigo-400 font-black uppercase tracking-tighter animate-pulse mt-2 text-center">
+                                    Waiting for scan to check-in...
+                                </p>
+                                <p className="text-[8px] text-slate-500 text-center mt-1">
+                                    Customer needs to scan this QR code at the hub
+                                </p>
                             </>
                         )}
-                    </div>
-                </div>
-            )}
+
+                        {/* Active session — show timer + calculate button */}
+                        {isActive && booking?.check_in_at && (
+                            <>
+                                <LiveBillingTimer
+                                    checkInAt={booking.check_in_at}
+                                    checkOutAt={booking.check_out_at}
+                                    rateHour={booking.space_id?.rate_hour || 0}
+                                    isOpenTime={booking.is_open_time}
+                                    onAmountUpdate={setLiveAmount}
+                                    booking={booking}
+                                />
+                                <button
+                                    onClick={handleCalculate}
+                                    disabled={isCalculating}
+                                    className="w-full mt-5 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl font-black uppercase text-xs tracking-wider transition-all shadow-xl shadow-orange-900/20 flex items-center justify-center gap-2 disabled:opacity-40"
+                                >
+                                    {isCalculating
+                                        ? <><Loader2 size={14} className="animate-spin" /> Calculating...</>
+                                        : <><BadgeCheck size={14} /> Close Session & Calculate Bill</>}
+                                </button>
+                            </>
+                        )}
+
+                        {/* Pending payment — frozen timer + payment panel */}
+                        {showPayment && booking?.check_in_at && (
+                            <>
+                                <LiveBillingTimer
+                                    checkInAt={booking.check_in_at}
+                                    checkOutAt={booking.check_out_at}
+                                    rateHour={booking.space_id?.rate_hour || 0}
+                                    isOpenTime={booking.is_open_time}
+                                    onAmountUpdate={() => { }}
+                                    booking={booking}
+                                />
+                                <PaymentPanel
+                                    booking={booking}
+                                    totalAmount={totalDue}
+                                    onComplete={handleCheckout}
+                                    isSubmitting={isSubmitting}
+                                />
+                            </>
+                        )}
+                    </>
+                )}
+            </Modal>
         </div>
+
+
     );
 };
 

@@ -1,6 +1,7 @@
 const { User, Booking, Space } = require('@/api/v1/models');
 const ApiError = require('@/utils/ApiError');
 const { HTTP_STATUS } = require('@/utils/constants');
+const rewardService = require('@/api/v1/services/rewardService');
 
 class DashboardController {
     getUserId = (req) => {
@@ -15,34 +16,38 @@ class DashboardController {
                 throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Session missing or expired.');
             }
 
-            // 1. Fetch data in parallel
-            // Note: Added .populate('district_id') to get the actual name from the District collection
+            // Fetch data in parallel
             const [bookingCount, userDetails, trendingSpaces] = await Promise.all([
                 Booking.countDocuments({ user_id: userId }),
-                User.findById(userId).select('loyalty_points total_hours_spent'),
+                User.findById(userId).select('points total_hours_spent'),
                 Space.find({ status: { $in: ['active', 'Open Now'] } })
                     .populate('district_id', 'name') 
-                    .sort({ rating: -1, created_at: -1 }) // Sort by highest rating first
-                    .limit(6) // Get a few more for the horizontal scroll if needed
+                    .sort({ rating: -1, created_at: -1 })
+                    .limit(6)
             ]);
 
-            // 2. Map the data precisely for your SpaceCard component
+            // Map the data for SpaceCard component
             const formattedTrending = trendingSpaces.map(space => ({
                 _id: space._id,
                 name: space.name,
                 area: space.area,
                 rate_hour: space.rate_hour,
                 image: space.image,
-                rating: space.rating || 5.0, // Fallback if DB value is missing
+                rating: space.rating || 5.0,
                 review_count: space.review_count || 0,
                 capacity: space.capacity,
                 available_rooms: space.available_rooms,
-                // If amenities array is empty in DB, send a clean default for the high-end UI look
                 amenities: space.amenities && space.amenities.length > 0 
                     ? space.amenities 
                     : ["Fiber WiFi", "Aircon", "Power Outlets"],
                 location: space.district_id?.name || space.area || 'Iloilo City'
             }));
+
+            const userPoints = userDetails?.points || 0;
+            
+            // Get redemption ratio from rewardService (you'll need to expose it)
+            const redemptionRatio = rewardService.REDEMPTION_RATIO || 20;
+            const minPointsToRedeem = rewardService.MIN_POINTS_TO_REDEEM || 100;
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
@@ -50,7 +55,10 @@ class DashboardController {
                     stats: {
                         total_bookings: String(bookingCount || 0).padStart(2, '0'),
                         total_hours: String(userDetails?.total_hours_spent || 0).padStart(2, '0'),
-                        loyalty_points: String(userDetails?.loyalty_points || 0).padStart(3, '0')
+                        loyalty_points: String(userPoints).padStart(3, '0'),
+                        points_value: Math.floor(userPoints / redemptionRatio), // Dynamic calculation
+                        redemption_ratio: redemptionRatio,
+                        min_points: minPointsToRedeem
                     },
                     trending: formattedTrending
                 }

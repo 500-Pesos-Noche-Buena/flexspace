@@ -1,4 +1,4 @@
-const { Space, Booking, User } = require('@/api/v1/models'); // ← add User
+const { Space, Booking, User, Voucher } = require('@/api/v1/models');
 const { HTTP_STATUS } = require('@/utils/constants');
 
 class DashboardController {
@@ -27,13 +27,12 @@ class DashboardController {
             let startDate = new Date();
             startDate.setHours(0, 0, 0, 0);
 
-            if (period === 'weekly')  startDate.setDate(now.getDate() - 7);
+            if (period === 'weekly') startDate.setDate(now.getDate() - 7);
             else if (period === 'monthly') startDate.setMonth(now.getMonth() - 1);
-            else if (period === 'yearly')  startDate.setFullYear(now.getFullYear() - 1);
+            else if (period === 'yearly') startDate.setFullYear(now.getFullYear() - 1);
 
-            const [stats, activeSessions, revenueData] = await Promise.all([
+            const [stats, activeSessions, revenueData, voucherStats] = await Promise.all([
                 Promise.all([
-                    // Staff don't need space count — return null, hide it on frontend
                     isStaff ? null : Space.countDocuments({ user_id: ownerId }),
                     Booking.countDocuments({ space_id: { $in: userSpaces } }),
                     Booking.countDocuments({
@@ -61,12 +60,69 @@ class DashboardController {
                             total: { $sum: '$total_amount' }
                         }
                     }
+                ]),
+                // Voucher Stats
+                Promise.all([
+                    // Total vouchers created
+                    Voucher.countDocuments({ space_id: { $in: userSpaces }, type: 'global' }),
+                    // Total redemptions (users who redeemed points for vouchers)
+                    Voucher.aggregate([
+                        {
+                            $match: {
+                                space_id: { $in: userSpaces },
+                                type: 'global'
+                            }
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalRedemptions: { $sum: "$redemption_count" }
+                            }
+                        }
+                    ]),
+                    // Total discount amount given out
+                    Voucher.aggregate([
+                        {
+                            $match: {
+                                space_id: { $in: userSpaces },
+                                type: 'global'
+                            }
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalDiscount: { $sum: { $multiply: ["$discount_amount", "$redemption_count"] } }
+                            }
+                        }
+                    ]),
+                    // Vouchers used (applied at checkout)
+                    Booking.aggregate([
+                        {
+                            $match: {
+                                space_id: { $in: userSpaces },
+                                voucher_applied: { $ne: null },
+                                status: 'completed'
+                            }
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalUsed: { $sum: 1 },
+                                totalSaved: { $sum: "$voucher_discount" }
+                            }
+                        }
+                    ])
                 ])
             ]);
 
+            const totalRedemptions = voucherStats[1][0]?.totalRedemptions || 0;
+            const totalDiscountGiven = voucherStats[2][0]?.totalDiscount || 0;
+            const vouchersUsed = voucherStats[3][0]?.totalUsed || 0;
+            const totalSavedByCustomers = voucherStats[3][0]?.totalSaved || 0;
+
             const formattedSessions = activeSessions.map(session => ({
-                _id:       session._id,
-                userName:  session.guest_name || session.user_id?.name || 'Guest',
+                _id: session._id,
+                userName: session.guest_name || session.user_id?.name || 'Guest',
                 startTime: session.check_in_at
                     ? new Date(session.check_in_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })
                     : 'N/A'
@@ -74,17 +130,25 @@ class DashboardController {
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
-                isStaff,   // ← frontend uses this to hide the spaces card
+                isStaff,
                 stats: {
-                    spaces:   isStaff ? null : stats[0],
+                    spaces: isStaff ? null : stats[0],
                     bookings: stats[1],
-                    walkins:  stats[2],
-                    revenue:  revenueData[0]?.total || 0
+                    walkins: stats[2],
+                    revenue: revenueData[0]?.total || 0
                 },
-                activeSessions: formattedSessions
+                activeSessions: formattedSessions,
+                voucherStats: {
+                    totalVouchers: voucherStats[0] || 0,
+                    totalRedemptions: totalRedemptions,
+                    totalDiscountGiven: totalDiscountGiven,
+                    vouchersUsed: vouchersUsed,
+                    totalSavedByCustomers: totalSavedByCustomers
+                }
             });
 
         } catch (error) {
+            console.error('Dashboard error:', error);
             next(error);
         }
     };

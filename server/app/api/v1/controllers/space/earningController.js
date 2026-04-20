@@ -1,4 +1,4 @@
-const { Booking, Space, User, Settings } = require('@/api/v1/models'); // ← add Settings
+const { Booking, Space, User, Settings, Voucher } = require('@/api/v1/models');
 const { HTTP_STATUS } = require('@/utils/constants');
 
 class EarningsController {
@@ -72,13 +72,14 @@ class EarningsController {
             const feePercent = feeSetting?.value ?? 3; // fallback to 3
 
             // ── Aggregated stats ──────────────────────────────────────────
-            const [agg, transactions, total] = await Promise.all([
+            const [agg, transactions, total, voucherStats] = await Promise.all([
                 Booking.aggregate([
                     { $match: query },
                     { $group: {
                         _id:          null,
                         totalRevenue: { $sum: '$total_amount' },
-                        count:        { $sum: 1 }
+                        count:        { $sum: 1 },
+                        totalDiscount: { $sum: '$voucher_discount' }
                     }}
                 ]),
                 Booking.find(query)
@@ -87,12 +88,24 @@ class EarningsController {
                     .sort({ updated_at: -1 })
                     .limit(limit * 1)
                     .skip((page - 1) * limit),
-                Booking.countDocuments(query)
+                Booking.countDocuments(query),
+                // Voucher discount stats for the period
+                Booking.aggregate([
+                    { $match: query },
+                    { $group: {
+                        _id: null,
+                        totalVoucherDiscount: { $sum: '$voucher_discount' },
+                        bookingsWithVouchers: { $sum: { $cond: [{ $gt: ['$voucher_discount', 0] }, 1, 0] } }
+                    }}
+                ])
             ]);
 
             const totalRevenue = agg[0]?.totalRevenue || 0;
-            const platformFee  = totalRevenue * (feePercent / 100);
-            const netEarnings  = totalRevenue - platformFee;
+            const totalDiscountGiven = agg[0]?.totalDiscount || 0;
+            const platformFee = totalRevenue * (feePercent / 100);
+            const netEarnings = totalRevenue - platformFee;
+            const totalVoucherDiscount = voucherStats[0]?.totalVoucherDiscount || 0;
+            const bookingsWithVouchers = voucherStats[0]?.bookingsWithVouchers || 0;
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
@@ -100,8 +113,11 @@ class EarningsController {
                     totalRevenue,
                     netEarnings,
                     platformFee,
-                    feePercent,        // ← send to frontend
+                    feePercent,
                     transactionCount: agg[0]?.count || 0,
+                    totalDiscountGiven,
+                    totalVoucherDiscount,
+                    bookingsWithVouchers,
                     total,
                     transactions: transactions.map(b => ({
                         id:        b._id,
@@ -109,12 +125,16 @@ class EarningsController {
                         guest:     b.guest_name || b.user_id?.name || 'Guest',
                         space:     b.space_id?.name,
                         amount:    b.total_amount,
+                        originalAmount: b.total_amount + (b.voucher_discount || 0),
+                        discount:  b.voucher_discount || 0,
                         type:      b.booking_type,
-                        date:      b.updated_at
+                        date:      b.updated_at,
+                        hasVoucher: !!b.voucher_applied
                     }))
                 }
             });
         } catch (error) {
+            console.error('Earnings error:', error);
             next(error);
         }
     };

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiGet } from '@/utils/Api';
-import { Receipt, TrendingUp, Wallet, ArrowUpRight, History, Calendar, Search, Loader2, Zap } from 'lucide-react';
+import { 
+    Receipt, TrendingUp, Wallet, ArrowUpRight, History, 
+    Calendar, Search, Loader2, Zap, Ticket, Gift, Percent
+} from 'lucide-react';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from '@/utils/cn';
 
@@ -86,7 +89,7 @@ const EarningsTracker = () => {
 
             {/* Filters */}
             <div className="mb-8 flex flex-wrap items-center gap-3">
-                {/* Period pills - matching SpaceDashboard style */}
+                {/* Period pills */}
                 <div className="flex bg-[#111114] border border-white/5 p-1 rounded-2xl shadow-2xl">
                     {PERIODS.map(p => (
                         <button
@@ -104,7 +107,7 @@ const EarningsTracker = () => {
                     ))}
                 </div>
 
-                {/* Date range - enhanced style */}
+                {/* Date range */}
                 <div className="flex items-center gap-2 bg-[#111114] border border-white/5 rounded-2xl px-4 py-2 hover:border-emerald-500/30 transition-all duration-300">
                     <Calendar size={13} className="text-emerald-500" />
                     <input
@@ -124,7 +127,7 @@ const EarningsTracker = () => {
                     />
                 </div>
 
-                {/* Search - enhanced style */}
+                {/* Search */}
                 <div className="flex items-center gap-2 bg-[#111114] border border-white/5 rounded-2xl px-4 py-2 flex-1 min-w-50 hover:border-emerald-500/30 transition-all duration-300">
                     <Search size={13} className="text-emerald-500" />
                     <input
@@ -137,8 +140,8 @@ const EarningsTracker = () => {
                 </div>
             </div>
 
-            {/* Stats Grid - Matching SpaceDashboard card style */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {/* Stats Grid - 5 cards now */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 <StatCard
                     title="Gross Revenue"
                     value={`₱${(data?.totalRevenue || 0).toLocaleString()}`}
@@ -156,13 +159,27 @@ const EarningsTracker = () => {
                 <StatCard
                     title={`Platform Fee (${data?.feePercent ?? 3}%)`}
                     value={`₱${(data?.platformFee || 0).toLocaleString()}`}
-                    icon={<ArrowUpRight size={20} />}
+                    icon={<Percent size={20} />}
                     trend="Commission"
                     color="rose"
                 />
+                <StatCard
+                    title="Voucher Discounts"
+                    value={`₱${(data?.totalVoucherDiscount || 0).toLocaleString()}`}
+                    icon={<Ticket size={20} />}
+                    trend={`${data?.bookingsWithVouchers || 0} bookings`}
+                    color="purple"
+                />
+                <StatCard
+                    title="Total Discount Given"
+                    value={`₱${(data?.totalDiscountGiven || 0).toLocaleString()}`}
+                    icon={<Gift size={20} />}
+                    trend="Lifetime"
+                    color="amber"
+                />
             </div>
 
-            {/* Transactions Table - Matching dashboard table style */}
+            {/* Transactions Table */}
             <div className="bg-[#111114] rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
                 <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center">
                     <div className="flex items-center gap-3">
@@ -196,6 +213,9 @@ const EarningsTracker = () => {
                             cell: (r) => (
                                 <div>
                                     <p className="text-white font-black text-xs uppercase italic tracking-tight">{r.guest}</p>
+                                    {r.hasVoucher && (
+                                        <span className="text-[8px] text-emerald-500 font-black uppercase">Voucher used</span>
+                                    )}
                                 </div>
                             )
                         },
@@ -203,6 +223,39 @@ const EarningsTracker = () => {
                             header: "Space",
                             cell: (r) => (
                                 <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">{r.space}</span>
+                            )
+                        },
+                        {
+                            header: "Amount",
+                            cell: (r) => (
+                                <div>
+                                    {r.discount > 0 ? (
+                                        <>
+                                            <span className="text-slate-500 text-[8px] line-through block">
+                                                ₱{(r.originalAmount || r.amount).toLocaleString()}
+                                            </span>
+                                            <span className="text-emerald-400 font-black text-sm">
+                                                ₱{r.amount.toLocaleString()}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span className="text-emerald-400 font-black text-sm">
+                                            ₱{r.amount.toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+                            )
+                        },
+                        {
+                            header: "Discount",
+                            cell: (r) => (
+                                r.discount > 0 ? (
+                                    <span className="text-amber-400 font-black text-xs">
+                                        -₱{r.discount.toLocaleString()}
+                                    </span>
+                                ) : (
+                                    <span className="text-slate-600 text-[9px]">—</span>
+                                )
                             )
                         },
                         {
@@ -215,14 +268,6 @@ const EarningsTracker = () => {
                                         : "bg-blue-500/10 text-blue-400 border-blue-500/20"
                                 )}>
                                     {r.type}
-                                </span>
-                            )
-                        },
-                        {
-                            header: "Amount",
-                            cell: (r) => (
-                                <span className="text-emerald-400 font-black text-sm">
-                                    ₱{(r.amount || 0).toLocaleString()}
                                 </span>
                             )
                         },
@@ -258,6 +303,30 @@ const EarningsTracker = () => {
                                     </div>
                                     <p className="text-white font-black text-sm mt-2">{r.guest}</p>
                                     <p className="text-[9px] text-slate-500">{r.space}</p>
+                                    {r.hasVoucher && (
+                                        <p className="text-[8px] text-emerald-500 font-black mt-1">Voucher applied</p>
+                                    )}
+                                </div>
+                                <div className="text-right">
+                                    {r.discount > 0 && (
+                                        <p className="text-slate-500 text-[8px] line-through">
+                                            ₱{(r.originalAmount || r.amount + r.discount).toLocaleString()}
+                                        </p>
+                                    )}
+                                    <p className="text-emerald-400 font-black text-lg">
+                                        ₱{r.amount.toLocaleString()}
+                                    </p>
+                                    {r.discount > 0 && (
+                                        <p className="text-amber-400 text-[8px] font-black">-₱{r.discount}</p>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                                <div className="flex items-center gap-1.5">
+                                    <Calendar size={10} className="text-slate-600" />
+                                    <span className="text-slate-500 text-[9px] font-bold">
+                                        {new Date(r.date).toLocaleDateString()}
+                                    </span>
                                 </div>
                                 <span className={cn(
                                     "px-2 py-1 rounded-lg text-[8px] font-black uppercase",
@@ -268,17 +337,6 @@ const EarningsTracker = () => {
                                     {r.type}
                                 </span>
                             </div>
-                            <div className="flex justify-between items-center pt-2 border-t border-white/5">
-                                <div className="flex items-center gap-1.5">
-                                    <Calendar size={10} className="text-slate-600" />
-                                    <span className="text-slate-500 text-[9px] font-bold">
-                                        {new Date(r.date).toLocaleDateString()}
-                                    </span>
-                                </div>
-                                <span className="text-emerald-400 font-black text-lg">
-                                    ₱{(r.amount || 0).toLocaleString()}
-                                </span>
-                            </div>
                         </div>
                     )}
                 />
@@ -287,7 +345,7 @@ const EarningsTracker = () => {
     );
 };
 
-// Enhanced StatCard matching SpaceDashboard style with hover animations
+// Enhanced StatCard with more colors
 const StatCard = ({ title, value, icon, trend, color }) => {
     const colorClasses = {
         emerald: {
@@ -313,6 +371,22 @@ const StatCard = ({ title, value, icon, trend, color }) => {
             icon: 'text-rose-500',
             iconHover: 'group-hover:bg-rose-500 group-hover:text-white',
             pulse: 'bg-rose-500'
+        },
+        purple: {
+            bg: 'bg-purple-500/10',
+            border: 'border-purple-500/20',
+            hover: 'group-hover:border-purple-500/30',
+            icon: 'text-purple-500',
+            iconHover: 'group-hover:bg-purple-500 group-hover:text-white',
+            pulse: 'bg-purple-500'
+        },
+        amber: {
+            bg: 'bg-amber-500/10',
+            border: 'border-amber-500/20',
+            hover: 'group-hover:border-amber-500/30',
+            icon: 'text-amber-500',
+            iconHover: 'group-hover:bg-amber-500 group-hover:text-black',
+            pulse: 'bg-amber-500'
         }
     };
 

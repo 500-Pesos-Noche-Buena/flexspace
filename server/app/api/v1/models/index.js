@@ -6,6 +6,7 @@ const District = require('./schema/District');
 const Payment = require('./schema/Payment');
 const Settings = require('./schema/Settings');
 const Earnings = require('./schema/Earnings');
+const Voucher = require('./schema/Voucher');
 
 module.exports = {
     User,
@@ -15,6 +16,6 @@ module.exports = {
     District,
     Payment,
     Settings,
-    Earnings
-
+    Earnings,
+    Voucher,
 };

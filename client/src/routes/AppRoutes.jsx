@@ -23,6 +23,7 @@ import SpaceManagement from '@/pages/Admin/Space/Index';
 import SpaceApplication from '@/pages/Admin/Space/Application';
 import AdminSettings from '@/pages/Admin/Settings/Index';
 import AdminEarnings from '@/pages/Admin/Earnings/Index';
+import AdminVoucher from '@/pages/Admin/Voucher/Index'; 
 
 import SpaceDashboard from '@/pages/Space/Dashboard/Index';
 import MySpaces from '@/pages/Space/MySpaces/Index';
@@ -30,11 +31,13 @@ import Bookings from '@/pages/Space/Bookings/Index';
 import Walkins from '@/pages/Space/Walkins/Index';
 import EarningsTracker from '@/pages/Space/Earnings/Index';
 import StaffManagement from '@/pages/Space/Staff/Index';
+import Vouchers from '@/pages/Space/Voucher/Index';
 
 // Regular User Pages
 import UserDashboard from '@/pages/User/Dashboard/Index';
 import UserSpace from '@/pages/User/Space/Index';
 import UserBookings from '@/pages/User/Bookings/Index';
+import UserRedeem from '../pages/User/Redeem/Index';
 
 export const AppRoutes = () => {
     return (
@@ -49,7 +52,7 @@ export const AppRoutes = () => {
                 <Route path="dashboard" element={<UserDashboard />} />
                 <Route path="user/space" element={<UserSpace />} />
                 <Route path="user/bookings" element={<UserBookings />} />
-
+                <Route path="user/redeem" element={<UserRedeem />} />
                 {/* --- NEW SEPARATED ROUTE FOR USERS --- */}
                 <Route path="account" element={<UserProfile />} />
             </Route>
@@ -69,6 +72,7 @@ export const AppRoutes = () => {
                     <Route path="space/applications" element={<SpaceApplication />} />
                     <Route path="settings" element={<AdminSettings />} />
                     <Route path="earnings" element={<AdminEarnings />} />
+                    <Route path="vouchers" element={<AdminVoucher />} />
                 </Route>
 
                 {/* Space Owner Section */}
@@ -80,6 +84,7 @@ export const AppRoutes = () => {
                     <Route path="walkins" element={<Walkins />} />
                     <Route path="earnings" element={<EarningsTracker />} />
                     <Route path="staff" element={<StaffManagement />} />
+                    <Route path="vouchers" element={<Vouchers />} />
                 </Route>
             </Route>
 

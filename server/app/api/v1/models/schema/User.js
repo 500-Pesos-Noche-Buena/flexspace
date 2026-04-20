@@ -10,6 +10,10 @@ const userSchema = new mongoose.Schema({
         ref: 'User', 
         default: null 
     },
+    points: { 
+        type: Number, 
+        default: 0 
+    },
     isActive: { type: Boolean, default: true },
     status: { type: String, enum: ['pending', 'approved', 'rejected'] },
     business_permit: { type: String },

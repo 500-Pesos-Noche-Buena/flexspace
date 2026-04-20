@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import {
-    XCircle, MapPin, Loader2, LogIn, LogOut,
-    QrCode, ReceiptText, Zap, ScanLine
+    XCircle, Loader2, LogIn, LogOut,
+    ReceiptText, Zap, ScanLine, Ticket, Coins, Gift
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { cn } from '@/lib/utils';
@@ -38,6 +38,165 @@ const statusStyles = {
     rejected:        { badge: 'bg-red-500/10 text-red-500',         dot: 'bg-red-400' },
 };
 
+// ── Voucher Redemption Modal ─────────────────────────────────────────────────
+const VoucherModal = ({ booking, userPoints, onClose, onSuccess }) => {
+    const [voucherCode, setVoucherCode] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [previewData, setPreviewData] = useState(null);
+    const [step, setStep] = useState('input'); // 'input' or 'preview'
+
+    const handlePreviewVoucher = async () => {
+        if (!voucherCode.trim()) {
+            showToast({ icon: 'warning', title: 'Please enter a voucher code' });
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await apiPost(`/user/bookings/${booking._id}/preview-voucher`, { 
+                voucherCode: voucherCode.trim().toUpperCase() 
+            });
+            
+            if (res.success) {
+                setPreviewData(res.data);
+                setStep('preview');
+                showToast({ 
+                    icon: 'success', 
+                    title: `Voucher valid! Save ₱${res.data.discount_amount}` 
+                });
+            }
+        } catch (err) {
+            showToast({ icon: 'error', title: err.message || 'Invalid voucher code' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRedeemVoucher = async () => {
+        setLoading(true);
+        try {
+            const res = await apiPost(`/user/bookings/${booking._id}/redeem-voucher`, { 
+                voucherCode: voucherCode.trim().toUpperCase() 
+            });
+            
+            if (res.success) {
+                showToast({ 
+                    icon: 'success', 
+                    title: `Voucher redeemed! ₱${previewData.discount_amount} saved` 
+                });
+                onSuccess(); // Refresh bookings
+                onClose();
+            }
+        } catch (err) {
+            showToast({ icon: 'error', title: err.message || 'Failed to redeem voucher' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleBack = () => {
+        setStep('input');
+        setPreviewData(null);
+        setVoucherCode('');
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <div className="bg-white p-8 rounded-[3rem] max-w-md w-full relative shadow-2xl">
+                <button
+                    onClick={onClose}
+                    className="absolute top-6 right-6 text-slate-300 hover:text-slate-900 transition-colors"
+                >
+                    <XCircle size={24} />
+                </button>
+
+                <div className="text-center mb-6">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 mb-4">
+                        <Ticket size={32} className="text-white" />
+                    </div>
+                    <h2 className="text-2xl font-[1000] italic uppercase tracking-tight">Redeem Voucher</h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                        Booking: {booking.ticket_number}
+                    </p>
+                    
+                    {/* User Points Display */}
+                    <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
+                        <Coins size={14} className="text-amber-600" />
+                        <span className="text-[10px] font-black uppercase text-amber-700">
+                            Your Points: {userPoints || 0}
+                        </span>
+                    </div>
+                </div>
+
+                {step === 'input' ? (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                                Enter Voucher Code
+                            </label>
+                            <input
+                                type="text"
+                                value={voucherCode}
+                                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                                placeholder="e.g., FLEX-XXXX-XXXX"
+                                className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm font-mono uppercase focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                            />
+                        </div>
+
+                        <button
+                            onClick={handlePreviewVoucher}
+                            disabled={loading || !voucherCode.trim()}
+                            className="w-full py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-indigo-700 disabled:opacity-50 active:scale-95"
+                        >
+                            {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Preview Discount'}
+                        </button>
+
+                        <p className="text-[9px] text-slate-400 text-center">
+                            Enter the voucher code you received from exchanging points
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {/* Discount Preview */}
+                        <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-2xl border border-emerald-200">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-[10px] font-black uppercase text-emerald-600">Subtotal</span>
+                                <span className="text-sm font-bold">₱{previewData.sub_total?.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center mb-2 pb-2 border-b border-emerald-200">
+                                <span className="text-[10px] font-black uppercase text-emerald-600">Voucher Discount</span>
+                                <span className="text-sm font-bold text-emerald-600">-₱{previewData.discount_amount?.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center mt-2">
+                                <span className="text-xs font-black uppercase text-slate-900">Final Amount</span>
+                                <span className="text-xl font-[1000] italic text-emerald-700">₱{previewData.total_amount?.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleBack}
+                                disabled={loading}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-200"
+                            >
+                                Back
+                            </button>
+                            <button
+                                onClick={handleRedeemVoucher}
+                                disabled={loading}
+                                className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-lg active:scale-95 disabled:opacity-50"
+                            >
+                                {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Confirm & Redeem'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// QR Scanner Modal (keep your existing one)
 const QRScannerModal = ({ booking, onClose, onSuccess }) => {
     const instanceRef = useRef(null);
     const [scanning, setScanning] = useState(false);
@@ -111,7 +270,6 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
                     {booking.space_id?.name}
                 </p>
 
-                {/* Hide the injected html5-qrcode select/header UI entirely */}
                 <style>{`
                     #qr-reader__header_message,
                     #qr-reader__status_span,
@@ -156,11 +314,10 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
 };
 
 // ── Booking Card ─────────────────────────────────────────────────────────────
-const BookingCard = ({ booking, onScan }) => {
+const BookingCard = ({ booking, userPoints, onScan, onRedeemVoucher }) => {
     const space = booking.space_id;
     const style = statusStyles[booking.status] || statusStyles.cancelled;
 
-    // Price Display Logic
     const rateHour = space?.rate_hour || 0;
     const isFlatRate = booking.is_open_time;
     const totalPaid = booking.total_amount || 0;
@@ -168,7 +325,6 @@ const BookingCard = ({ booking, onScan }) => {
     return (
         <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group relative overflow-hidden">
             <div className="flex items-start gap-5">
-                {/* Space Image/Icon */}
                 <div className="w-20 h-20 rounded-2xl bg-slate-100 overflow-hidden shrink-0 border border-slate-50">
                     {space?.image ? (
                         <img
@@ -191,7 +347,6 @@ const BookingCard = ({ booking, onScan }) => {
                                 {space?.name || 'Unknown Hub'}
                             </h3>
                             
-                            {/* Rate Display */}
                             <div className="flex items-center gap-2 mt-0.5">
                                 <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-lg">
                                     ₱{rateHour}{isFlatRate ? '/day' : '/hr'}
@@ -199,7 +354,6 @@ const BookingCard = ({ booking, onScan }) => {
                             </div>
                         </div>
 
-                        {/* Status Badge */}
                         <div className={cn(
                             'px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 shrink-0', 
                             style.badge
@@ -213,7 +367,6 @@ const BookingCard = ({ booking, onScan }) => {
                         </div>
                     </div>
 
-                    {/* Ticket & Time Info */}
                     <div className="flex flex-wrap items-center gap-3 mt-3">
                         <span className="text-[9px] font-black italic uppercase tracking-tighter text-indigo-600">
                             #{booking.ticket_number}
@@ -227,7 +380,16 @@ const BookingCard = ({ booking, onScan }) => {
                         </span>
                     </div>
 
-                    {/* Timeline (In/Out) */}
+                    {/* Show voucher discount if applied */}
+                    {booking.voucher_discount > 0 && (
+                        <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50">
+                            <Gift size={10} className="text-emerald-600" />
+                            <span className="text-[8px] font-black text-emerald-600 uppercase">
+                                Voucher Saved: ₱{booking.voucher_discount}
+                            </span>
+                        </div>
+                    )}
+
                     {(booking.check_in_at || booking.check_out_at) && (
                         <div className="flex flex-wrap items-center gap-3 mt-3">
                             {booking.check_in_at && (
@@ -245,9 +407,8 @@ const BookingCard = ({ booking, onScan }) => {
                 </div>
             </div>
 
-            {/* --- ACTION STATES --- */}
+            {/* ACTION STATES */}
 
-            {/* 1. CONFIRMED (Ready to Scan In) */}
             {booking.status === 'confirmed' && (
                 <div className="mt-5 pt-4 border-t border-slate-50">
                     <button
@@ -260,7 +421,6 @@ const BookingCard = ({ booking, onScan }) => {
                 </div>
             )}
 
-            {/* 2. ACTIVE (Already Inside) */}
             {booking.status === 'active' && (
                 <div className="mt-5 pt-4 border-t border-slate-50 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 mb-1">
@@ -278,25 +438,36 @@ const BookingCard = ({ booking, onScan }) => {
                 </div>
             )}
 
-            {/* 3. PENDING PAYMENT (Timer Stopped, Awaiting Cash/QR) */}
             {booking.status === 'pending_payment' && (
-                <div className="mt-5 pt-4 border-t border-slate-50 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 border border-purple-100 mb-2">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                        </span>
-                        <p className="text-[9px] text-purple-600 font-black uppercase tracking-widest">
-                            Awaiting Payment
+                <div className="mt-5 pt-4 border-t border-slate-50 space-y-3">
+                    <div className="text-center">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 border border-purple-100 mb-2">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                            </span>
+                            <p className="text-[9px] text-purple-600 font-black uppercase tracking-widest">
+                                Awaiting Payment
+                            </p>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                            Total Due: ₱{booking.total_amount?.toFixed(2) || '0.00'}
                         </p>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
-                        Please settle your bill at the counter.
-                    </p>
+                    
+                    {/* Voucher Redemption Button - only show if no voucher applied yet */}
+                    {!booking.voucher_applied && (
+                        <button
+                            onClick={() => onRedeemVoucher(booking)}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-lg active:scale-95"
+                        >
+                            <Ticket size={14} />
+                            Redeem Voucher
+                        </button>
+                    )}
                 </div>
             )}
 
-            {/* 4. COMPLETED (Display Final Price) */}
             {booking.status === 'completed' && (
                 <div className="mt-5 pt-4 border-t border-slate-50 flex items-center justify-between">
                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Amount Paid</p>
@@ -310,11 +481,13 @@ const BookingCard = ({ booking, onScan }) => {
 };
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-const MyBookingsList = () => {
+const UserBookings = () => {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState('all');
     const [scanningBooking, setScanningBooking] = useState(null);
+    const [voucherBooking, setVoucherBooking] = useState(null);
+    const [userPoints, setUserPoints] = useState(0);
 
     const fetchBookings = useCallback(async () => {
         setLoading(true);
@@ -322,6 +495,7 @@ const MyBookingsList = () => {
             const statusParam = activeFilter !== 'all' ? `?status=${activeFilter}` : '';
             const res = await apiGet(`/user/bookings${statusParam}`);
             setBookings(res.data?.bookings || []);
+            setUserPoints(res.data?.points || 0);
         } catch (err) {
             console.error(err);
         } finally {
@@ -336,7 +510,6 @@ const MyBookingsList = () => {
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 pb-32 selection:bg-indigo-100 animate-in fade-in duration-700">
             
-            {/* 1. MATCHED DASHBOARD HEADER */}
             <section className="pt-8 pb-12 px-6 max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div className="relative">
@@ -352,11 +525,18 @@ const MyBookingsList = () => {
                         <p className="text-sm text-slate-500 font-medium max-w-md">
                             Review your past sessions and active hub visits.
                         </p>
+                        
+                        {/* Points Display in Header */}
+                        <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200">
+                            <Coins size={16} className="text-amber-600" />
+                            <span className="text-xs font-black uppercase text-amber-700">
+                                Available Points: {userPoints}
+                            </span>
+                        </div>
                     </div>
 
-                    {/* Filter Toggle - Dashboard Style */}
                     <div className="flex bg-white p-1.5 rounded-4xl border border-slate-100 shadow-sm overflow-x-auto scrollbar-hide">
-                        {STATUS_FILTERS.slice(0, 4).map((f) => ( // Showing top 4 for cleaner UI
+                        {STATUS_FILTERS.slice(0, 4).map((f) => (
                             <button
                                 key={f}
                                 onClick={() => setActiveFilter(f)}
@@ -374,7 +554,6 @@ const MyBookingsList = () => {
                 </div>
             </section>
 
-            {/* 2. MAIN CONTENT - GRID WIDTH MATCHED */}
             <section className="px-6 max-w-7xl mx-auto">
                 {loading ? (
                     <div className="py-32 flex flex-col items-center justify-center gap-4">
@@ -389,7 +568,13 @@ const MyBookingsList = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {bookings.map((b) => (
-                            <BookingCard key={b._id} booking={b} onScan={setScanningBooking} />
+                            <BookingCard 
+                                key={b._id} 
+                                booking={b} 
+                                userPoints={userPoints}
+                                onScan={setScanningBooking}
+                                onRedeemVoucher={setVoucherBooking}
+                            />
                         ))}
                     </div>
                 )}
@@ -402,8 +587,17 @@ const MyBookingsList = () => {
                     onSuccess={fetchBookings}
                 />
             )}
+
+            {voucherBooking && (
+                <VoucherModal
+                    booking={voucherBooking}
+                    userPoints={userPoints}
+                    onClose={() => setVoucherBooking(null)}
+                    onSuccess={fetchBookings}
+                />
+            )}
         </div>
     );
 };
 
-export default MyBookingsList;
+export default UserBookings;

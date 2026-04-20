@@ -71,6 +71,15 @@ const bookingSchema = new mongoose.Schema({
     notes: { 
         type: String, 
         default: null 
+    },
+    // Voucher fields - ADD THESE
+    voucher_applied: { 
+        type: String, 
+        default: null 
+    },
+    voucher_discount: { 
+        type: Number, 
+        default: 0 
     }
 }, { 
     timestamps: { 

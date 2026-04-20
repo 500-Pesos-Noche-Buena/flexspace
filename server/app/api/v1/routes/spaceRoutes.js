@@ -10,6 +10,7 @@ const BookingController = require('@/api/v1/controllers/space/bookingController'
 const WalkinController = require('@/api/v1/controllers/space/walkinController');
 const EarningsController = require('@/api/v1/controllers/space/earningController');
 const StaffController = require('@/api/v1/controllers/space/staffController');
+const VoucherController = require('@/api/v1/controllers/space/voucherController'); 
 
 class SpaceRoutes {
     constructor() {
@@ -35,6 +36,7 @@ class SpaceRoutes {
         // ── Checkout flow (named — registered first) ─────────────────────────────────
         this.router.post('/bookings/:id/calculate',    auth, (req, res, next) => BookingController.calculateBill(req, res, next));
         this.router.post('/bookings/:id/checkout',     auth, (req, res, next) => BookingController.checkout(req, res, next));
+        this.router.post('/bookings/:id/apply-voucher', auth, (req, res, next) => BookingController.applyVoucher(req, res, next));
         
         // ── Generic status actions (catch-all — MUST be last) ────────────────────────
         this.router.post('/bookings/:id/:action',      auth, (req, res, next) => BookingController.updateStatus(req, res, next));
@@ -43,7 +45,9 @@ class SpaceRoutes {
         this.router.post('/walkins/store', auth, (req, res, next) => WalkinController.store(req, res, next));
         this.router.post('/walkins/:id/checkout', auth, (req, res, next) => WalkinController.checkout(req, res, next));
         this.router.get('/walkins/guests', auth, (req, res, next) => WalkinController.guests(req, res, next));
-
+        this.router.post('/walkins/:id/calculate', auth, (req, res, next) => WalkinController.calculateBill(req, res, next));
+        this.router.post('/walkins/:id/checkout', auth, (req, res, next) => WalkinController.checkout(req, res, next));
+        
         this.router.get('/earnings', auth, (req, res, next) => EarningsController.index(req, res, next));
 
         // --- NEW STAFF MANAGEMENT ROUTES ---
@@ -52,6 +56,11 @@ class SpaceRoutes {
         this.router.put('/staff/:id', auth, (req, res, next) => StaffController.update(req, res, next));
         this.router.post('/staff/:id/toggle', auth, (req, res, next) => StaffController.toggleStatus(req, res, next));
         this.router.delete('/staff/:id', auth, (req, res, next) => StaffController.destroy(req, res, next));
+
+        // --- VOUCHER MANAGEMENT ROUTES (ADD THIS SECTION) ---
+        this.router.get('/vouchers', auth, (req, res, next) => VoucherController.index(req, res, next));
+        this.router.post('/vouchers', auth, (req, res, next) => VoucherController.create(req, res, next));
+        this.router.post('/vouchers/:id/delete', auth, (req, res, next) => VoucherController.delete(req, res, next));
     }
 
     getRouter() {
