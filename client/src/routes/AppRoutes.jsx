@@ -24,6 +24,7 @@ import SpaceApplication from '@/pages/Admin/Space/Application';
 import AdminSettings from '@/pages/Admin/Settings/Index';
 import AdminEarnings from '@/pages/Admin/Earnings/Index';
 import AdminVoucher from '@/pages/Admin/Voucher/Index'; 
+import Insights from '@/pages/Admin/Insights/Index';
 
 import SpaceDashboard from '@/pages/Space/Dashboard/Index';
 import MySpaces from '@/pages/Space/MySpaces/Index';
@@ -73,6 +74,7 @@ export const AppRoutes = () => {
                     <Route path="settings" element={<AdminSettings />} />
                     <Route path="earnings" element={<AdminEarnings />} />
                     <Route path="vouchers" element={<AdminVoucher />} />
+                    <Route path="insights" element={<Insights />} />
                 </Route>
 
                 {/* Space Owner Section */}

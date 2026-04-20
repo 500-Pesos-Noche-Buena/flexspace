@@ -5,7 +5,8 @@ const dashboardController = require('@/api/v1/controllers/admin/dashboardControl
 const auth = require('@/api/v1/middleware/authMiddleware');
 const settingsController = require('@/api/v1/controllers/admin/settingsController');
 const earningController = require('@/api/v1/controllers/admin/earningController');
-const voucherController = require('@/api/v1/controllers/admin/voucherController'); // ADD THIS
+const voucherController = require('@/api/v1/controllers/admin/voucherController'); 
+const insightsController = require('@/api/v1/controllers/admin/insightsController');
 
 class AdminRoutes {
     constructor() {
@@ -42,6 +43,8 @@ class AdminRoutes {
         this.router.get('/vouchers', auth, (req, res, next) => voucherController.index(req, res, next));
         this.router.post('/vouchers', auth, (req, res, next) => voucherController.create(req, res, next));
         this.router.post('/vouchers/:id/delete', auth, (req, res, next) => voucherController.delete(req, res, next));
+
+        this.router.get('/insights', auth, (req, res, next) => insightsController.getStats(req, res, next));
     };
 
     getRouter = () => this.router;
