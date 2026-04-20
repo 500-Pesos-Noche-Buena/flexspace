@@ -3,6 +3,7 @@ const authController = require('@/api/v1/controllers/authController');
 const profileController = require('@/api/v1/controllers/profileController');
 const upload = require('@/utils/upload');
 const auth = require('@/api/v1/middleware/authMiddleware');
+const passwordController = require('@/api/v1/controllers/passwordController');
 
 class AuthRoutes {
     constructor() {
@@ -27,6 +28,10 @@ class AuthRoutes {
 
         this.router.get('/profile', auth, (req, res, next) => profileController.getProfile(req, res, next));
         this.router.post('/profile/update', auth, (req, res, next) => profileController.updateProfile(req, res, next));
+
+        this.router.post('/forgot-password', (req, res, next) => passwordController.forgotPassword(req, res, next));
+        this.router.post('/verify-otp', (req, res, next) => passwordController.verifyOTP(req, res, next));
+        this.router.post('/reset-password', (req, res, next) => passwordController.resetPassword(req, res, next));
     };
 
     getRouter() {

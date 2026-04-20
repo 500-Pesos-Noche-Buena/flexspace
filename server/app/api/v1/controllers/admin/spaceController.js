@@ -1,6 +1,7 @@
 const { User, SpaceRequest, Space } = require('@/api/v1/models');
 const ApiError = require('@/utils/ApiError');
 const { HTTP_STATUS } = require('@/utils/constants');
+const emailService = require('@/api/v1/services/emailService');
 
 class SpaceController {
 
@@ -21,7 +22,7 @@ class SpaceController {
 
             const [spaces, total, activeCount, inactiveCount] = await Promise.all([
                 Space.find(query)
-                    .populate('user_id', 'name email') // Populates the owner object
+                    .populate('user_id', 'name email')
                     .populate('district_id', 'name')
                     .sort({ created_at: -1 })
                     .skip(skip)
@@ -105,10 +106,25 @@ class SpaceController {
                 password: request.password, 
                 role: 'space',
                 status: 'approved', 
-                isActive: true, // Default to active upon approval
+                isActive: true,
                 business_permit: request.business_permit,
                 dti_sec_reg: request.dti_sec_reg
             });
+
+            // Send Approval Email
+            try {
+                const loginUrl = 'https://flexspace-iloilo.vercel.app/auth/login';
+                const approvalDetails = {
+                    name: request.name,
+                    email: request.email,
+                    loginUrl: loginUrl
+                };
+                
+                await emailService.sendSpaceApprovalEmail(request.email, request.name, approvalDetails);
+                console.log(`✅ Approval email sent to ${request.email}`);
+            } catch (emailError) {
+                console.error('❌ Failed to send approval email:', emailError.message);
+            }
 
             await SpaceRequest.findByIdAndDelete(id);
 
@@ -117,6 +133,7 @@ class SpaceController {
                 message: `Account for ${newUser.name} approved successfully!`
             });
         } catch (error) {
+            console.error('Approval error:', error);
             next(error);
         }
     };
@@ -130,11 +147,20 @@ class SpaceController {
             request.status = 'rejected';
             await request.save();
 
+            // Send Rejection Email
+            try {
+                await emailService.sendSpaceRejectionEmail(request.email, request.name);
+                console.log(`✅ Rejection email sent to ${request.email}`);
+            } catch (emailError) {
+                console.error('❌ Failed to send rejection email:', emailError.message);
+            }
+
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 message: `Application for ${request.name} has been rejected.`
             });
         } catch (error) {
+            console.error('Rejection error:', error);
             next(error);
         }
     };

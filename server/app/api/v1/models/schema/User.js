@@ -1,3 +1,4 @@
+// app/api/v1/models/schema/User.js
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
@@ -17,7 +18,12 @@ const userSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true },
     status: { type: String, enum: ['pending', 'approved', 'rejected'] },
     business_permit: { type: String },
-    dti_sec_reg: { type: String }
+    dti_sec_reg: { type: String },
+    // Password reset fields - FIXED: Move these OUT of timestamps
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpires: { type: Date, default: null },
+    otpCode: { type: String, default: null },
+    otpExpires: { type: Date, default: null }
 }, { 
     timestamps: true,
     collection: 'users' 

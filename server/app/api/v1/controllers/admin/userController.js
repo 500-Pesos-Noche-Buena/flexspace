@@ -6,12 +6,12 @@ class UserController {
     
     index = async (req, res, next) => {
         try {
-            const { page = 1, search = '' } = req.query;
+            const { page = 1, search = '', role = 'user' } = req.query;
             const limit = 10;
             const skip = (page - 1) * limit;
 
             const query = {
-                role: 'user', 
+                role: role, // 'user' or 'space'
                 ...(search && {
                     $or: [
                         { name: { $regex: search, $options: 'i' } },
@@ -22,13 +22,13 @@ class UserController {
 
             const [users, total, activeCount, inactiveCount] = await Promise.all([
                 User.find(query)
-                    .select('name email isActive createdAt')
+                    .select('name email isActive createdAt role business_permit dti_sec_reg')
                     .sort({ createdAt: -1 })
                     .skip(skip)
                     .limit(limit),
-                User.countDocuments({ role: 'user' }),
-                User.countDocuments({ role: 'user', isActive: true }),
-                User.countDocuments({ role: 'user', isActive: false })
+                User.countDocuments(query),
+                User.countDocuments({ role: role, isActive: true }),
+                User.countDocuments({ role: role, isActive: false })
             ]);
 
             return res.status(HTTP_STATUS.OK).json({

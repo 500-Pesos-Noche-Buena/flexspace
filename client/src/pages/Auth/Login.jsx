@@ -5,11 +5,14 @@ import { Button } from "@/components/ui/button";
 import { apiPost } from '@/utils/Api'; 
 import { showToast } from '@/components/ui/SweetAlert2';
 import { useAuth } from '@/context/AuthContext';
+import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal';
 
 const Login = () => {
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+
 
     const { login } = useAuth();
     
@@ -81,7 +84,13 @@ const Login = () => {
                 <div className="space-y-1.5">
                     <div className="flex justify-between items-center ml-1">
                         <label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Password</label>
-                        <Link to="#" className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Forgot?</Link>
+                        <Link 
+                            to="#" 
+                            onClick={(e) => { e.preventDefault(); setShowForgotPassword(true); }}
+                            className="text-[10px] font-black text-indigo-600 uppercase tracking-widest"
+                        >
+                            Forgot?
+                        </Link>
                     </div>
                     <div className="relative group">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
@@ -111,6 +120,11 @@ const Login = () => {
             <p className="text-center mt-8 md:mt-12 text-[11px] font-black text-slate-400 uppercase tracking-wider">
                 New to FlexSpace? <Link to="/register" className="text-indigo-600 hover:underline underline-offset-4 decoration-2">Create account</Link>
             </p>
+
+            <ForgotPasswordModal 
+                isOpen={showForgotPassword} 
+                onClose={() => setShowForgotPassword(false)} 
+            />
         </div>
     );
 };

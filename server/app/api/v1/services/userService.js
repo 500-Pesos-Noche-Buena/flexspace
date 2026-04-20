@@ -23,13 +23,18 @@ class UserService {
         
         const hashedPassword = await hashPassword(data.password);
         
-        return await User.create({
+        const user = await User.create({
             name: data.name,
             email: data.email,
             password: hashedPassword,
             role: 'user',
             isActive: true
         });
+        
+        console.log(`✅ User created in DB: ${user.email}, ID: ${user._id}`);
+        
+        // Return the full user object
+        return user;
     }
 
     async createSpaceRequest(data) {
@@ -37,20 +42,22 @@ class UserService {
         
         const hashedPassword = await hashPassword(data.password);
         
-        return await SpaceRequest.create({
+        const spaceRequest = await SpaceRequest.create({
             name: data.name,
             email: data.email,
             password: hashedPassword,
-            role: 'space',
-            businessPermit: data.businessPermit,
-            dtiSecReg: data.dtiSecReg,
+            business_permit: data.business_permit,
+            dti_sec_reg: data.dti_sec_reg,
             status: 'pending'
         });
+        
+        console.log(`✅ Space request created: ${spaceRequest.email}, ID: ${spaceRequest._id}`);
+        console.log(`   Business Permit: ${spaceRequest.business_permit}`);
+        console.log(`   DTI/SEC Reg: ${spaceRequest.dti_sec_reg}`);
+        
+        return spaceRequest;
     }
 
-    /**
-     * Prevent duplicate registrations across both tables.
-     */
     async isEmailTaken(email) {
         const [user, pending] = await Promise.all([
             User.findOne({ email }),
@@ -59,7 +66,6 @@ class UserService {
         return !!(user || pending);
     }
 
-    // Add this to your UserService class
     async createStaff(data) {
         if (!data.password) throw new Error("Password missing for hashing");
         
@@ -69,7 +75,7 @@ class UserService {
             name: data.name,
             email: data.email,
             password: hashedPassword,
-            role: 'staff',      // Hardcoded for security
+            role: 'staff',
             parent_id: data.parent_id, 
             isActive: true
         });

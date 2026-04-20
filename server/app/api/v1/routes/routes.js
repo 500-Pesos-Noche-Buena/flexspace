@@ -5,6 +5,7 @@ const spaceRoutes = require('./spaceRoutes');
 const landingRoutes = require('./landingRoutes');
 const userRoutes = require('./userRoutes');
 const { Analytics } = require('@/api/v1/models');
+const emailController = require('@/api/v1/controllers/emailController');
 
 class ApiRouter {
     constructor() {
@@ -15,7 +16,6 @@ class ApiRouter {
     mountRoutes() {
         console.log('--- 🚀 Mounting API v1 Routes ---');
 
-        // In your routes file (e.g., routes/analytics.js)
         this.router.post('/analytics/track', async (req, res) => {
             try {
                 const { path, deviceType, browser, os } = req.body;
@@ -94,6 +94,10 @@ class ApiRouter {
         this.router.use('/admin', adminRoutes);
         this.router.use('/space', spaceRoutes);
         this.router.use('/user', userRoutes);
+
+        this.router.post('/email/welcome', emailController.sendWelcome);
+        this.router.post('/email/booking-confirmation', emailController.sendBookingConfirmation);
+        this.router.post('/email/voucher', emailController.sendVoucher);
     }
 
     getRouter() {

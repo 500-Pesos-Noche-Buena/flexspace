@@ -181,12 +181,12 @@ const SpaceApplications = () => {
             </div>
 
             {/* DataTable */}
-            <DataTable 
-                columns={columns} 
-                data={requests} 
-                loading={loading} 
-                totalCount={totalCount} 
-                onParamsChange={handleParamsChange} 
+            <DataTable
+                columns={columns}
+                data={requests}
+                loading={loading}
+                totalCount={totalCount}
+                onParamsChange={handleParamsChange}
                 renderMobileCard={(req) => (
                     <div key={req._id} className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] space-y-5 shadow-xl">
                         <div className="flex items-center justify-between">
@@ -211,8 +211,8 @@ const SpaceApplications = () => {
                                     {statusFilter === 'pending' ? 'Pending' : 'Rejected'}
                                 </span>
                             </div>
-                            <button 
-                                onClick={() => { setSelectedReq(req); setOpenModal(true); }} 
+                            <button
+                                onClick={() => { setSelectedReq(req); setOpenModal(true); }}
                                 className="px-5 py-2.5 bg-white text-black rounded-xl text-[10px] font-black uppercase flex items-center gap-2 active:scale-95 transition-all shadow-lg"
                             >
                                 <Eye size={14} /> Review
@@ -236,27 +236,66 @@ const SpaceApplications = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {['business_permit', 'dti_sec_reg'].map(fileKey => (
-                                <div key={fileKey} className="group">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase mb-3 block italic tracking-[0.2em]">
-                                        {fileKey.replace(/_/g, ' ')}
-                                    </label>
-                                    <div className="aspect-video md:aspect-4/3 rounded-4xl border border-white/10 bg-[#0a0a0c] flex items-center justify-center overflow-hidden relative shadow-2xl group-hover:border-indigo-500/50 transition-all">
-                                        {selectedReq[fileKey] ? (
-                                            <img 
-                                                src={`${import.meta.env.VITE_API_URL}/uploads/requirements/${selectedReq[fileKey]}`} 
-                                                className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-500" 
-                                                alt="Verification Document" 
-                                            />
-                                        ) : (
-                                            <div className="text-center">
-                                                <XCircle size={32} className="mx-auto text-rose-500/30 mb-3" />
-                                                <span className="text-[10px] text-rose-500 font-black uppercase">Document Missing</span>
+                            {['business_permit', 'dti_sec_reg'].map(fileKey => {
+                                const fileName = selectedReq[fileKey];
+                                const fileUrl = fileName ? `${import.meta.env.VITE_API_URL}/uploads/spaces/${fileName}` : null;
+                                const isImage = fileName && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+
+                                return (
+                                    <div key={fileKey} className="group">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase mb-3 block italic tracking-[0.2em]">
+                                            {fileKey === 'business_permit' ? 'Business Permit' : 'DTI / SEC Registration'}
+                                        </label>
+                                        <div
+                                            className="aspect-video md:aspect-4/3 rounded-4xl border border-white/10 bg-[#0a0a0c] flex items-center justify-center overflow-hidden relative shadow-2xl group-hover:border-indigo-500/50 transition-all cursor-pointer"
+                                            onClick={() => {
+                                                if (fileUrl) {
+                                                    if (isImage) {
+                                                        // Open image in modal
+                                                        window.open(fileUrl, '_blank');
+                                                    } else {
+                                                        // Download PDF
+                                                        window.open(fileUrl, '_blank');
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            {fileName ? (
+                                                isImage ? (
+                                                    <img
+                                                        src={fileUrl}
+                                                        className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-500"
+                                                        alt={fileKey}
+                                                    />
+                                                ) : (
+                                                    <div className="text-center p-4">
+                                                        <svg className="w-12 h-12 text-red-500/30 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                        </svg>
+                                                        <span className="text-[10px] text-slate-400 font-black uppercase">PDF Document</span>
+                                                        <span className="text-[8px] text-indigo-400 mt-2 block">Click to view</span>
+                                                    </div>
+                                                )
+                                            ) : (
+                                                <div className="text-center">
+                                                    <XCircle size={32} className="mx-auto text-rose-500/30 mb-3" />
+                                                    <span className="text-[10px] text-rose-500 font-black uppercase">Document Missing</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {fileName && (
+                                            <div className="text-center mt-2">
+                                                <button
+                                                    onClick={() => window.open(fileUrl, '_blank')}
+                                                    className="text-[8px] text-indigo-400 hover:text-indigo-300 transition-colors"
+                                                >
+                                                    Click to view full document →
+                                                </button>
                                             </div>
                                         )}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         {statusFilter === 'pending' && (
