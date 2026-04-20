@@ -24,9 +24,9 @@ const analyticsSchema = new mongoose.Schema({
         percentage: Number
     }],
     devices: [{
-        type: String,
-        visitors: Number,
-        percentage: Number
+        type: { type: String }, 
+        visitors: { type: Number, default: 0 },
+        percentage: { type: Number, default: 0 }
     }],
     browsers: [{
         name: String,

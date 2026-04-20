@@ -1,4 +1,3 @@
-// api/v1/controllers/admin/insightsController.js
 const { HTTP_STATUS } = require('@/utils/constants');
 const { Analytics } = require('@/api/v1/models');
 
@@ -41,52 +40,50 @@ class InsightsController {
         }
     };
     
-    updateStats = async (req, res, next) => {
-        try {
-            const { period = '7d', ...updateData } = req.body;
-            const userId = req.user?.id;
-            
-            // Parse string arrays back to actual arrays
-            const parsedData = {};
-            const arrayFields = ['topPages', 'trafficSources', 'countries', 'devices', 'browsers', 'os', 'dailyStats'];
-            
-            for (const [key, value] of Object.entries(updateData)) {
-                if (arrayFields.includes(key) && typeof value === 'string') {
-                    try {
-                        parsedData[key] = JSON.parse(value);
-                    } catch (e) {
-                        parsedData[key] = value;
-                    }
-                } else {
+// InsightsController.js
+updateStats = async (req, res, next) => {
+    try {
+        const { period = '7d', ...updateData } = req.body;
+        const userId = req.user?.id;
+        
+        const parsedData = {};
+        const arrayFields = ['topPages', 'trafficSources', 'countries', 'devices', 'browsers', 'os', 'dailyStats'];
+        
+        for (const [key, value] of Object.entries(updateData)) {
+            // Only try to parse if it's actually a string that looks like an array/object
+            if (arrayFields.includes(key) && typeof value === 'string') {
+                try {
+                    parsedData[key] = JSON.parse(value);
+                } catch (e) {
                     parsedData[key] = value;
                 }
-            }
-            
-            let analytics = await Analytics.findOne({ period });
-            
-            if (analytics) {
-                Object.assign(analytics, parsedData);
-                analytics.updatedAt = new Date();
-                analytics.updatedBy = userId;
-                await analytics.save();
             } else {
-                analytics = await Analytics.create({
-                    period,
-                    ...parsedData,
-                    updatedBy: userId
-                });
+                parsedData[key] = value;
             }
-            
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                message: 'Analytics updated successfully',
-                data: analytics
-            });
-        } catch (error) {
-            console.error('Update analytics error:', error);
-            next(error);
         }
-    };
+        
+        // Use findOneAndUpdate with 'upsert' for a cleaner atomic operation
+        const analytics = await Analytics.findOneAndUpdate(
+            { period },
+            { 
+                ...parsedData, 
+                updatedBy: userId,
+                updatedAt: new Date() 
+            },
+            { new: true, upsert: true, runValidators: true }
+        );
+        
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            message: 'Analytics updated successfully',
+            data: analytics
+        });
+    } catch (error) {
+        console.error('Update analytics error:', error);
+        // This will send the actual database error to your frontend toast
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
 }
 
 module.exports = new InsightsController();
