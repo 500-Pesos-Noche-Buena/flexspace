@@ -15,6 +15,7 @@ import Register from '@/pages/Auth/Register';
 import Pending from '@/pages/Auth/Pending';
 import Spaces from '@/pages/Landing/Spaces';
 import Contact from "@/pages/Landing/Contact";
+import PrivacyPolicy from '@/pages/Landing/PrivacyPolicy';
 
 // Admin & Space Owner Pages
 import AdminDashboard from '@/pages/Admin/Dashboard/Index';
@@ -48,6 +49,7 @@ export const AppRoutes = () => {
                 <Route index element={<LandingPage />} />
                 <Route path="spaces" element={<Spaces />} />
                 <Route path="contact" element={<Contact />} />
+                <Route path="privacy" element={<PrivacyPolicy />} />
                 
                 {/* Regular User Dashboard Area */}
                 <Route path="dashboard" element={<UserDashboard />} />
