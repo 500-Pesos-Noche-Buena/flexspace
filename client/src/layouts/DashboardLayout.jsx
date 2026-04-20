@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutGrid, Users, FileText, Calendar, Box, Fence,
     ShoppingCart, Receipt, ChevronLeft, LogOut, User,
-    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket 
+    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
 
@@ -90,6 +90,7 @@ export default function DashboardLayout() {
                     { href: "/admin/spaces",             active: isRouteActive("/admin/spaces"),             icon: <MapPin />,      label: "Co-Working Hubs" },
                     { href: "/admin/space/applications", active: isRouteActive("/admin/space/applications"), icon: <ShieldCheck />, label: "Space Applications" },
                     { href: "/admin/vouchers", active: isRouteActive("/admin/vouchers"), icon: <Ticket />, label: "Vouchers" },
+                    { href: "/admin/insights", active: isRouteActive("/admin/insights"), icon: <Activity />, label: "Insights" },
                 ] : []),
 
                 ...(hasSpaceAccess ? [
