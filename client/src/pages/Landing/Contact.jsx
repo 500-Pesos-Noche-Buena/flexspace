@@ -13,7 +13,7 @@ const Contact = () => {
                 </h2>
                 {/* Adjusted font size and margin for tighter mobile feel */}
                 <p className="text-slate-500 text-sm md:text-lg mb-8 md:mb-10 font-medium max-w-70 md:max-w-none mx-auto leading-relaxed">
-                    Join the Iloilo Work network and reach more clients in the community.
+                    Join the FlexSpace network and reach more clients in the community.
                 </p>
                 
                 {/* Button: h-12 on mobile, h-14 on desktop */}

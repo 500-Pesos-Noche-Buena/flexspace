@@ -148,22 +148,52 @@ const MainLayout = () => {
                 <Outlet />
             </main>
 
-            <footer className="border-t border-slate-100 bg-white py-12 px-8 mt-auto">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-xl bg-slate-900 text-white grid place-items-center font-black text-[10px]">FS</div>
-                        <div>
-                            <p className="font-black text-slate-900 text-xs uppercase italic tracking-widest leading-none">FlexSpace Iloilo</p>
-                            <p className="text-[7px] text-slate-400 uppercase font-black tracking-[0.4em] mt-1.5 leading-none">Premium Workstations • 2026</p>
-                        </div>
-                    </div>
-                    <div className="flex gap-8">
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Privacy</p>
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Terms</p>
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Support</p>
+            <footer className="border-t border-slate-100 bg-white py-16 px-8 mt-auto">
+    <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-12">
+            
+            {/* Brand & Mission */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-2xl bg-slate-900 text-white grid place-items-center font-black text-xs shadow-lg">FS</div>
+                    <div>
+                        <p className="font-black text-slate-900 text-sm uppercase italic tracking-widest leading-none">FlexSpace Iloilo</p>
+                        <p className="text-[8px] text-slate-400 uppercase font-black tracking-[0.4em] mt-1.5 leading-none">Premium Workstations • 2026</p>
                     </div>
                 </div>
-            </footer>
+                <p className="max-w-xs text-[10px] leading-relaxed text-slate-400 font-medium uppercase tracking-wider">
+                    Providing the most productive study hubs and co-working spaces in the Heart of the Philippines.
+                </p>
+            </div>
+
+            {/* Navigation Links - Vital for AdSense */}
+            <div className="flex flex-wrap gap-x-12 gap-y-6">
+                <div className="flex flex-col gap-3">
+                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Legal</p>
+                    <Link to="/privacy" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Privacy Policy</Link>
+                    <Link to="/terms" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Terms of Service</Link>
+                </div>
+                <div className="flex flex-col gap-3">
+                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Support</p>
+                    <Link to="/contact" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Contact Us</Link>
+                    <Link to="/faq" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Help Center</Link>
+                </div>
+            </div>
+        </div>
+
+        <div className="mt-16 pt-8 border-t border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">
+                &copy; 2026 FlexSpace PH. All Rights Reserved.
+            </p>
+            <div className="flex gap-4">
+                <div className="h-6 w-6 rounded-lg bg-slate-50 border border-slate-100 grid place-items-center opacity-50 hover:opacity-100 transition-opacity cursor-pointer">
+                    <Globe size={10} className="text-slate-400" />
+                </div>
+                {/* Add other social icons here if needed */}
+            </div>
+        </div>
+    </div>
+</footer>
         </div>
     );
 };

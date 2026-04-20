@@ -16,6 +16,8 @@ import Pending from '@/pages/Auth/Pending';
 import Spaces from '@/pages/Landing/Spaces';
 import Contact from "@/pages/Landing/Contact";
 import PrivacyPolicy from '@/pages/Landing/PrivacyPolicy';
+import TermsOfService from '@/pages/Landing/TermsOfService';
+import FAQ from '@/pages/Landing/FAQ';
 
 // Admin & Space Owner Pages
 import AdminDashboard from '@/pages/Admin/Dashboard/Index';
@@ -49,7 +51,9 @@ export const AppRoutes = () => {
                 <Route index element={<LandingPage />} />
                 <Route path="spaces" element={<Spaces />} />
                 <Route path="contact" element={<Contact />} />
-                <Route path="privacy" element={<PrivacyPolicy />} />
+                <Route path="privacy" element={<PrivacyPolicy />} />\
+                <Route path="terms" element={<TermsOfService />} />\
+                <Route path="/faq" element={<FAQ />} />
                 
                 {/* Regular User Dashboard Area */}
                 <Route path="dashboard" element={<UserDashboard />} />
