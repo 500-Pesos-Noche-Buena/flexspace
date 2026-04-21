@@ -18,6 +18,10 @@ class LandingRoutes {
         this.router.get('/space/:id', protect, (req, res, next) => 
             landingController.getSpaceDetails(req, res, next)
         );
+
+        this.router.get('/stats', protect, (req, res, next) => 
+            landingController.getPublicStats(req, res, next)
+        );
     }
 
     getRouter() {

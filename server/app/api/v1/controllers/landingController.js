@@ -1,4 +1,4 @@
-const { Space, District } = require('@/api/v1/models');
+const { Space, District, User, Booking } = require('@/api/v1/models');
 
 class LandingController {
     async getExplorerData(req, res) {
@@ -36,23 +36,57 @@ class LandingController {
             const space = await Space.findById(req.params.id)
                 .populate('district_id')
                 .lean();
-            
+
             if (!space) {
                 return res.status(404).json({ success: false, message: "Space not found" });
             }
-            
-            // Parse hours_json if it's a string
+
             if (space.hours_json && typeof space.hours_json === 'string') {
                 space.hours_json = JSON.parse(space.hours_json);
             }
-            
-            return res.status(200).json({ 
-                success: true, 
-                data: space 
+
+            return res.status(200).json({
+                success: true,
+                data: space
             });
         } catch (error) {
             console.error('Get space details error:', error);
             return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    async getPublicStats(req, res) {
+        try {
+            console.log('📊 Fetching public stats...');
+            
+            const [totalSpaces, totalUsers, activeBookings] = await Promise.all([
+                Space.countDocuments({ status: 'Open Now' }),
+                User.countDocuments({ 
+                    role: 'user',  
+                    isActive: { $ne: false }
+                }),
+                Booking.countDocuments({ 
+                    status: 'active',
+                    check_out_at: null 
+                })
+            ]);
+
+            console.log(`Stats: ${totalSpaces} spaces, ${totalUsers} users, ${activeBookings} active bookings`);
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    totalSpaces: totalSpaces || 0,
+                    totalUsers: totalUsers || 0,
+                    activeBookings: activeBookings || 0
+                }
+            });
+        } catch (error) {
+            console.error('Stats error:', error);
+            return res.status(500).json({
+                success: false,
+                message: error.message
+            });
         }
     }
 }
