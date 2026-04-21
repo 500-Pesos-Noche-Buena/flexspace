@@ -28,8 +28,8 @@ const StatBox = ({ label, value, color, icon: Icon, subtitle, tooltip }) => (
 );
 
 /** --- SPACE CARD COMPONENT --- **/
-const SpaceCard = ({ name, location, price, rating, image, tags = [] }) => {
-    const imageUrl = image ? `${API_BASE_URL}/uploads/spaces/${image}` : null;
+const SpaceCard = ({ name, location, price, rating, image, userId, tags = [] }) => {
+    const imageUrl = image ? `${API_BASE_URL}/uploads/spaces/${userId}/${image}` : null;
 
     return (
         <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 hover:border-indigo-100 transition-all group cursor-pointer shadow-sm hover:shadow-xl hover:shadow-indigo-500/5">
@@ -292,6 +292,7 @@ const UserDashboard = () => {
                             rating={space.rating}
                             tags={space.amenities}
                             image={space.image}
+                            userId={space.user_id}
                         />
                     )) : (
                         <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-100 rounded-[3rem]">

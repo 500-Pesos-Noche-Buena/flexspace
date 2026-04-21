@@ -5,13 +5,16 @@ const fs = require('fs');
 const path = require('path');
 
 class SpaceController {
-    getUploadPath = (filename) => {
-        return path.join(process.cwd(), 'server/public/uploads/spaces', filename);
+    getUploadPath = (userId, filename) => {
+        return path.join(process.cwd(), 'server/public/uploads/spaces', userId, filename);
     };
 
-     // Replace getUserId with getOwnerId
+    getUserId = (req) => {
+        return req.user?.id || req.user?._id || req.user?.sub;
+    };
+
     getOwnerId = async (req) => {
-        const userId = req.user?.id || req.user?._id || req.user?.sub;
+        const userId = this.getUserId(req);
 
         if (req.user?.role === 'staff') {
             const staffRecord = await User.findById(userId).select('parent_id');
@@ -25,7 +28,7 @@ class SpaceController {
 
     index = async (req, res, next) => {
         try {
-            const ownerId = await this.getOwnerId(req); // ← async now
+            const ownerId = await this.getOwnerId(req);
             if (!ownerId) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Session expired.');
 
             const spaces = await Space.find({ user_id: ownerId })
@@ -38,7 +41,6 @@ class SpaceController {
         }
     };
 
-
     store = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
@@ -46,8 +48,16 @@ class SpaceController {
 
             const {
                 name, area, rate_hour, capacity, status,
-                lat, lng, district_id, available_rooms
+                lat, lng, district_id, available_rooms, amenities
             } = req.body;
+
+            // Handle multiple images - files are already in user-specific folder
+            let imageFilenames = [];
+            if (req.files && req.files.length > 0) {
+                imageFilenames = req.files.slice(0, 10).map(file => file.filename);
+            } else if (req.file) {
+                imageFilenames = [req.file.filename];
+            }
 
             const spaceData = {
                 name,
@@ -61,7 +71,9 @@ class SpaceController {
                 district_id: district_id || null,
                 available_rooms: available_rooms || null,
                 occupied_seats: 0,
-                image: req.file ? req.file.filename : null
+                images: imageFilenames,
+                image: imageFilenames[0] || null,
+                amenities: amenities ? (typeof amenities === 'string' ? JSON.parse(amenities) : amenities) : []
             };
 
             const space = await Space.create(spaceData);
@@ -72,8 +84,15 @@ class SpaceController {
                 data: space
             });
         } catch (error) {
-            if (req.file) {
-                const filePath = this.getUploadPath(req.file.filename);
+            // Clean up uploaded files if creation fails
+            const userId = this.getUserId(req);
+            if (req.files && req.files.length > 0) {
+                for (const file of req.files) {
+                    const filePath = this.getUploadPath(userId, file.filename);
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                }
+            } else if (req.file) {
+                const filePath = this.getUploadPath(userId, req.file.filename);
                 if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
             }
             next(error);
@@ -84,49 +103,66 @@ class SpaceController {
         try {
             const userId = this.getUserId(req);
             const { id } = req.params;
-            
+
             const space = await Space.findOne({ _id: id, user_id: userId });
             if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found or unauthorized.');
 
             const updates = { ...req.body };
 
+            // Handle amenities
+            if (updates.amenities && typeof updates.amenities === 'string') {
+                updates.amenities = JSON.parse(updates.amenities);
+            }
+
+            // Handle district_id
             if (updates.district_id) {
                 if (typeof updates.district_id === 'object' && updates.district_id._id) {
                     updates.district_id = updates.district_id._id;
                 } else if (updates.district_id === '[object Object]') {
-                    delete updates.district_id; 
+                    delete updates.district_id;
                 }
             }
 
+            // Convert numbers
             if (updates.rate_hour) updates.rate_hour = Number(updates.rate_hour);
             if (updates.capacity) updates.capacity = Number(updates.capacity);
             if (updates.lat) updates.lat = Number(updates.lat);
             if (updates.lng) updates.lng = Number(updates.lng);
 
-            if (req.file) {
-                if (space.image) {
-                    const oldPath = this.getUploadPath(space.image);
-                    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            // Handle multiple image uploads
+            if (req.files && req.files.length > 0) {
+                // Delete old images from user folder
+                if (space.images && space.images.length > 0) {
+                    for (const oldImage of space.images) {
+                        const oldPath = this.getUploadPath(userId, oldImage);
+                        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+                    }
                 }
-                updates.image = req.file.filename;
+                const newImages = req.files.slice(0, 10).map(file => file.filename);
+                updates.images = newImages;
+                updates.image = newImages[0];
             }
 
             const updatedSpace = await Space.findByIdAndUpdate(id, updates, { new: true });
-            
-            return res.status(HTTP_STATUS.OK).json({ 
-                success: true, 
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
                 message: 'Space updated!',
-                data: updatedSpace 
+                data: updatedSpace
             });
         } catch (error) {
-            if (req.file) {
-                const filePath = this.getUploadPath(req.file.filename);
-                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            // Clean up uploaded files if update fails
+            const userId = this.getUserId(req);
+            if (req.files && req.files.length > 0) {
+                for (const file of req.files) {
+                    const filePath = this.getUploadPath(userId, file.filename);
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                }
             }
             next(error);
         }
     };
-    
+
     delete = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
@@ -135,17 +171,94 @@ class SpaceController {
             const space = await Space.findOne({ _id: id, user_id: userId });
             if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found.');
 
-            if (space.image) {
-                const imgPath = this.getUploadPath(space.image);
+            // Delete all images from user folder
+            const allImages = [...(space.images || []), space.image].filter(Boolean);
+            for (const image of allImages) {
+                const imgPath = this.getUploadPath(userId, image);
                 if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
             }
 
             await Space.findByIdAndDelete(id);
-            
-            return res.status(HTTP_STATUS.OK).json({ 
-                success: true, 
-                message: 'Space and image removed.' 
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Space and images removed.'
             });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+
+    addImages = async (req, res, next) => {
+        try {
+            const userId = this.getUserId(req);
+            const { id } = req.params;
+
+            const space = await Space.findOne({ _id: id, user_id: userId });
+            if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
+
+            const newImages = req.files.map(file => file.filename);
+            const updatedImages = [...(space.images || []), ...newImages].slice(0, 10);
+
+            space.images = updatedImages;
+            if (!space.image && updatedImages.length > 0) {
+                space.image = updatedImages[0];
+            }
+            await space.save();
+
+            return res.status(HTTP_STATUS.OK).json({ success: true, message: 'Images added', images: space.images });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    removeImage = async (req, res, next) => {
+        try {
+            const userId = this.getUserId(req);
+            const { id } = req.params;
+            const { image } = req.body;
+
+            const space = await Space.findOne({ _id: id, user_id: userId });
+            if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
+
+            // Remove from array
+            space.images = space.images.filter(img => img !== image);
+
+            // If removed image was primary, set new primary
+            if (space.image === image) {
+                space.image = space.images[0] || null;
+            }
+
+            await space.save();
+
+            // Delete file from disk
+            const filePath = this.getUploadPath(userId, image);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+            return res.status(HTTP_STATUS.OK).json({ success: true, message: 'Image removed' });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    setPrimaryImage = async (req, res, next) => {
+        try {
+            const userId = this.getUserId(req);
+            const { id } = req.params;
+            const { image } = req.body;
+
+            const space = await Space.findOne({ _id: id, user_id: userId });
+            if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
+
+            if (!space.images.includes(image)) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Image not found in space gallery');
+            }
+
+            space.image = image;
+            await space.save();
+
+            return res.status(HTTP_STATUS.OK).json({ success: true, message: 'Primary image updated' });
         } catch (error) {
             next(error);
         }

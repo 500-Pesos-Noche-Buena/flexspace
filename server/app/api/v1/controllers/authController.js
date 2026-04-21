@@ -2,7 +2,7 @@ const userService = require('@/api/v1/services/userService');
 const ApiError = require('@/utils/ApiError');
 const { generateAuthTokens } = require('@/utils/jwt');
 const { HTTP_STATUS } = require('@/utils/constants');
-const emailService = require('@/api/v1/services/emailService'); // ← ADD THIS LINE
+const emailService = require('@/api/v1/services/emailService');
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -21,7 +21,6 @@ class AuthController {
                 throw new ApiError(HTTP_STATUS.UNAUTHORIZED, "Invalid email or password");
             }
 
-            // Handle Space Owners waiting for Admin Approval
             if (result.type === 'pending') {
                 return res.status(HTTP_STATUS.OK).json({
                     success: true,
@@ -31,12 +30,10 @@ class AuthController {
                 });
             }
 
-            // Handle deactivated accounts
             if (result.user.isActive === false) {
                 throw new ApiError(HTTP_STATUS.FORBIDDEN, "Your account is not yet activated.");
             }
 
-            // Generate JWT
             const { access } = generateAuthTokens(result.user);
 
             return res.status(HTTP_STATUS.OK).json({
@@ -54,10 +51,6 @@ class AuthController {
             console.error("Login Error:", error.message);
             next(error);
         }
-    };
-
-    getUploadPath = (filename) => {
-        return path.join(process.cwd(), 'server/public/uploads/requirements', filename);
     };
 
     register = async (req, res, next) => {
@@ -83,17 +76,13 @@ class AuthController {
                     throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Business Permit and DTI documents are required.");
                 }
 
-                console.log('Uploaded files:', {
-                    business_permit: permit.filename,
-                    dti_sec_reg: dti.filename
-                });
-
+                // Files are already saved to requirements folder by multer!
                 await userService.createSpaceRequest({
                     name,
                     email,
                     password,
-                    business_permit: permit.filename, 
-                    dti_sec_reg: dti.filename        
+                    business_permit: permit.filename,
+                    dti_sec_reg: dti.filename
                 });
 
                 return res.status(HTTP_STATUS.CREATED).json({

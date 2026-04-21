@@ -14,7 +14,7 @@ class LandingRoutes {
         this.router.get('/explorer', protect, (req, res, next) => 
             landingController.getExplorerData(req, res, next)
         );
-
+        
         this.router.get('/space/:id', protect, (req, res, next) => 
             landingController.getSpaceDetails(req, res, next)
         );

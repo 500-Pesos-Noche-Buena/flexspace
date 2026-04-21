@@ -50,11 +50,7 @@ class UserService {
             dti_sec_reg: data.dti_sec_reg,
             status: 'pending'
         });
-        
-        console.log(`✅ Space request created: ${spaceRequest.email}, ID: ${spaceRequest._id}`);
-        console.log(`   Business Permit: ${spaceRequest.business_permit}`);
-        console.log(`   DTI/SEC Reg: ${spaceRequest.dti_sec_reg}`);
-        
+
         return spaceRequest;
     }
 

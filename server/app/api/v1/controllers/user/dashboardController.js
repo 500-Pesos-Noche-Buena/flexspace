@@ -33,6 +33,7 @@ class DashboardController {
                 area: space.area,
                 rate_hour: space.rate_hour,
                 image: space.image,
+                user_id: space.user_id,
                 rating: space.rating || 5.0,
                 review_count: space.review_count || 0,
                 capacity: space.capacity,

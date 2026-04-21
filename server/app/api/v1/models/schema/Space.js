@@ -26,7 +26,6 @@ const spaceSchema = new mongoose.Schema({
         type: Number, 
         required: true 
     },
-    // 🔥 Added for UI/UX
     rating: { 
         type: Number, 
         default: 5.0,
@@ -38,12 +37,16 @@ const spaceSchema = new mongoose.Schema({
         default: 0 
     },
     amenities: { 
-        type: [String], // Array of strings: ["WiFi", "AC", "Coffee"]
+        type: [String],
         default: [] 
     },
     status: { 
         type: String, 
         default: 'Open Now' 
+    },
+    images: { 
+        type: [String],
+        default: [] 
     },
     image: { 
         type: String, 
@@ -61,6 +64,14 @@ const spaceSchema = new mongoose.Schema({
     occupied_seats: { 
         type: Number, 
         default: 0 
+    },
+    description: { 
+        type: String, 
+        default: null 
+    },
+    is_open_time: { 
+        type: Boolean, 
+        default: false 
     },
     hours_json: { 
         type: mongoose.Schema.Types.Mixed,

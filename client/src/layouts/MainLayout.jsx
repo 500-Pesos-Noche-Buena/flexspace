@@ -11,6 +11,17 @@ const MainLayout = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
+    // Redirect admin and space owners to their respective dashboards
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            if (user.role === 'admin') {
+                navigate('/admin/dashboard', { replace: true });
+            } else if (user.role === 'space' || user.role === 'staff') {
+                navigate('/space/dashboard', { replace: true });
+            }
+        }
+    }, [isAuthenticated, user, navigate]);
+
     // Helper to close all UI overlays
     const closeOverlays = useCallback(() => {
         setIsMenuOpen(false);
@@ -23,11 +34,6 @@ const MainLayout = () => {
         navigate(path);
     };
 
-    /**
-     * FIXED: Use requestAnimationFrame to defer the state update.
-     * This prevents the "cascading renders" error by moving the update
-     * out of the synchronous execution flow of the effect.
-     */
     useEffect(() => {
         const handle = requestAnimationFrame(() => {
             closeOverlays();
@@ -35,9 +41,14 @@ const MainLayout = () => {
         return () => cancelAnimationFrame(handle);
     }, [location.pathname, closeOverlays]);
 
+    // If user is admin or space owner, don't render the main layout (redirect will handle)
+    if (isAuthenticated && user && (user.role === 'admin' || user.role === 'space' || user.role === 'staff')) {
+        return null;
+    }
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col antialiased">
-            
+
             {/* --- HEADER --- */}
             <header className="sticky top-0 z-100 bg-white/90 backdrop-blur-md border-b border-slate-100">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -56,7 +67,7 @@ const MainLayout = () => {
 
                         {/* Actions */}
                         <div className="flex items-center gap-2 sm:gap-4">
-                            
+
                             {!isAuthenticated ? (
                                 <>
                                     <div className="hidden md:flex items-center gap-6 mr-2">
@@ -68,15 +79,15 @@ const MainLayout = () => {
                                         <Link to="/register">Join Now</Link>
                                     </Button>
 
-                                    <button 
+                                    <button
                                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                                         className="md:hidden p-3 rounded-2xl bg-slate-100 text-slate-900 hover:bg-slate-200 transition-colors"
                                     >
-                                        {/* FIXED: Corrected size(20) to size={20} */}
                                         {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
                                     </button>
                                 </>
                             ) : (
+                                // Only show user menu for regular users (role = 'user')
                                 <>
                                     <Button variant="ghost" asChild onClick={closeOverlays} className="hidden sm:inline-flex rounded-2xl font-black text-indigo-600 text-[10px] uppercase tracking-widest hover:bg-indigo-50 h-11">
                                         <Link to="/dashboard">
@@ -85,7 +96,7 @@ const MainLayout = () => {
                                     </Button>
 
                                     <div className="relative">
-                                        <button 
+                                        <button
                                             onClick={() => setIsProfileOpen(!isProfileOpen)}
                                             className="h-11 w-11 rounded-2xl bg-white border-2 border-slate-100 flex items-center justify-center text-slate-900 hover:border-indigo-600 transition-all overflow-hidden active:scale-95 shadow-sm"
                                         >
@@ -101,6 +112,7 @@ const MainLayout = () => {
                                                 <div className="px-5 py-4 mb-2 bg-slate-50 rounded-[1.8rem]">
                                                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Authenticated Account</p>
                                                     <p className="text-xs font-black text-slate-900 truncate italic uppercase">{user?.name}</p>
+                                                    <p className="text-[8px] text-slate-400 mt-1">Regular User</p>
                                                 </div>
                                                 <div className="flex flex-col gap-1">
                                                     <button onClick={() => handleNavigate('/dashboard')} className="md:hidden w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
@@ -110,7 +122,7 @@ const MainLayout = () => {
                                                         <ReceiptText className="w-3.5 h-3.5" /> My Bookings
                                                     </button>
                                                     <button onClick={() => handleNavigate('/user/redeem')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
-                                                        <ReceiptText className="w-3.5 h-3.5" /> Redemption
+                                                        <ReceiptText className="w-3.5 h-3.5" /> Redeem Points
                                                     </button>
                                                     <button onClick={() => handleNavigate('/account')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
                                                         <User className="w-3.5 h-3.5" /> My Profile
@@ -144,56 +156,55 @@ const MainLayout = () => {
                 )}
             </header>
 
-            <main className="flex-1"> 
+            <main className="flex-1">
                 <Outlet />
             </main>
 
             <footer className="border-t border-slate-100 bg-white py-16 px-8 mt-auto">
-    <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-12">
-            
-            {/* Brand & Mission */}
-            <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-2xl bg-slate-900 text-white grid place-items-center font-black text-xs shadow-lg">FS</div>
-                    <div>
-                        <p className="font-black text-slate-900 text-sm uppercase italic tracking-widest leading-none">FlexSpace Iloilo</p>
-                        <p className="text-[8px] text-slate-400 uppercase font-black tracking-[0.4em] mt-1.5 leading-none">Premium Workstations • 2026</p>
+                <div className="max-w-7xl mx-auto">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-12">
+
+                        {/* Brand & Mission */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-2xl bg-slate-900 text-white grid place-items-center font-black text-xs shadow-lg">FS</div>
+                                <div>
+                                    <p className="font-black text-slate-900 text-sm uppercase italic tracking-widest leading-none">FlexSpace Iloilo</p>
+                                    <p className="text-[8px] text-slate-400 uppercase font-black tracking-[0.4em] mt-1.5 leading-none">Premium Workstations • 2026</p>
+                                </div>
+                            </div>
+                            <p className="max-w-xs text-[10px] leading-relaxed text-slate-400 font-medium uppercase tracking-wider">
+                                Providing the most productive study hubs and co-working spaces in the Heart of the Philippines.
+                            </p>
+                        </div>
+
+                        {/* Navigation Links */}
+                        <div className="flex flex-wrap gap-x-12 gap-y-6">
+                            <div className="flex flex-col gap-3">
+                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Legal</p>
+                                <Link to="/privacy" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Privacy Policy</Link>
+                                <Link to="/terms" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Terms of Service</Link>
+                            </div>
+                            <div className="flex flex-col gap-3">
+                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Support</p>
+                                <Link to="/contact" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Contact Us</Link>
+                                <Link to="/faq" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Help Center</Link>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-16 pt-8 border-t border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">
+                            &copy; 2026 FlexSpace PH. All Rights Reserved.
+                        </p>
+                        <div className="flex gap-4">
+                            <div className="h-6 w-6 rounded-lg bg-slate-50 border border-slate-100 grid place-items-center opacity-50 hover:opacity-100 transition-opacity cursor-pointer">
+                                <Globe size={10} className="text-slate-400" />
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <p className="max-w-xs text-[10px] leading-relaxed text-slate-400 font-medium uppercase tracking-wider">
-                    Providing the most productive study hubs and co-working spaces in the Heart of the Philippines.
-                </p>
-            </div>
-
-            {/* Navigation Links - Vital for AdSense */}
-            <div className="flex flex-wrap gap-x-12 gap-y-6">
-                <div className="flex flex-col gap-3">
-                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Legal</p>
-                    <Link to="/privacy" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Privacy Policy</Link>
-                    <Link to="/terms" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Terms of Service</Link>
-                </div>
-                <div className="flex flex-col gap-3">
-                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Support</p>
-                    <Link to="/contact" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Contact Us</Link>
-                    <Link to="/faq" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Help Center</Link>
-                </div>
-            </div>
-        </div>
-
-        <div className="mt-16 pt-8 border-t border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">
-                &copy; 2026 FlexSpace PH. All Rights Reserved.
-            </p>
-            <div className="flex gap-4">
-                <div className="h-6 w-6 rounded-lg bg-slate-50 border border-slate-100 grid place-items-center opacity-50 hover:opacity-100 transition-opacity cursor-pointer">
-                    <Globe size={10} className="text-slate-400" />
-                </div>
-                {/* Add other social icons here if needed */}
-            </div>
-        </div>
-    </div>
-</footer>
+            </footer>
         </div>
     );
 };

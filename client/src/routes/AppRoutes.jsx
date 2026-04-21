@@ -18,6 +18,7 @@ import Contact from "@/pages/Landing/Contact";
 import PrivacyPolicy from '@/pages/Landing/PrivacyPolicy';
 import TermsOfService from '@/pages/Landing/TermsOfService';
 import FAQ from '@/pages/Landing/FAQ';
+import SpaceDetails from '@/pages/Landing/SpaceDetails';
 
 // Admin & Space Owner Pages
 import AdminDashboard from '@/pages/Admin/Dashboard/Index';
@@ -50,6 +51,7 @@ export const AppRoutes = () => {
             <Route path="/" element={<MainLayout />}>
                 <Route index element={<LandingPage />} />
                 <Route path="spaces" element={<Spaces />} />
+                <Route path="/explore/:id" element={<SpaceDetails />} />
                 <Route path="contact" element={<Contact />} />
                 <Route path="privacy" element={<PrivacyPolicy />} />\
                 <Route path="terms" element={<TermsOfService />} />\

@@ -28,67 +28,57 @@ const Register = () => {
     };
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+        e.preventDefault();
+        setIsLoading(true);
 
-    try {
-        // 1. Construct FormData
-        const data = new FormData();
-        data.append('name', formData.name);
-        data.append('email', formData.email);
-        data.append('password', formData.password);
-        data.append('role', role);
+        try {
+            const data = new FormData();
+            data.append('name', formData.name);
+            data.append('email', formData.email);
+            data.append('password', formData.password);
+            data.append('role', role);
 
-        // 2. Add files if the role is 'space'
-        if (role === 'space') {
-            // Check if files exist
-            if (!files.business_permit || !files.dti_sec_reg) {
-                throw new Error("Please upload all required documents.");
+            if (role === 'space') {
+                if (!files.business_permit || !files.dti_sec_reg) {
+                    throw new Error("Please upload all required documents.");
+                }
+
+                data.append('business_permit', files.business_permit);
+                data.append('dti_sec_reg', files.dti_sec_reg);
+
             }
-            
-            // IMPORTANT: Append the actual File objects, not the state
-            data.append('business_permit', files.business_permit);
-            data.append('dti_sec_reg', files.dti_sec_reg);
-            
-            // Debug: Log the files being sent
-            console.log('Uploading files:', {
-                business_permit: files.business_permit.name,
-                dti_sec_reg: files.dti_sec_reg.name
+
+            const response = await apiPost('/auth/register', data);
+
+            if (response.status === 'success') {
+                showToast({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: response.message || 'Registration successful! You can now log in.'
+                });
+                navigate('/login');
+            }
+            else if (response.status === 'pending') {
+                showToast({
+                    icon: 'info',
+                    title: 'Application Received',
+                    text: response.message
+                });
+                localStorage.setItem('pending_name', formData.name);
+                navigate('/registration-status');
+            }
+
+        } catch (error) {
+            console.error('Registration error:', error);
+            showToast({
+                icon: 'error',
+                title: 'Registration Failed',
+                text: error.message || 'Something went wrong'
             });
+        } finally {
+            setIsLoading(false);
         }
-
-        // 3. Send request (Don't set Content-Type header - let browser set it with boundary)
-        const response = await apiPost('/auth/register', data);
-
-        if (response.status === 'success') {
-            showToast({ 
-                icon: 'success', 
-                title: 'Success!', 
-                text: response.message || 'Registration successful! You can now log in.' 
-            });
-            navigate('/login');
-        } 
-        else if (response.status === 'pending') {
-            showToast({ 
-                icon: 'info', 
-                title: 'Application Received', 
-                text: response.message 
-            });
-            localStorage.setItem('pending_name', formData.name);
-            navigate('/registration-status');
-        }
-
-    } catch (error) {
-        console.error('Registration error:', error);
-        showToast({ 
-            icon: 'error', 
-            title: 'Registration Failed', 
-            text: error.message || 'Something went wrong' 
-        });
-    } finally {
-        setIsLoading(false);
-    }
-};
+    };
 
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">

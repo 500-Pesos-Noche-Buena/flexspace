@@ -21,14 +21,19 @@ class SpaceRoutes {
     initializeRoutes() {
         console.log('--- 🛡️ Initializing Space Routes ---');
 
+        const uploadArray = upload.array('images', 10);
+
         this.router.get('/dashboard', auth, (req, res, next) => DashboardController.index(req, res, next));
 
         this.router.get('/districts/active', auth, (req, res, next) => DistrictController.getActive(req, res, next));
 
         this.router.get('/spaces', auth, (req, res, next) => SpaceController.index(req, res, next));
-        this.router.post('/spaces', auth, upload.single('image'), (req, res, next) => SpaceController.store(req, res, next));
-        this.router.post('/spaces/:id/update', auth, upload.single('image'), (req, res, next) => SpaceController.update(req, res, next));
+        this.router.post('/spaces', auth, uploadArray, (req, res, next) => SpaceController.store(req, res, next));
+        this.router.post('/spaces/:id/update', auth, uploadArray, (req, res, next) => SpaceController.update(req, res, next));
         this.router.post('/spaces/:id/delete', auth, (req, res, next) => SpaceController.delete(req, res, next));
+        this.router.post('/spaces/:id/add-images', auth, uploadArray, (req, res, next) => SpaceController.addImages(req, res, next));
+        this.router.post('/spaces/:id/remove-image', auth, (req, res, next) => SpaceController.removeImage(req, res, next));
+        this.router.post('/spaces/:id/set-primary', auth, (req, res, next) => SpaceController.setPrimaryImage(req, res, next));
 
         this.router.get( '/bookings',                  auth, (req, res, next) => BookingController.index(req, res, next));
         this.router.get( '/bookings/:id/present',      auth, (req, res, next) => BookingController.presentQr(req, res, next));
