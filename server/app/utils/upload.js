@@ -5,11 +5,11 @@ const fs = require('fs');
 // Create base directories
 const uploadDir = path.join(process.cwd(), 'server/public/uploads/');
 const spacesBaseDir = path.join(process.cwd(), 'server/public/uploads/spaces');
-const requirementsDir = path.join(process.cwd(), 'server/public/uploads/requirements');
+const requirementsBaseDir = path.join(process.cwd(), 'server/public/uploads/requirements');
 
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 if (!fs.existsSync(spacesBaseDir)) fs.mkdirSync(spacesBaseDir, { recursive: true });
-if (!fs.existsSync(requirementsDir)) fs.mkdirSync(requirementsDir, { recursive: true });
+if (!fs.existsSync(requirementsBaseDir)) fs.mkdirSync(requirementsBaseDir, { recursive: true });
 
 // Helper to get user ID from request
 const getUserIdFromRequest = (req) => {
@@ -19,7 +19,20 @@ const getUserIdFromRequest = (req) => {
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         if (file.fieldname === 'business_permit' || file.fieldname === 'dti_sec_reg') {
-            cb(null, requirementsDir);
+            // For requirements, create user-specific folder if user ID exists
+            const userId = getUserIdFromRequest(req);
+            
+            if (userId) {
+                // Create user-specific folder for requirements
+                const userRequirementsDir = path.join(requirementsBaseDir, userId);
+                if (!fs.existsSync(userRequirementsDir)) {
+                    fs.mkdirSync(userRequirementsDir, { recursive: true });
+                }
+                cb(null, userRequirementsDir);
+            } else {
+                // Fallback to base requirements folder (for registration before user exists)
+                cb(null, requirementsBaseDir);
+            }
         } else if (file.fieldname === 'images' || file.fieldname === 'image') {
             // Create user-specific folder for space images
             const userId = getUserIdFromRequest(req);

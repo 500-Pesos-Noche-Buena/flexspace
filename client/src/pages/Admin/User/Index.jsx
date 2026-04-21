@@ -25,6 +25,14 @@ const UserManagement = () => {
     const paramsRef = useRef(currentParams);
     const lastDataFingerprint = useRef("");
 
+    const getDocumentUrl = (owner, fileName) => {
+        if (!fileName) return null;
+
+        const folderId = owner.space_request_id || owner._id;
+        
+        return `${import.meta.env.VITE_API_URL}/uploads/requirements/${folderId}/${fileName}`;
+    };
+
     useEffect(() => {
         paramsRef.current = { ...currentParams, role: userRole };
     }, [currentParams, userRole]);
@@ -161,7 +169,7 @@ const UserManagement = () => {
                 <div className="flex gap-2">
                     {owner.business_permit && (
                         <button
-                            onClick={() => viewDocument(`${import.meta.env.VITE_API_URL}/uploads/spaces/${owner.business_permit}`, 'Business Permit')}
+                            onClick={() => viewDocument(getDocumentUrl(owner, owner.business_permit), 'Business Permit')}
                             className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg text-[9px] text-indigo-400 hover:bg-indigo-500/20 transition-all"
                         >
                             <FileText size={12} /> Permit
@@ -169,7 +177,7 @@ const UserManagement = () => {
                     )}
                     {owner.dti_sec_reg && (
                         <button
-                            onClick={() => viewDocument(`${import.meta.env.VITE_API_URL}/uploads/spaces/${owner.dti_sec_reg}`, 'DTI/SEC Registration')}
+                            onClick={() => viewDocument(getDocumentUrl(owner, owner.dti_sec_reg), 'DTI/SEC Registration')}
                             className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg text-[9px] text-indigo-400 hover:bg-indigo-500/20 transition-all"
                         >
                             <FileText size={12} /> DTI/SEC
@@ -290,7 +298,7 @@ const UserManagement = () => {
                             <div className="flex gap-2 pt-2 border-t border-white/5">
                                 {owner.business_permit && (
                                     <button
-                                        onClick={() => viewDocument(`${import.meta.env.VITE_API_URL}/uploads/spaces/${owner.business_permit}`, 'Business Permit')}
+                                        onClick={() => viewDocument(getDocumentUrl(owner, owner.business_permit), 'Business Permit')}
                                         className="text-[8px] text-indigo-400 hover:text-indigo-300 transition-colors"
                                     >
                                         📄 View Permit
@@ -298,7 +306,7 @@ const UserManagement = () => {
                                 )}
                                 {owner.dti_sec_reg && (
                                     <button
-                                        onClick={() => viewDocument(`${import.meta.env.VITE_API_URL}/uploads/spaces/${owner.dti_sec_reg}`, 'DTI/SEC')}
+                                        onClick={() => viewDocument(getDocumentUrl(owner, owner.dti_sec_reg), 'DTI/SEC')}
                                         className="text-[8px] text-indigo-400 hover:text-indigo-300 transition-colors"
                                     >
                                         📄 View DTI/SEC
@@ -307,7 +315,7 @@ const UserManagement = () => {
                             </div>
                         )}
 
-                        {/* Action Buttons - ADD THESE */}
+                        {/* Action Buttons */}
                         <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
                             <button
                                 onClick={() => { setSelectedOwner(owner); setOpenModal(true); }}
@@ -326,7 +334,7 @@ const UserManagement = () => {
                 )}
             />
 
-            {/* Document Preview Modal - Using Modal Component */}
+            {/* Document Preview Modal */}
             <Modal
                 open={!!previewDoc}
                 onClose={() => setPreviewDoc(null)}
@@ -341,6 +349,9 @@ const UserManagement = () => {
                                 src={previewDoc.url}
                                 alt={previewDoc.name}
                                 className="w-full max-h-[70vh] object-contain rounded-lg"
+                                onError={(e) => {
+                                    e.target.src = '/placeholder-image.jpg';
+                                }}
                             />
                         ) : (
                             <iframe

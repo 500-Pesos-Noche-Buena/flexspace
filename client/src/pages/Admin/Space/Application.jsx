@@ -237,10 +237,14 @@ const SpaceApplications = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {['business_permit', 'dti_sec_reg'].map(fileKey => {
-                                const fileName = selectedReq[fileKey];
-                                const fileUrl = fileName ? `${import.meta.env.VITE_API_URL}/uploads/requirements/${fileName}` : null;
-                                const isImage = fileName && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
-
+const fileName = selectedReq[fileKey];
+    // Use _id as the user identifier
+    const userId = selectedReq._id;
+    const fileUrl = fileName && userId 
+        ? `${import.meta.env.VITE_API_URL}/uploads/requirements/${userId}/${fileName}` 
+        : null;
+    const isImage = fileName && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+    
                                 return (
                                     <div key={fileKey} className="group">
                                         <label className="text-[10px] font-black text-slate-500 uppercase mb-3 block italic tracking-[0.2em]">

@@ -22,7 +22,7 @@ class UserController {
 
             const [users, total, activeCount, inactiveCount] = await Promise.all([
                 User.find(query)
-                    .select('name email isActive createdAt role business_permit dti_sec_reg')
+                    .select('name email isActive createdAt role business_permit dti_sec_reg space_request_id')
                     .sort({ createdAt: -1 })
                     .skip(skip)
                     .limit(limit),

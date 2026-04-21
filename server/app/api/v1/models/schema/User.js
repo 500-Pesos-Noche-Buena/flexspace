@@ -2,6 +2,11 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
+    space_request_id: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'SpaceRequest',
+        default: null 
+    },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
