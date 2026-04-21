@@ -238,7 +238,7 @@ const SpaceApplications = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {['business_permit', 'dti_sec_reg'].map(fileKey => {
                                 const fileName = selectedReq[fileKey];
-                                const fileUrl = fileName ? `${import.meta.env.VITE_API_URL}/uploads/spaces/${fileName}` : null;
+                                const fileUrl = fileName ? `${import.meta.env.VITE_API_URL}/uploads/requirements/${fileName}` : null;
                                 const isImage = fileName && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
 
                                 return (
