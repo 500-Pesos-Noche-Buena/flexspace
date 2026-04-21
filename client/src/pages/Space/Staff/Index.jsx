@@ -17,7 +17,7 @@ const StaffManagement = () => {
     const [openModal, setOpenModal] = useState(false);
     const [selectedMember, setSelectedMember] = useState(null);
     const [isEditMode, setIsEditMode] = useState(false);
-    
+
     const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
     const paramsRef = useRef(currentParams);
     const lastDataFingerprint = useRef("");
@@ -32,7 +32,7 @@ const StaffManagement = () => {
         try {
             const { page, search } = params;
             const res = await apiGet(`/space/staff?page=${page}&search=${search}`);
-            
+
             const rowData = res.staff || res.data?.staff || [];
             const total = res.total || res.data?.total || 0;
             const fetchedStats = res.stats || res.data?.stats || { total: 0, active: 0, inactive: 0 };
@@ -55,7 +55,7 @@ const StaffManagement = () => {
     const handleParamsChange = useCallback((params) => {
         setCurrentParams(params);
         fetchData(params);
-    }, []); 
+    }, []);
 
     // --- HEARTBEAT ---
     useEffect(() => {
@@ -80,8 +80,8 @@ const StaffManagement = () => {
             await apiPost(`/space/staff/${id}/toggle`);
             showToast({ icon: 'success', title: 'Access toggled' });
             fetchData();
-        } catch { 
-            showToast({ icon: 'error', title: 'Action failed' }); 
+        } catch {
+            showToast({ icon: 'error', title: 'Action failed' });
         }
     };
 
@@ -105,8 +105,8 @@ const StaffManagement = () => {
                 await apiDelete(`/space/staff/${id}`);
                 showToast({ icon: 'success', title: 'Staff removed' });
                 fetchData();
-            } catch { 
-                showToast({ icon: 'error', title: 'Delete failed' }); 
+            } catch {
+                showToast({ icon: 'error', title: 'Delete failed' });
             }
         }
     };
@@ -123,8 +123,8 @@ const StaffManagement = () => {
             }
             setOpenModal(false);
             fetchData();
-        } catch { 
-            showToast({ icon: 'error', title: isEditMode ? 'Update failed' : 'Failed to add staff' }); 
+        } catch {
+            showToast({ icon: 'error', title: isEditMode ? 'Update failed' : 'Failed to add staff' });
         }
     };
 
@@ -159,8 +159,8 @@ const StaffManagement = () => {
                     onClick={() => toggleStatus(row._id)}
                     className={cn(
                         "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all",
-                        row.isActive 
-                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                        row.isActive
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                             : 'bg-slate-500/10 text-slate-500 border border-white/5'
                     )}
                 >
@@ -190,7 +190,7 @@ const StaffManagement = () => {
                     <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Staff Management</h1>
                     <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Manage your hub's operational team.</p>
                 </div>
-                <button 
+                <button
                     onClick={() => { setSelectedMember({ name: '', email: '', role: 'staff' }); setIsEditMode(false); setOpenModal(true); }}
                     className="bg-white text-black px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-xl active:scale-95"
                 >
@@ -223,83 +223,108 @@ const StaffManagement = () => {
                 </div>
             </div>
 
-            <DataTable 
-                columns={columns} 
-                data={staff} 
-                loading={loading} 
+            <DataTable
+                columns={columns}
+                data={staff}
+                loading={loading}
                 totalCount={totalCount}
                 onParamsChange={handleParamsChange}
                 renderMobileCard={(member) => (
-                    <div key={member._id} className="bg-[#111114] border border-white/5 p-5 rounded-[2.5rem] space-y-4">
+                    <div key={member._id} className="bg-[#111114] border border-white/5 p-5 rounded-[2.5rem] space-y-4 shadow-xl">
+                        {/* --- TOP SECTION: INFO --- */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white italic">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white italic border border-white/10">
                                     {member.name?.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-black text-white leading-tight uppercase">{member.name}</h3>
-                                    <p className="text-[9px] font-bold text-slate-500">{member.email}</p>
+                                    <h3 className="text-sm font-black text-white leading-tight uppercase italic tracking-tighter">{member.name}</h3>
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{member.email}</p>
                                 </div>
                             </div>
-                            <div className="text-[8px] font-black text-indigo-500 uppercase px-2 py-1 bg-indigo-500/10 rounded-lg">{member.role}</div>
+                            <div className="text-[8px] font-[1000] text-indigo-400 uppercase px-2 py-1 bg-indigo-500/10 rounded-lg border border-indigo-500/10 tracking-widest">
+                                {member.role}
+                            </div>
+                        </div>
+
+                        {/* --- DIVIDER --- */}
+                        <div className="h-px w-full bg-white/5" />
+
+                        {/* --- BOTTOM SECTION: ACTIONS --- */}
+                        <div className="flex items-center justify-between">
+                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em]">Member Actions</p>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    onClick={() => { setSelectedMember(member); setIsEditMode(true); setOpenModal(true); }}
+                                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-400 hover:bg-white hover:text-black active:scale-90 transition-all border border-white/5"
+                                >
+                                    <Edit3 size={14} />
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(member._id)}
+                                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white active:scale-90 transition-all border border-rose-500/10"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
             />
 
             {/* ADD/EDIT MODAL */}
-<Modal open={openModal} onClose={() => setOpenModal(false)} title={isEditMode ? "Edit Staff Profile" : "Register New Staff"} size="md">
-    {selectedMember && (
-        <div className="space-y-4 py-2">
-            <div>
-                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Full Name</label>
-                <input 
-                    type="text" 
-                    value={selectedMember.name || ''} 
-                    onChange={(e) => setSelectedMember({ ...selectedMember, name: e.target.value })} 
-                    className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold placeholder:text-slate-700" 
-                    placeholder="e.g. Neil Mar De Asis"
-                />
-            </div>
-            <div>
-                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Email Address</label>
-                <input 
-                    type="email" 
-                    value={selectedMember.email || ''} 
-                    onChange={(e) => setSelectedMember({ ...selectedMember, email: e.target.value })} 
-                    className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold placeholder:text-slate-700" 
-                    placeholder="staff@flexspace.ph"
-                />
-            </div>
+            <Modal open={openModal} onClose={() => setOpenModal(false)} title={isEditMode ? "Edit Staff Profile" : "Register New Staff"} size="md">
+                {selectedMember && (
+                    <div className="space-y-4 py-2">
+                        <div>
+                            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Full Name</label>
+                            <input
+                                type="text"
+                                value={selectedMember.name || ''}
+                                onChange={(e) => setSelectedMember({ ...selectedMember, name: e.target.value })}
+                                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold placeholder:text-slate-700"
+                                placeholder="e.g. Neil Mar De Asis"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Email Address</label>
+                            <input
+                                type="email"
+                                value={selectedMember.email || ''}
+                                onChange={(e) => setSelectedMember({ ...selectedMember, email: e.target.value })}
+                                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold placeholder:text-slate-700"
+                                placeholder="staff@flexspace.ph"
+                            />
+                        </div>
 
-            {/* Only show password field when CREATING, hide when EDITING */}
-            {!isEditMode && (
-                <div>
-                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Access Password</label>
-                    <input 
-                        type="password" 
-                        value={selectedMember.password || ''} 
-                        onChange={(e) => setSelectedMember({ ...selectedMember, password: e.target.value })} 
-                        className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold placeholder:text-slate-700" 
-                        placeholder="Leave blank for: FlexSpace2026"
-                    />
-                </div>
-            )}
+                        {/* Only show password field when CREATING, hide when EDITING */}
+                        {!isEditMode && (
+                            <div>
+                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Access Password</label>
+                                <input
+                                    type="password"
+                                    value={selectedMember.password || ''}
+                                    onChange={(e) => setSelectedMember({ ...selectedMember, password: e.target.value })}
+                                    className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold placeholder:text-slate-700"
+                                    placeholder="Leave blank for: FlexSpace2026"
+                                />
+                            </div>
+                        )}
 
-            <div className="flex gap-3 pt-4">
-                <button onClick={() => setOpenModal(false)} className="flex-1 py-4 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
-                    Cancel
-                </button>
-                <button 
-                    onClick={handleSave} 
-                    className="flex-1 py-4 rounded-2xl bg-white text-black font-black text-[10px] uppercase shadow-xl hover:bg-indigo-600 hover:text-white transition-all active:scale-95"
-                >
-                    {isEditMode ? 'Update Profile' : 'Confirm Staff'}
-                </button>
-            </div>
-        </div>
-    )}
-</Modal>
+                        <div className="flex gap-3 pt-4">
+                            <button onClick={() => setOpenModal(false)} className="flex-1 py-4 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                className="flex-1 py-4 rounded-2xl bg-white text-black font-black text-[10px] uppercase shadow-xl hover:bg-indigo-600 hover:text-white transition-all active:scale-95"
+                            >
+                                {isEditMode ? 'Update Profile' : 'Confirm Staff'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { apiGet } from '@/utils/Api';
-import { Eye, Building2, MapPin, ShieldCheck, ShieldAlert, Globe } from 'lucide-react';
+import { Eye, Building2, MapPin, ShieldCheck, ShieldAlert, Globe, Edit3, Trash2 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
-import MapExplorer from '@/pages/Landing/MapExplorer'; 
+import MapExplorer from '@/pages/Landing/MapExplorer';
 import { cn } from "@/lib/utils";
 
 const SpaceManagement = () => {
@@ -15,7 +15,7 @@ const SpaceManagement = () => {
     const [openModal, setOpenModal] = useState(false);
     const [selectedSpace, setSelectedSpace] = useState(null);
     const [showMap, setShowMap] = useState(false);
-    
+
     // Fix: Removed 'setCurrentParams' warning by using the state directly in refs
     const [currentParams] = useState({ page: 1, search: '' });
     const paramsRef = useRef(currentParams);
@@ -27,7 +27,7 @@ const SpaceManagement = () => {
         try {
             const { page, search } = params;
             const res = await apiGet(`/admin/space/management?page=${page}&search=${search}`);
-            const rowData = res.data || []; 
+            const rowData = res.data || [];
             const fetchedStats = res.stats || { total: 0, active: 0, inactive: 0 };
 
             const fingerprint = JSON.stringify({ rowData, fetchedStats });
@@ -40,8 +40,8 @@ const SpaceManagement = () => {
         } catch {
             // Fix: Removed unused 'err'
             if (isInitial) showToast({ icon: 'error', title: 'Failed to load hubs' });
-        } finally { 
-            if (isInitial) setLoading(false); 
+        } finally {
+            if (isInitial) setLoading(false);
         }
     };
 
@@ -63,7 +63,7 @@ const SpaceManagement = () => {
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
                         {space.image ? (
-                            <img src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${space.image}`} className="w-full h-full object-cover" alt={space.name} />
+                            <img src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${space.user_id?._id || space.user_id}/${space.image}`} className="w-full h-full object-cover" alt={space.name} />
                         ) : <Building2 className="text-indigo-500" size={18} />}
                     </div>
                     <div>
@@ -142,8 +142,64 @@ const SpaceManagement = () => {
                 </div>
             </div>
 
-            <DataTable columns={columns} data={spaces} loading={loading} totalCount={totalCount} onParamsChange={(p) => fetchData(p)} />
+            <DataTable
+                columns={columns}
+                data={spaces}
+                loading={loading}
+                totalCount={totalCount}
+                onParamsChange={(p) => fetchData(p)}
+                renderMobileCard={(space) => (
+                    <div key={space._id} className="bg-[#111114] border border-white/5 p-5 rounded-[2.5rem] space-y-4 shadow-2xl">
+                        {/* --- TOP: VISUAL & BASE INFO --- */}
+                        <div className="flex items-center gap-4">
+                            <div className="relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden border border-white/10">
+                                <img
+                                    src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${space.user_id?._id || space.user_id}/${space.image}`}
+                                    className="w-full h-full object-cover"
+                                    alt={space.name}
+                                    onError={(e) => { e.target.src = '/placeholder.jpg'; }}
+                                />
+                                <div className="absolute top-0 right-0 bg-indigo-600 px-1.5 py-0.5 rounded-bl-lg text-[7px] font-black text-white">
+                                    ₱{space.rate_hour}
+                                </div>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="text-sm font-black text-white leading-tight uppercase italic truncate tracking-tighter">
+                                    {space.name}
+                                </h3>
+                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1 truncate">
+                                    {space.district_id?.name || 'Unknown District'}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-md ${space.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                        {space.status}
+                                    </span>
+                                    <span className="text-[7px] font-black text-slate-600 uppercase">
+                                        Seats: {space.capacity}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
 
+                        {/* --- DIVIDER --- */}
+                        <div className="h-px w-full bg-white/5" />
+
+                        {/* --- BOTTOM: ACTIONS --- */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                                <p className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Ownership</p>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase">{space.user_id?.name || 'N/A'}</p>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <button onClick={() => { setSelectedSpace(space); setOpenModal(true); setShowMap(false); }} className="w-10 h-10 flex items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500 transition-all">
+                                    <Eye size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            />
             {/* VIEWER MODAL */}
             <Modal open={openModal} onClose={() => setOpenModal(false)} title="Hub Specifications" size="lg">
                 {selectedSpace && (
@@ -151,7 +207,12 @@ const SpaceManagement = () => {
                         <div className="flex items-center justify-between p-5 bg-white/5 rounded-4xl border border-white/5">
                             <div className="flex items-center gap-4">
                                 <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/10">
-                                    <img src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${selectedSpace.image}`} className="w-full h-full object-cover" alt={selectedSpace.name} />
+                                    <img
+                                        src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${selectedSpace.user_id?._id || selectedSpace.user_id}/${selectedSpace.image}`}
+                                        className="w-full h-full object-cover"
+                                        alt={selectedSpace.name}
+                                        onError={(e) => { e.target.src = '/placeholder.jpg'; }}
+                                    />
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-black text-white uppercase italic">{selectedSpace.name}</h2>
@@ -173,9 +234,9 @@ const SpaceManagement = () => {
                             </button>
                             {showMap && (
                                 <div className="h-75 w-full animate-in slide-in-from-top-2 border-t border-white/5">
-                                    <MapExplorer 
-                                        spaces={[selectedSpace]} 
-                                        userLatLng={[selectedSpace.lat, selectedSpace.lng]} 
+                                    <MapExplorer
+                                        spaces={[selectedSpace]}
+                                        userLatLng={[selectedSpace.lat, selectedSpace.lng]}
                                     />
                                 </div>
                             )}
