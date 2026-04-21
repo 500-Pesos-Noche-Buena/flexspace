@@ -31,8 +31,6 @@
     "mongoose": "^8.0.0",
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
-    "mysql2": "^3.15.3",
-    "nodemailer": "^8.0.5",
-    "socket.io": "^4.8.3"
+    "nodemailer": "^8.0.5"
   }
 }
