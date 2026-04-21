@@ -28,7 +28,6 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
 
     const hasVoucher = booking?.voucher_discount > 0;
     const voucherDiscount = booking?.voucher_discount || 0;
-    const isOpenTime = booking?.is_open_time;
 
     useEffect(() => {
         if (!checkInAt) return;
@@ -39,16 +38,9 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
             const mins = Math.floor((seconds % 3600) / 60);
             const secs = seconds % 60;
 
-            let total = 0;
-
-            if (isOpenTime) {
-                // Open time: flat rate
-                total = rateHour || 0;
-            } else {
-                // Hourly rate: calculate based on actual time
-                const hoursSpent = seconds / 3600;
-                total = hoursSpent * (rateHour || 0);
-            }
+            // Calculate based on actual time spent (per hour for ALL bookings)
+            const hoursSpent = seconds / 3600;
+            let total = hoursSpent * (rateHour || 0);
 
             // Apply voucher discount if available
             if (hasVoucher && total > 0) {
@@ -68,7 +60,7 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
         calculate(Date.now());
         const id = setInterval(() => calculate(Date.now()), 1000);
         return () => clearInterval(id);
-    }, [checkInAt, checkOutAt, rateHour, hasVoucher, voucherDiscount, isOpenTime]);
+    }, [checkInAt, checkOutAt, rateHour, hasVoucher, voucherDiscount, onAmountUpdate]);
 
     return (
         <div className={cn(
@@ -115,27 +107,34 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
 };
 
 // ─── Payment Panel ────────────────────────────────────────────────────────────
-const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting, onApplyVoucher }) => {
+const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onApplyVoucher }) => {
     const [method, setMethod] = useState('cash');
     const [received, setReceived] = useState('');
     const [voucherCode, setVoucherCode] = useState('');
     const [applyingVoucher, setApplyingVoucher] = useState(false);
     const [voucherDiscount, setVoucherDiscount] = useState(0);
     const [appliedVoucher, setAppliedVoucher] = useState(null);
+    const [currentTotal, setCurrentTotal] = useState(liveTotalAmount || 0);
+
+    // Update current total when liveTotalAmount changes
+    useEffect(() => {
+        if (liveTotalAmount > 0) {
+            setCurrentTotal(liveTotalAmount);
+        }
+    }, [liveTotalAmount]);
 
     const numericReceived = parseFloat(received) || 0;
-    const change = numericReceived - totalAmount;
-    const cashValid = numericReceived >= totalAmount;
+    const change = numericReceived - currentTotal;
+    const cashValid = numericReceived >= currentTotal;
     const qrPaymentImage = booking?.space_id?.qr_payment_image;
 
     // Check if voucher was already applied to this booking
     const hasExistingVoucher = booking?.voucher_discount > 0;
     const existingDiscount = booking?.voucher_discount || 0;
-    const originalAmount = hasExistingVoucher ? (totalAmount + existingDiscount) : totalAmount;
+    const originalAmount = hasExistingVoucher ? (currentTotal + existingDiscount) : currentTotal;
 
-    // Current total (either original or with existing voucher)
-    const currentTotal = totalAmount;
-    const finalTotal = hasExistingVoucher ? totalAmount : Math.max(0, currentTotal - voucherDiscount);
+    // Calculate final total with new voucher discount
+    const finalTotal = hasExistingVoucher ? currentTotal : Math.max(0, currentTotal - voucherDiscount);
 
     const handleApplyVoucher = async () => {
         if (!voucherCode.trim()) {
@@ -155,6 +154,8 @@ const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting, onApplyV
                     code: voucherCode.trim().toUpperCase(),
                     discount: res.data.discount_amount
                 });
+                // Update current total with discounted amount
+                setCurrentTotal(res.data.total_amount);
                 showToast({
                     icon: 'success',
                     title: `Voucher applied! Save ₱${res.data.discount_amount}`
@@ -172,6 +173,7 @@ const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting, onApplyV
     const handleRemoveVoucher = () => {
         setAppliedVoucher(null);
         setVoucherDiscount(0);
+        setCurrentTotal(liveTotalAmount); // Reset to original live amount
         setVoucherCode('');
     };
 
@@ -371,18 +373,19 @@ const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting, onApplyV
             {/* Confirm */}
             <div className="px-4 pb-5">
                 <button
-                    disabled={isSubmitting || (method === 'cash' && !cashValid)}
+                    disabled={isSubmitting || (method === 'cash' && !cashValid) || currentTotal === 0}
                     onClick={() => onComplete({
                         method,
                         amount_received: numericReceived,
-                        voucher_code: appliedVoucher?.code || null
+                        voucher_code: appliedVoucher?.code || null,
+                        total_amount: currentTotal
                     })}
                     className={cn(
                         "w-full py-4 rounded-2xl font-black uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl",
                         method === 'cash'
                             ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20 text-white"
                             : "bg-blue-600 hover:bg-blue-500 shadow-blue-900/20 text-white",
-                        (isSubmitting || (method === 'cash' && !cashValid)) && "opacity-30 cursor-not-allowed"
+                        (isSubmitting || (method === 'cash' && !cashValid) || currentTotal === 0) && "opacity-30 cursor-not-allowed"
                     )}
                 >
                     {isSubmitting
@@ -468,7 +471,7 @@ const BookingsIndex = () => {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
-    const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0 });
+    const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0, active: 0, walkin: 0, online: 0, revenue: 0 });
     const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
     const [bookingType, setBookingType] = useState('all');
 
@@ -503,12 +506,10 @@ const BookingsIndex = () => {
         }
     }, []);
 
-    // Call fetchSpaces in useEffect
     useEffect(() => {
         fetchSpaces();
     }, [fetchSpaces]);
 
-    // Add this function to handle walk-in check-in
     const handleWalkinCheckin = async (e) => {
         e.preventDefault();
         setSubmitting(true);
@@ -518,7 +519,7 @@ const BookingsIndex = () => {
                 showToast({ icon: 'success', title: 'Walk-in checked in successfully!' });
                 setShowWalkinModal(false);
                 setWalkinForm({ space_id: '', name: '', is_open_time: true, start_time: '', end_time: '' });
-                fetchData(); // Refresh the bookings list
+                fetchData();
             }
         } catch (err) {
             showToast({ icon: 'error', title: err?.message || 'Check-in failed' });
@@ -526,8 +527,6 @@ const BookingsIndex = () => {
             setSubmitting(false);
         }
     };
-
-
 
     useEffect(() => { paramsRef.current = currentParams; }, [currentParams]);
 
@@ -537,7 +536,7 @@ const BookingsIndex = () => {
             const res = await apiGet(`/space/bookings?page=${page}&search=${search}&type=${bookingType}`);
             const rowData = res.data?.bookings || [];
             const total = res.data?.total || 0;
-            const fetched = res.data?.stats || { total: 0, pending: 0, confirmed: 0 };
+            const fetched = res.data?.stats || { total: 0, pending: 0, confirmed: 0, active: 0, walkin: 0, online: 0, revenue: 0 };
             const fp = JSON.stringify({ rowData, total, fetched });
 
             if (fp !== lastDataFingerprint.current) {
@@ -546,7 +545,6 @@ const BookingsIndex = () => {
                 setTotalCount(total);
                 setStats(fetched);
 
-                // Keep the open modal in sync with the latest DB state
                 setSelectedQR(prev => {
                     if (!prev) return null;
                     const fresh = rowData.find(b => b._id === prev._id);
@@ -595,7 +593,7 @@ const BookingsIndex = () => {
 
     const openModal = (row) => {
         setSelectedQR(row);
-        setLiveAmount(0);
+        setLiveAmount(row.total_amount || 0);
         setShowReceipt(false);
         setReceiptData(null);
     };
@@ -609,16 +607,16 @@ const BookingsIndex = () => {
         setReceiptData(null);
     };
 
-    // Step 1 — hit /calculate, freeze timer, move to pending_payment
     const handleCalculate = async () => {
         if (!selectedQR) return;
         setIsCalculating(true);
         try {
             const res = await apiPost(`/space/bookings/${selectedQR._id}/calculate`);
-            // Use the booking returned by the API — it has the correct total_amount + check_out_at
             const updatedBooking = res.data?.booking;
-            if (updatedBooking) setSelectedQR(updatedBooking);
-            setLiveAmount(res.data?.total_amount ?? liveAmount);
+            if (updatedBooking) {
+                setSelectedQR(updatedBooking);
+                setLiveAmount(updatedBooking.total_amount || 0);
+            }
             showToast({ icon: 'success', title: 'Session frozen — collect payment' });
             await fetchData(paramsRef.current, true);
         } catch (e) {
@@ -628,23 +626,11 @@ const BookingsIndex = () => {
         }
     };
 
-    // Step 2 — hit /checkout, show receipt with data from API response
-    const handleCheckout = async ({ method, amount_received, voucher_code }) => {
+    // ADD THIS FUNCTION - Handle payment completion
+    const handlePaymentComplete = async ({ method, amount_received, voucher_code, total_amount }) => {
         if (!selectedQR) return;
         setIsSubmitting(true);
         try {
-            // If voucher was applied during checkout, update the booking first
-            if (voucher_code && !selectedQR.voucher_applied) {
-                const voucherRes = await apiPost(`/space/bookings/${selectedQR._id}/apply-voucher`, {
-                    voucherCode: voucher_code
-                });
-                if (voucherRes.success) {
-                    setSelectedQR(voucherRes.data.booking);
-                    // Update totalAmount for payment
-                    setLiveAmount(voucherRes.data.total_amount);
-                }
-            }
-
             const res = await apiPost(`/space/bookings/${selectedQR._id}/checkout`, {
                 payment_method: method,
                 amount_received,
@@ -653,10 +639,20 @@ const BookingsIndex = () => {
             setReceiptData(res.data?.booking || selectedQR);
             setShowReceipt(true);
             await fetchData(paramsRef.current, false);
+            showToast({ icon: 'success', title: 'Payment completed successfully!' });
         } catch (e) {
             showToast({ icon: 'error', title: e?.message || 'Checkout failed' });
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    // ADD THIS FUNCTION - Handle voucher application
+    const handleApplyVoucher = async (updatedBooking) => {
+        if (updatedBooking) {
+            setSelectedQR(updatedBooking);
+            setLiveAmount(updatedBooking.total_amount || 0);
+            await fetchData(paramsRef.current, true);
         }
     };
 
@@ -768,14 +764,10 @@ const BookingsIndex = () => {
         }
     ];
 
-    // ─── Modal logic helpers ──────────────────────────────────────────────────
     const booking = selectedQR;
     const isActive = booking?.status === 'active';
     const isPendingPayDB = booking?.status === 'pending_payment';
-    // After calculate: booking is updated in state with new status + total_amount
     const showPayment = isPendingPayDB;
-    // Total to pass to PaymentPanel: prefer DB value (it was saved), fall back to live timer
-    const totalDue = isPendingPayDB ? (booking?.total_amount || 0) : liveAmount;
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -786,7 +778,6 @@ const BookingsIndex = () => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                {/* 1. Active Now */}
                 <Card className="bg-indigo-500/5 border-indigo-500/10">
                     <CardContent className="p-5 flex items-center gap-4">
                         <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
@@ -799,7 +790,6 @@ const BookingsIndex = () => {
                     </CardContent>
                 </Card>
 
-                {/* 2. Traffic Mix */}
                 <Card className="bg-[#111114] border-white/5">
                     <CardContent className="p-5 flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -809,15 +799,14 @@ const BookingsIndex = () => {
                             <div>
                                 <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Traffic Mix</p>
                                 <div className="flex items-baseline gap-2">
-                                    <span className="text-xs font-black text-indigo-400">W: {stats.walkin}</span>
-                                    <span className="text-xs font-black text-emerald-400">O: {stats.online}</span>
+                                    <span className="text-xs font-black text-indigo-400">W: {stats.walkin || 0}</span>
+                                    <span className="text-xs font-black text-emerald-400">O: {stats.online || 0}</span>
                                 </div>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* 3. Pending Approvals */}
                 <Card className="bg-amber-500/5 border-amber-500/10">
                     <CardContent className="p-5 flex items-center gap-4">
                         <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
@@ -830,7 +819,6 @@ const BookingsIndex = () => {
                     </CardContent>
                 </Card>
 
-                {/* 4. Daily Revenue */}
                 <Card className="bg-emerald-500/5 border-emerald-500/10 shadow-lg shadow-emerald-900/5">
                     <CardContent className="p-5 flex items-center gap-4">
                         <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
@@ -1085,7 +1073,6 @@ const BookingsIndex = () => {
                                     checkInAt={booking.check_in_at}
                                     checkOutAt={booking.check_out_at}
                                     rateHour={booking.space_id?.rate_hour || 0}
-                                    isOpenTime={booking.is_open_time}
                                     onAmountUpdate={setLiveAmount}
                                     booking={booking}
                                 />
@@ -1108,15 +1095,15 @@ const BookingsIndex = () => {
                                     checkInAt={booking.check_in_at}
                                     checkOutAt={booking.check_out_at}
                                     rateHour={booking.space_id?.rate_hour || 0}
-                                    isOpenTime={booking.is_open_time}
-                                    onAmountUpdate={() => { }}
+                                    onAmountUpdate={() => {}}
                                     booking={booking}
                                 />
-                                <PaymentPanel
+                                <PaymentPanel 
                                     booking={booking}
-                                    totalAmount={totalDue}
-                                    onComplete={handleCheckout}
+                                    liveTotalAmount={liveAmount}
+                                    onComplete={handlePaymentComplete}
                                     isSubmitting={isSubmitting}
+                                    onApplyVoucher={handleApplyVoucher}
                                 />
                             </>
                         )}
@@ -1124,8 +1111,6 @@ const BookingsIndex = () => {
                 )}
             </Modal>
         </div>
-
-
     );
 };
 

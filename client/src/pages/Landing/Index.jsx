@@ -92,7 +92,7 @@ const LandingPage = () => {
                         </p>
                     </div>
                     
-                    <div className="relative group max-w-5xl mx-auto">
+                    <div className="relative group max-w-7xl mx-auto">
                         <div className="absolute -inset-1 bg-indigo-500/10 rounded-2xl md:rounded-[3.5rem] blur"></div>
                         <div className="relative bg-white rounded-2xl md:rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
                             <div className="overflow-x-auto">

@@ -20,7 +20,7 @@ class BookingController {
 
             const total = await Booking.countDocuments(query);
             const bookings = await Booking.find(query)
-                .populate('space_id', 'name image area rate_hour')
+                .populate('space_id', 'name image area rate_hour user_id')
                 .sort({ created_at: -1 })
                 .limit(limit * 1)
                 .skip((page - 1) * limit);
@@ -38,7 +38,6 @@ class BookingController {
         }
     };
 
-    // FIXED: Removed voucher_code from createBooking - vouchers should only be applied at payment time
     createBooking = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
@@ -128,7 +127,6 @@ class BookingController {
         }
     };
 
-    // Preview voucher for existing booking (pending_payment status)
     previewVoucher = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
@@ -185,7 +183,6 @@ class BookingController {
         }
     };
 
-    // Redeem voucher for existing booking (pending_payment status)
     redeemVoucher = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
@@ -259,8 +256,6 @@ class BookingController {
         }
     };
 
-    // Preview voucher during booking creation (before booking is made)
-    // This is optional - you can keep or remove this
     previewVoucherForBooking = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);

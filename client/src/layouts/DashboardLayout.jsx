@@ -6,27 +6,47 @@ import {
     Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
 
 export default function DashboardLayout() {
-    const [user] = useState(() => {
-        try {
-            return JSON.parse(localStorage.getItem('user')) || { name: 'Josiah Admin', role: 'admin' };
-        } catch {
-            return { name: 'Josiah Admin', role: 'admin' };
+    const { user: authUser, isAuthenticated, logout } = useAuth(); // Use real auth
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // Redirect if not authenticated
+    useEffect(() => {
+        if (!isAuthenticated) {
+            navigate('/login', { replace: true });
+            return;
         }
-    });
+        
+        // Check if user has permission to access this dashboard
+        const isAdminRoute = location.pathname.startsWith('/admin');
+        const isSpaceRoute = location.pathname.startsWith('/space');
+        
+        if (isAdminRoute && authUser?.role !== 'admin') {
+            // Regular user trying to access admin - redirect to user dashboard
+            navigate('/dashboard', { replace: true });
+        } else if (isSpaceRoute && !['space', 'staff'].includes(authUser?.role)) {
+            // Non-space user trying to access space dashboard - redirect
+            navigate('/dashboard', { replace: true });
+        }
+    }, [isAuthenticated, authUser, location.pathname, navigate]);
 
-    const location  = useLocation();
-    const navigate  = useNavigate();
+    // Don't render anything while checking auth
+    if (!isAuthenticated) {
+        return null;
+    }
 
-    const isAdmin       = user.role === "admin";
-    const hasSpaceAccess = ["space", "staff"].includes(user.role);
-    const isActualOwner  = user.role === "space";
+    const isAdmin = authUser?.role === "admin";
+    const hasSpaceAccess = ["space", "staff"].includes(authUser?.role);
+    const isActualOwner = authUser?.role === "space";
+    const isStaff = authUser?.role === "staff";
 
-    const [isSidebarOpen,    setIsSidebarOpen]    = useState(true);
-    const [isProfileOpen,    setIsProfileOpen]    = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [parentName,       setParentName]       = useState(null);
+    const [parentName, setParentName] = useState(null);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -44,11 +64,11 @@ export default function DashboardLayout() {
     }, []);
 
     useEffect(() => {
-        if (user.role !== 'staff') return;
+        if (authUser?.role !== 'staff') return;
         apiGet('/auth/me/parent')
             .then(res => { if (res.success) setParentName(res.parentName); })
             .catch(() => {});
-    }, [user.role]);
+    }, [authUser?.role]);
 
     const isRouteActive = useCallback((path) => {
         return location.pathname === path || location.pathname.startsWith(path + "/");
@@ -60,68 +80,73 @@ export default function DashboardLayout() {
         } catch (error) {
             console.error("Logout error:", error);
         } finally {
-            localStorage.clear();
-            navigate('/login', { replace: true });
+            logout(); // Use AuthContext logout
         }
     };
 
     const sidebarSections = useMemo(() => {
         const sections = [];
 
-        sections.push({
-            title: "Management",
-            items: [
-                {
-                    href:   isAdmin ? "/admin/dashboard" : "/space/dashboard",
-                    active: isRouteActive(isAdmin ? "/admin/dashboard" : "/space/dashboard"),
-                    icon:   <LayoutGrid />,
-                    label:  "Dashboard"
-                },
-                ...(isAdmin ? [
-                    { href: "/admin/users", active: isRouteActive("/admin/users"), icon: <Users />, label: "Users" }
-                ] : []),
-            ],
-        });
-
-        sections.push({
-            title: "Core Business",
-            items: [
-                ...(isAdmin ? [
-                    { href: "/admin/spaces",             active: isRouteActive("/admin/spaces"),             icon: <MapPin />,      label: "Co-Working Hubs" },
+        // Only show sections for admin
+        if (isAdmin) {
+            sections.push({
+                title: "Management",
+                items: [
+                    { href: "/admin/dashboard", active: isRouteActive("/admin/dashboard"), icon: <LayoutGrid />, label: "Dashboard" },
+                    { href: "/admin/users", active: isRouteActive("/admin/users"), icon: <Users />, label: "Users" },
+                ],
+            });
+            
+            sections.push({
+                title: "Core Business",
+                items: [
+                    { href: "/admin/spaces", active: isRouteActive("/admin/spaces"), icon: <MapPin />, label: "Co-Working Hubs" },
                     { href: "/admin/space/applications", active: isRouteActive("/admin/space/applications"), icon: <ShieldCheck />, label: "Space Applications" },
                     { href: "/admin/vouchers", active: isRouteActive("/admin/vouchers"), icon: <Ticket />, label: "Vouchers" },
                     { href: "/admin/insights", active: isRouteActive("/admin/insights"), icon: <Activity />, label: "Insights" },
-                ] : []),
-
-                ...(hasSpaceAccess ? [
-                    ...(isActualOwner ? [
-                        { href: "/space/staff",      active: isRouteActive("/space/staff"),      icon: <Users />,  label: "Staff Management" },
-                        { href: "/space/my-spaces",  active: isRouteActive("/space/my-spaces"),  icon: <MapPin />, label: "My Spaces" },
-                        { href: "/space/vouchers", active: isRouteActive("/space/vouchers"), icon: <Ticket />, label: "Vouchers" },
-                    ] : []),
-                    { href: "/space/bookings", active: isRouteActive("/space/bookings"), icon: <Calendar />, label: "Bookings" },
-                    // { href: "/space/walkins",  active: isRouteActive("/space/walkins"),  icon: <Users />,    label: "Walk-ins" },
-                ] : []),
-            ],
-        });
-
-        sections.push({
-            title: "Finance",
-            items: [
-                ...(isAdmin ? [
-                    { href: "/admin/earnings", active: isRouteActive("/admin/earnings"), icon: <Receipt />, label: "Earnings Tracker" }
-                ] : []),
-                ...(isActualOwner ? [
-                    { href: "/space/earnings", active: isRouteActive("/space/earnings"), icon: <Receipt />, label: "Earnings Tracker" }
-                ] : []),
-            ],
-        });
-
-        if (isAdmin) {
+                ],
+            });
+            
+            sections.push({
+                title: "Finance",
+                items: [
+                    { href: "/admin/earnings", active: isRouteActive("/admin/earnings"), icon: <Receipt />, label: "Earnings Tracker" },
+                ],
+            });
+            
             sections.push({
                 title: "System",
                 items: [
-                    { href: "/admin/logs",     active: isRouteActive("/admin/logs"),     icon: <History />,      label: "Activity Logs" },
+                    { href: "/admin/logs", active: isRouteActive("/admin/logs"), icon: <History />, label: "Activity Logs" },
+                ],
+            });
+        } 
+        else if (hasSpaceAccess) {
+            sections.push({
+                title: "Management",
+                items: [
+                    { href: "/space/dashboard", active: isRouteActive("/space/dashboard"), icon: <LayoutGrid />, label: "Dashboard" },
+                ],
+            });
+            
+            sections.push({
+                title: "Core Business",
+                items: [
+                    ...(isActualOwner ? [
+                        { href: "/space/staff", active: isRouteActive("/space/staff"), icon: <Users />, label: "Staff Management" },
+                        { href: "/space/my-spaces", active: isRouteActive("/space/my-spaces"), icon: <MapPin />, label: "My Spaces" },
+                        { href: "/space/vouchers", active: isRouteActive("/space/vouchers"), icon: <Ticket />, label: "Vouchers" },
+                    ] : []),
+                    { href: "/space/bookings", active: isRouteActive("/space/bookings"), icon: <Calendar />, label: "Bookings" },
+                ],
+            });
+            
+            sections.push({
+                title: "Finance",
+                items: [
+                    ...(isActualOwner ? [
+                        { href: "/space/earnings", active: isRouteActive("/space/earnings"), icon: <Receipt />, label: "Earnings Tracker" }
+                    ] : []),
                 ],
             });
         }
@@ -152,7 +177,7 @@ export default function DashboardLayout() {
                                 <div className="leading-tight animate-in fade-in duration-300">
                                     <div className="text-lg font-bold tracking-tight">FlexSpace</div>
                                     <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
-                                        {isAdmin ? "Admin Console" : "Space Portal"}
+                                        {isAdmin ? "Admin Console" : isStaff ? "Staff Portal" : "Space Portal"}
                                     </div>
                                 </div>
                             )}
@@ -205,11 +230,11 @@ export default function DashboardLayout() {
 
                     <div className="relative flex items-center gap-3" ref={dropdownRef}>
                         <div className="text-right hidden sm:flex flex-col leading-tight mr-1">
-                            <p className="text-sm font-black tracking-tight text-white">{user.name}</p>
+                            <p className="text-sm font-black tracking-tight text-white">{authUser?.name}</p>
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                                {user.role === 'staff' && parentName
+                                {authUser?.role === 'staff' && parentName
                                     ? `Staff of ${parentName}`
-                                    : user.role
+                                    : authUser?.role
                                 }
                             </p>
                         </div>
@@ -217,7 +242,7 @@ export default function DashboardLayout() {
                         <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="relative flex items-center group focus:outline-none">
                             <div className={`absolute -inset-1 bg-linear-to-tr from-emerald-600 to-emerald-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300 ${isProfileOpen ? 'opacity-60' : ''}`} />
                             <img
-                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=059669&color=fff&bold=true`}
+                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=059669&color=fff&bold=true`}
                                 className={`relative w-10 h-10 rounded-xl border-2 transition-all duration-300 ${isProfileOpen ? "border-emerald-500 scale-95" : "border-transparent"}`}
                                 alt="profile"
                             />
@@ -230,7 +255,6 @@ export default function DashboardLayout() {
                                 </div>
 
                                 <div className="flex flex-col gap-1">
-                                    {/* My Profile */}
                                     <button
                                         onClick={() => { navigate('/profile'); setIsProfileOpen(false); }}
                                         className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 rounded-3xl transition-all text-left group"
@@ -241,7 +265,6 @@ export default function DashboardLayout() {
                                         My Profile
                                     </button>
 
-                                    {/* Settings — admin only */}
                                     {isAdmin && (
                                         <button
                                             onClick={() => { navigate('/admin/settings'); setIsProfileOpen(false); }}
@@ -256,7 +279,6 @@ export default function DashboardLayout() {
 
                                     <div className="h-px bg-white/5 mx-3 my-1" />
 
-                                    {/* Sign Out */}
                                     <button
                                         onClick={handleLogout}
                                         className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-500/80 hover:text-rose-500 hover:bg-rose-500/10 rounded-3xl transition-all text-left group"

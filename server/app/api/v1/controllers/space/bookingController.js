@@ -151,49 +151,45 @@ class BookingController {
             }
 
             const now = new Date();
-            let totalAmount = 0;
-            let checkInTime = null;
-            let checkOutTime = null;
 
-            // For non-open time bookings, calculate based on actual check-in/out times
-            if (!booking.is_open_time) {
-                // Use actual check_in_at (when they scanned QR)
-                if (!booking.check_in_at) {
-                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No check-in recorded. User must scan QR code first.');
-                }
-
-                checkInTime = new Date(booking.check_in_at);
-
-                // If they already checked out manually, use that time
-                if (booking.check_out_at) {
-                    checkOutTime = new Date(booking.check_out_at);
-                } else {
-                    checkOutTime = now;
-                }
-
-                // Calculate actual time spent
-                const timeDiffMs = checkOutTime - checkInTime;
-
-                // Validate that check-out is after check-in
-                if (timeDiffMs < 0) {
-                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Check-out time cannot be before check-in time.');
-                }
-
-                const hoursSpent = timeDiffMs / (1000 * 60 * 60);
-                const hourlyRate = parseFloat(booking.space_id.rate_hour || 0);
-                totalAmount = hoursSpent * hourlyRate;
-                totalAmount = parseFloat(totalAmount.toFixed(2));
-
-                console.log(`Actual session time: ${hoursSpent.toFixed(2)} hours (from ${checkInTime} to ${checkOutTime})`);
-                console.log(`Rate: ₱${hourlyRate}/hour, Total: ₱${totalAmount}`);
-
-            } else {
-                // For open time bookings, use flat rate
-                totalAmount = parseFloat(booking.space_id.rate_hour || 0);
-                console.log(`Open time booking, flat rate: ₱${totalAmount}`);
+            // USE ONLY check_in_at and check_out_at
+            if (!booking.check_in_at) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No check-in recorded. User must scan QR code first.');
             }
 
-            // Check if voucher was already applied
+            const checkInTime = new Date(booking.check_in_at);
+
+            // Use existing check_out_at or current time
+            let checkOutTime;
+            if (booking.check_out_at) {
+                checkOutTime = new Date(booking.check_out_at);
+            } else {
+                checkOutTime = now;
+            }
+
+            // Validate check-out is after check-in
+            if (checkOutTime <= checkInTime) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Check-out time must be after check-in time.');
+            }
+
+            // Calculate actual time spent (ONLY using check_in_at and check_out_at)
+            const timeDiffMs = checkOutTime - checkInTime;
+            const hoursSpent = timeDiffMs / (1000 * 60 * 60);
+            const hourlyRate = parseFloat(booking.space_id.rate_hour || 0);
+
+            // Calculate total based on ACTUAL time
+            let totalAmount = hoursSpent * hourlyRate;
+            totalAmount = parseFloat(totalAmount.toFixed(2));
+
+            console.log(`=== BILL CALCULATION ===`);
+            console.log(`Check-in (actual): ${checkInTime}`);
+            console.log(`Check-out (actual): ${checkOutTime}`);
+            console.log(`Actual duration: ${hoursSpent.toFixed(2)} hours (${Math.floor(timeDiffMs / 60000)} minutes)`);
+            console.log(`Rate: ₱${hourlyRate}/hour`);
+            console.log(`Total: ₱${totalAmount}`);
+            console.log(`=======================`);
+
+            // Apply voucher if exists
             const hasVoucher = booking.voucher_applied && booking.voucher_discount > 0;
             let discount = 0;
             let finalAmount = totalAmount;
@@ -201,20 +197,16 @@ class BookingController {
             if (hasVoucher) {
                 discount = booking.voucher_discount;
                 finalAmount = Math.max(0, totalAmount - discount);
-                console.log(`Voucher applied: ${booking.voucher_applied}, discount: ${discount}, final: ${finalAmount}`);
+                console.log(`Voucher discount: -₱${discount}, Final: ₱${finalAmount}`);
             }
 
-            // Update booking to pending_payment with calculated amounts
+            // Update booking with calculated amount and check_out_at
             const updateData = {
                 total_amount: finalAmount,
                 status: 'pending_payment',
                 payment_status: 'unpaid',
+                check_out_at: checkOutTime  // Save the actual check-out time
             };
-
-            // Only set check_out_at if it's not already set
-            if (!booking.check_out_at && !booking.is_open_time) {
-                updateData.check_out_at = now;
-            }
 
             const updated = await Booking.findByIdAndUpdate(
                 id,
@@ -231,12 +223,12 @@ class BookingController {
                     total_amount: finalAmount,
                     has_voucher: hasVoucher,
                     voucher_code: booking.voucher_applied,
-                    time_spent: !booking.is_open_time && checkInTime ? {
-                        check_in: checkInTime,
-                        check_out: checkOutTime,
-                        hours: ((checkOutTime - checkInTime) / (1000 * 60 * 60)).toFixed(2),
-                        minutes: Math.floor((checkOutTime - checkInTime) / 60000)
-                    } : null
+                    actual_duration: {
+                        hours: Math.floor(timeDiffMs / 3600000),
+                        minutes: Math.floor((timeDiffMs % 3600000) / 60000),
+                        seconds: Math.floor((timeDiffMs % 60000) / 1000),
+                        total_hours: hoursSpent
+                    }
                 }
             });
         } catch (error) {
