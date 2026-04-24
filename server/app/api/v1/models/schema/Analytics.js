@@ -2,7 +2,12 @@
 const mongoose = require('mongoose');
 
 const analyticsSchema = new mongoose.Schema({
-    period: { type: String, enum: ['24h', '7d', '30d'], default: '7d' },
+    period: { 
+        type: String, 
+        enum: ['24h', '7d', '30d'], 
+        default: '7d',
+        unique: true // Added for faster lookups & better upserts
+    },
     visitors: { type: Number, default: 0 },
     pageViews: { type: Number, default: 0 },
     bounceRate: { type: Number, default: 0 },
@@ -45,6 +50,10 @@ const analyticsSchema = new mongoose.Schema({
     }],
     updatedAt: { type: Date, default: Date.now },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, { 
+    // FIXED: versionKey and timestamps go here, outside the fields list!
+    versionKey: false, 
+    timestamps: true 
 });
 
 module.exports = mongoose.model('Analytics', analyticsSchema);

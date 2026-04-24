@@ -8,6 +8,7 @@ const ApiError = require('@/utils/ApiError');
 const path = require('path');
 const app = express();
 const os = require('os');
+const antiDdos = require('@/api/v1/middleware/antiDdos');
 
 const getLocalIp = () => {
     const interfaces = os.networkInterfaces();
@@ -28,6 +29,9 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', true);
+app.use(antiDdos.gatekeeper);
+app.use(antiDdos.globalLimiter);
+app.use(antiDdos.responseMonitor);
 
 app.use(
     cors({
@@ -63,7 +67,6 @@ app.use(
 
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
-// Health endpoint - no auth required, lightweight response
 app.get('/health', (req, res) => {
     const now = new Date();
     
