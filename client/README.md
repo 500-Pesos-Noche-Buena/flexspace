@@ -1,16 +1,72 @@
-# React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## 📄 Client README (`/client-new/README.md`)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```markdown
+# FlexSpace Frontend
 
-## React Compiler
+React + Vite + Tailwind CSS frontend for FlexSpace coworking platform.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🏗️ System Architecture
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Frontend (React 19 + Vite)
+- **Component-Based** – Reusable UI components
+- **SPA Architecture** – Smooth client-side routing
+- **Real-time Updates** – Socket.io for live notifications
+- **PWA Support** – Installable as native app
+- **QR Integration** – HTML5 QR code scanning for check-in/out
+
+---
+
+## 🤖 AI Chatbot Features (Flex Support)
+
+### Chat Features
+- **Typing Effect** – 1-second delay for welcome message
+- **Markdown Rendering** – Bold text, bullet points, numbered lists
+- **Online/Offline Detection** – Real-time connection status
+- **Auto-scroll** – Always shows latest message
+- **Responsive Design** – Mobile-friendly chat interface
+
+### Supported Queries
+| Query Type | Example | AI Response |
+|------------|---------|-------------|
+| **Greeting** | "hi", "hello", "halo" | Friendly greeting |
+| **Spaces by District** | "molo?", "jaro?" | Lists spaces in that district |
+| **All Spaces** | "available space?" | Lists all spaces by district |
+| **Location** | "diin location", "address" | Google Maps link |
+| **Booking** | "how to book?" | 5-step booking process |
+| **Team** | "team?" | Lists all team members |
+| **Developer** | "developer?" | Lead programmer info |
+
+---
+
+## 💬 Chat UI Components
+
+- **Chat Bubble** – User and bot message styling
+- **Typing Indicator** – Animated dots while AI responds
+- **Online Status** – Real-time connection indicator
+- **Markdown Renderer** – Bold, lists, paragraphs
+- **Auto-scroll** – Smooth scroll to latest message
+
+---
+
+## 🗺️ Map Features
+
+- **Interactive Maps** – Leaflet integration
+- **Marker Clustering** – Grouped space markers
+- **Location Popups** – Space details on click
+- **District Filtering** – Filter spaces by area
+
+---
+
+## 👥 Contributors
+
+| Role | Name |
+|------|------|
+| Lead Programmer | Josiah Danielle Gallenero |
+| Project Manager | Neil Mar De Asis |
+| UI/UX Designer | Jesmond Sardiniola |
+| Documentation | Ferwin Khen Hautea & Jo Vincent Beldad |
