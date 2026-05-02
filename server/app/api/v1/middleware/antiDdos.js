@@ -1,20 +1,35 @@
 const { Blocklist } = require('@/api/v1/models');
-
 const rateLimit = require('express-rate-limit');
 
-const strikeCounter = {}; 
+// In-memory tracking for temporary bans
+const tempBans = new Map(); // { ip: { expiresAt, strikeCount } }
+const strikeCounter = new Map(); // Track strikes before temp ban
 
 const antiDdos = {
     gatekeeper: async (req, res, next) => {
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-        const isBlocked = await Blocklist.findOne({ ip: clientIp });
-
-        if (isBlocked) {
+        
+        // Check permanent ban
+        const isPermanentlyBlocked = await Blocklist.findOne({ ip: clientIp });
+        if (isPermanentlyBlocked) {
             return res.status(403).json({ 
                 success: false, 
-                message: "This IP is permanently banned from FlexSpace for malicious activity." 
+                message: "This IP is permanently banned from FlexSpace. Contact support." 
             });
         }
+        
+        // Check temporary ban
+        const tempBan = tempBans.get(clientIp);
+        if (tempBan && tempBan.expiresAt > Date.now()) {
+            const minutesLeft = Math.ceil((tempBan.expiresAt - Date.now()) / 60000);
+            return res.status(429).json({ 
+                success: false, 
+                message: `Too many requests. You are temporarily blocked for ${minutesLeft} minute(s). Please slow down.` 
+            });
+        } else if (tempBan) {
+            tempBans.delete(clientIp); // Clean up expired ban
+        }
+        
         next();
     },
 
@@ -22,20 +37,34 @@ const antiDdos = {
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
         
         res.on('finish', async () => {
-            const badCodes = [400, 401, 403, 404, 500];
+            // Only monitor server errors (500) not client errors (400, 404)
+            const monitoredCodes = [500, 502, 503];
             
-            if (badCodes.includes(res.statusCode)) {
-                strikeCounter[clientIp] = (strikeCounter[clientIp] || 0) + 1;
-
-                if (strikeCounter[clientIp] >= 20) {
+            if (monitoredCodes.includes(res.statusCode)) {
+                const currentStrikes = (strikeCounter.get(clientIp) || 0) + 1;
+                strikeCounter.set(clientIp, currentStrikes);
+                
+                console.log(`⚠️ Strike ${currentStrikes}/10 for ${clientIp} (${res.statusCode} error)`);
+                
+                // Temp ban after 10 strikes within window
+                if (currentStrikes >= 10) {
+                    const banDuration = 5 * 60 * 1000; // 5 minutes temp ban
+                    tempBans.set(clientIp, {
+                        expiresAt: Date.now() + banDuration,
+                        strikeCount: currentStrikes
+                    });
+                    strikeCounter.delete(clientIp);
+                    
+                    console.log(`🚫 IP TEMPORARILY BANNED for 5 minutes: ${clientIp}`);
+                    
+                    // Optional: Log to database for monitoring
                     await Blocklist.create({
                         ip: clientIp,
-                        reason: `Suspicious activity: Excessive ${res.statusCode} responses.`,
-                        attack_vector: 'ERROR_CODE_SPAM'
+                        reason: `Temporary ban: Excessive server errors (${currentStrikes} strikes)`,
+                        attack_vector: 'ERROR_SPAM',
+                        blocked_at: new Date(),
+                        expires_at: new Date(Date.now() + banDuration)
                     }).catch(() => {});
-                    
-                    delete strikeCounter[clientIp];
-                    console.log(`🚫 IP PERMANENTLY BANNED: ${clientIp}`);
                 }
             }
         });
@@ -43,20 +72,48 @@ const antiDdos = {
     },
 
     globalLimiter: rateLimit({
-        windowMs: 1 * 60 * 1000,
-        max: 100,
+        windowMs: 1 * 60 * 1000, // 1 minute
+        max: 150, // Increased from 100 to 150
+        message: { message: "Too many requests. Please wait a moment before trying again." },
+        skipSuccessfulRequests: true, // Don't count successful requests
         handler: async (req, res) => {
             const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
             
-            await Blocklist.create({
-                ip: clientIp,
-                reason: "Request flooding (DDOS)",
-                attack_vector: 'RATE_LIMIT_EXCEEDED'
-            }).catch(() => {});
-
-            res.status(429).json({ message: "DDOS detected. IP Permanently banned." });
+            // Track rate limit violations
+            const violations = (strikeCounter.get(`rate_${clientIp}`) || 0) + 1;
+            strikeCounter.set(`rate_${clientIp}`, violations);
+            
+            // Temp ban after 3 rate limit violations
+            if (violations >= 3) {
+                const banDuration = 2 * 60 * 1000; // 2 minutes temp ban
+                tempBans.set(clientIp, {
+                    expiresAt: Date.now() + banDuration,
+                    reason: 'Rate limit exceeded multiple times'
+                });
+                strikeCounter.delete(`rate_${clientIp}`);
+                
+                console.log(`⏸️ IP TEMPORARILY RATE-LIMITED for 2 minutes: ${clientIp}`);
+                
+                return res.status(429).json({ 
+                    message: `Too many requests. You have been temporarily rate-limited for 2 minutes.` 
+                });
+            }
+            
+            console.log(`⚠️ Rate limit warning for ${clientIp} (violation ${violations}/3)`);
+            res.status(429).json({ 
+                message: "Too many requests. Please wait a moment before trying again." 
+            });
         }
-    })
+    }),
+    
+    // Helper to manually unban IP
+    unbanIp: async (ip) => {
+        tempBans.delete(ip);
+        strikeCounter.delete(ip);
+        strikeCounter.delete(`rate_${ip}`);
+        await Blocklist.deleteOne({ ip });
+        console.log(`✅ IP UNBANNED: ${ip}`);
+    }
 };
 
 module.exports = antiDdos;

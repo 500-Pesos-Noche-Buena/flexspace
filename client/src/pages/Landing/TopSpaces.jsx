@@ -44,7 +44,7 @@ const TopSpaces = ({ spaces = [] }) => {
                         <Card 
                             key={s._id} 
                             className="overflow-hidden border-slate-100 rounded-3xl hover:shadow-xl transition-all duration-300 group cursor-pointer"
-                            onClick={() => window.location.href = `/space/${s._id}`}
+                            onClick={() => window.location.href = `/explore/${s._id}`}
                         >
                             <CardContent className="p-4">
                                 <div className="relative w-full h-40 mb-4 overflow-hidden rounded-2xl bg-slate-100">
