@@ -53,7 +53,7 @@ class ChatService {
 
     getSystemInstruction(spaceContext, districtList) {
         return `
-You are Flex_Support - a helpful assistant for coworking space bookings in Iloilo City.
+You are FlexSpace AI - a helpful assistant for coworking space bookings in Iloilo City.
 
 ${spaceContext}
 
