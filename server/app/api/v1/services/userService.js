@@ -1,5 +1,5 @@
 const { User, SpaceRequest } = require('@/api/v1/models');
-const { comparePassword, hashPassword } = require('@/utils/hash');
+const { comparePassword, hashPassword } = require('@/api/v1/utils/hash');
 
 class UserService {
     async verifyUserCredentials(email, password) {

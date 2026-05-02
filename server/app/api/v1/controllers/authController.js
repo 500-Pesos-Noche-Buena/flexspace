@@ -1,7 +1,7 @@
 const userService = require('@/api/v1/services/userService');
-const ApiError = require('@/utils/ApiError');
-const { generateAuthTokens } = require('@/utils/jwt');
-const { HTTP_STATUS } = require('@/utils/constants');
+const ApiError = require('@/api/v1/utils/ApiError');
+const { generateAuthTokens } = require('@/api/v1/utils/jwt');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const emailService = require('@/api/v1/services/emailService');
 const path = require('path');
 const fs = require('fs').promises;

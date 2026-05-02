@@ -1,6 +1,6 @@
 const { Space, User } = require('@/api/v1/models');
-const ApiError = require('@/utils/ApiError');
-const { HTTP_STATUS } = require('@/utils/constants');
+const ApiError = require('@/api/v1/utils/ApiError');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const fs = require('fs');
 const path = require('path');
 

@@ -21,6 +21,10 @@ const config = {
     bcrypt: {
         saltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 10,
     },
+
+    ai: {
+        geminiKey: process.env.GEMINI_API_KEY,
+    },
 };
 
 module.exports = config;

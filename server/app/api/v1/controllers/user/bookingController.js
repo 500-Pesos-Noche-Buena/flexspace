@@ -1,6 +1,6 @@
 const { Booking, Space, User } = require('@/api/v1/models');
-const ApiError = require('@/utils/ApiError');
-const { HTTP_STATUS } = require('@/utils/constants');
+const ApiError = require('@/api/v1/utils/ApiError');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const crypto = require('crypto');
 const rewardService = require('@/api/v1/services/rewardService');
 

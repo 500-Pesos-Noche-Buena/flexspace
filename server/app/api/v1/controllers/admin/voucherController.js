@@ -1,7 +1,7 @@
 // api/v1/controllers/admin/voucherController.js
 const { Voucher } = require('@/api/v1/models');
-const ApiError = require('@/utils/ApiError');
-const { HTTP_STATUS } = require('@/utils/constants');
+const ApiError = require('@/api/v1/utils/ApiError');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 
 class AdminVoucherController {
     index = async (req, res, next) => {

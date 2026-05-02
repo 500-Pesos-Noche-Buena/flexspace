@@ -1,10 +1,10 @@
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
-const { HTTP_STATUS } = require('@/utils/constants');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const routes = require('@/api/v1/routes/routes'); 
 const { errorConverter, errorHandler } = require('@/api/v1/middleware/errorHandler');
-const ApiError = require('@/utils/ApiError');
+const ApiError = require('@/api/v1/utils/ApiError');
 const path = require('path');
 const app = express();
 const os = require('os');

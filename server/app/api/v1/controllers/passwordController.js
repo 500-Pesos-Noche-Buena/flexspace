@@ -1,10 +1,10 @@
 // app/api/v1/controllers/passwordController.js
-const { HTTP_STATUS } = require('@/utils/constants');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const { User } = require('@/api/v1/models');
 const otpService = require('@/api/v1/services/otpService');
 const emailService = require('@/api/v1/services/emailService');
 const bcrypt = require('bcryptjs');
-const ApiError = require('@/utils/ApiError');
+const ApiError = require('@/api/v1/utils/ApiError');
 
 class PasswordController {
     // Step 1: Request OTP

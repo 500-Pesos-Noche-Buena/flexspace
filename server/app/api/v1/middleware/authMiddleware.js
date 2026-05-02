@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('@/config/config');
-const ApiError = require('@/utils/ApiError');
-const { HTTP_STATUS } = require('@/utils/constants');
+const ApiError = require('@/api/v1/utils/ApiError');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 
 class AuthMiddleware {
     /**

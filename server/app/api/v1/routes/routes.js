@@ -6,6 +6,7 @@ const landingRoutes = require('./landingRoutes');
 const userRoutes = require('./userRoutes');
 const { Analytics } = require('@/api/v1/models');
 const emailController = require('@/api/v1/controllers/emailController');
+const chatController = require('@/api/v1/controllers/chatController');
 
 class ApiRouter {
     constructor() {
@@ -94,7 +95,9 @@ class ApiRouter {
         this.router.use('/admin', adminRoutes);
         this.router.use('/space', spaceRoutes);
         this.router.use('/user', userRoutes);
-
+        
+        this.router.post('/chat/support', chatController.chatSupport);
+        
         this.router.post('/email/welcome', emailController.sendWelcome);
         this.router.post('/email/booking-confirmation', emailController.sendBookingConfirmation);
         this.router.post('/email/voucher', emailController.sendVoucher);

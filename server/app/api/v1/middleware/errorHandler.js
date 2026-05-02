@@ -1,6 +1,6 @@
-const ApiError = require('@/utils/ApiError');
-const logger = require('@/utils/logger');
-const { HTTP_STATUS } = require('@/utils/constants'); 
+const ApiError = require('@/api/v1/utils/ApiError');
+const logger = require('@/api/v1/utils/logger');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants'); 
 
 const errorConverter = (err, req, res, next) => {
     let error = err;

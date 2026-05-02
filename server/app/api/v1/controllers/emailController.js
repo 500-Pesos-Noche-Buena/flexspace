@@ -1,5 +1,5 @@
 // app/api/v1/controllers/emailController.js
-const { HTTP_STATUS } = require('@/utils/constants');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const emailService = require('@/api/v1/services/emailService');
 
 class EmailController {

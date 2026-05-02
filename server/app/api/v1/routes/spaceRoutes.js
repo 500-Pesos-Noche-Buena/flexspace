@@ -1,6 +1,6 @@
 const express = require('express');
 const auth = require('@/api/v1/middleware/authMiddleware');
-const upload = require('@/utils/upload');
+const upload = require('@/api/v1/utils/upload');
 
 // Controllers
 const DashboardController = require('@/api/v1/controllers/space/dashboardController');

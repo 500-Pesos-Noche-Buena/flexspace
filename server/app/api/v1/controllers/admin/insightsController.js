@@ -1,4 +1,4 @@
-const { HTTP_STATUS } = require('@/utils/constants');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const { Analytics } = require('@/api/v1/models');
 
 class InsightsController {

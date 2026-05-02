@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Menu, X, LayoutDashboard, User, LogOut, Globe, ReceiptText } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
+import ChatSupport from '@/components/ui/ChatSupport';
 
 const MainLayout = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -159,6 +160,8 @@ const MainLayout = () => {
             <main className="flex-1">
                 <Outlet />
             </main>
+
+            <ChatSupport />
 
             <footer className="border-t border-slate-100 bg-white py-16 px-8 mt-auto">
                 <div className="max-w-7xl mx-auto">

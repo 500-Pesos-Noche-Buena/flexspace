@@ -1,7 +1,7 @@
 const express = require('express');
 const authController = require('@/api/v1/controllers/authController');
 const profileController = require('@/api/v1/controllers/profileController');
-const upload = require('@/utils/upload');
+const upload = require('@/api/v1/utils/upload');
 const auth = require('@/api/v1/middleware/authMiddleware');
 const passwordController = require('@/api/v1/controllers/passwordController');
 

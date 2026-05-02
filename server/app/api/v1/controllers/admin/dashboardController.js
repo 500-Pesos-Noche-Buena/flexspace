@@ -1,5 +1,5 @@
 const { User, Space, SpaceRequest } = require('@/api/v1/models');
-const { HTTP_STATUS } = require('@/utils/constants');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 
 class DashboardController {
     index = async (req, res, next) => {
