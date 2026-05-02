@@ -22,182 +22,128 @@ class ChatService {
             .lean();
     }
 
-    buildSpaceContext(activeSpaces, allDistricts) {
-        const spacesByDistrict = {};
-        activeSpaces.forEach(space => {
-            const districtName = space.district_id?.name || space.area;
-            if (districtName) {
-                if (!spacesByDistrict[districtName]) spacesByDistrict[districtName] = [];
-                spacesByDistrict[districtName].push(space);
-            }
-        });
-
-        const districtList = allDistricts.map(d => d.name).join(', ');
-        let spaceContext = `All districts in Iloilo City: ${districtList}.\n\n`;
-        
-        if (activeSpaces.length === 0) {
-            spaceContext += "No open coworking spaces available at the moment.";
-        } else {
-            spaceContext += "Available coworking spaces by district:\n";
-            for (const [district, spaces] of Object.entries(spacesByDistrict)) {
-                spaceContext += `\n${district}:\n`;
-                spaces.forEach(space => {
-                    const amenities = space.amenities?.length > 0 ? space.amenities.slice(0, 3).join(', ') : 'WiFi, Aircon';
-                    spaceContext += `  - ${space.name}: ₱${space.rate_hour}/hour, capacity: ${space.capacity || 10}, amenities: ${amenities}\n`;
-                });
-            }
+  buildSpaceContext(activeSpaces, allDistricts) {
+    const spacesByDistrict = {};
+    activeSpaces.forEach(space => {
+        const districtName = space.district_id?.name || space.area;
+        if (districtName) {
+            if (!spacesByDistrict[districtName]) spacesByDistrict[districtName] = [];
+            spacesByDistrict[districtName].push(space);
         }
+    });
 
-        return spaceContext;
+    const districtList = allDistricts.map(d => d.name).join(', ');
+    let spaceContext = `All districts in Iloilo City: ${districtList}.\n\n`;
+    
+    if (activeSpaces.length === 0) {
+        spaceContext += "No open coworking spaces available at the moment.";
+    } else {
+        spaceContext += "Available coworking spaces by district:\n";
+        for (const [district, spaces] of Object.entries(spacesByDistrict)) {
+            spaceContext += `\n**${district}:**\n`;
+            spaces.forEach(space => {
+                const amenities = space.amenities?.length > 0 ? space.amenities.slice(0, 3).join(', ') : 'WiFi, Aircon';
+                
+                // Add Google Maps link if lat/lng exist
+                let locationInfo = "";
+                if (space.lat && space.lng) {
+                    const mapsUrl = `https://www.google.com/maps?q=${space.lat},${space.lng}`;
+                    locationInfo = ` | 📍 [View on Map](${mapsUrl})`;
+                } else if (space.area) {
+                    locationInfo = ` | 📍 Area: ${space.area}`;
+                }
+                
+                spaceContext += `- ${space.name}: **₱${space.rate_hour}/hour**, capacity: ${space.capacity || 10}, amenities: ${amenities}${locationInfo}\n`;
+            });
+        }
     }
 
-    getSystemInstruction(spaceContext, districtList) {
-        return `
+    return spaceContext;
+}
+
+getSystemInstruction(spaceContext, districtList) {
+    return `
 You are ${CHATBOT_IDENTITY.name} (also known as ${CHATBOT_IDENTITY.shortName}) - a helpful AI assistant for ${PROJECT_INFO.name} coworking space bookings in Iloilo City.
 
 CRITICAL RULES:
 - Your name is "${CHATBOT_IDENTITY.name}" or "${CHATBOT_IDENTITY.shortName}"
-- The company/project name is "${PROJECT_INFO.name}" ONLY (no "AI" after company name)
-- When asked about the team, say "${PROJECT_INFO.name} team" not "${PROJECT_INFO.name} AI team"
+- The company/project name is "${PROJECT_INFO.name}" ONLY
+- You CAN talk naturally like a human. Be conversational, not robotic.
 
 ${spaceContext}
 
-TEAM MEMBERS OF ${PROJECT_INFO.name}:
-- Lead Programmer: ${TEAM.leadProgrammer}
-- Project Manager: ${TEAM.projectManager}
-- UI/UX Designer: ${TEAM.uiuxDesigner}
-- Documentation: ${TEAM.documentation}
+👥 TEAM MEMBERS OF ${PROJECT_INFO.name}:
+- **Lead Programmer:** ${TEAM.leadProgrammer}
+- **Project Manager:** ${TEAM.projectManager}
+- **UI/UX Designer:** ${TEAM.uiuxDesigner}
+- **Documentation:** ${TEAM.documentation}
 
-BOOKING PROCESS (ALWAYS explain these steps when user asks about booking):
-Step 1: Register an account / Magparehistro sang account
-Step 2: Login to your account / Mag-login sa imo account  
-Step 3: Browse spaces and select your preferred space / Mag-browse kag pili sang imo gusto nga space
-Step 4: Choose your date and time / Pilia ang petsa kag oras
-Step 5: Confirm your booking / Kumpirmaha ang imo booking
+✅ WHEN USER ASKS ABOUT TEAM (e.g., "team", "team sang flexspace", "who are the team"):
+   "The ${PROJECT_INFO.name} team consists of:
 
-IMPORTANT RULES:
+**Lead Programmer:** ${TEAM.leadProgrammer}
+
+**Project Manager:** ${TEAM.projectManager}
+
+**UI/UX Designer:** ${TEAM.uiuxDesigner}
+
+**Documentation:** ${TEAM.documentation}"
+
+✅ WHEN USER ASKS ABOUT DEVELOPER (e.g., "developer", "who developed this", "who made this"):
+   "**${TEAM.leadProgrammer}** is the Lead Programmer and developer of ${PROJECT_INFO.name}."
+
+✅ WHEN USER LAUGHS (e.g., "hahaha", "HAHAHA", "lol", "funny"):
+   Respond playfully: "Haha! Glad you're enjoying, gid! 😊 Ready to find a workspace?"
+
+✅ WHEN USER SAYS "ikaw?" or "who are you?":
+   "I am ${CHATBOT_IDENTITY.name}, your AI assistant for coworking spaces in Iloilo City. How can I help you today, gid? 🤖"
+
+✅ WHEN USER SAYS "yes", "oo", "sige", "okay", "yes please" (affirmative responses):
+   ASK A FOLLOW-UP QUESTION to continue the conversation:
+   - "Great! Which district are you interested in? (Molo, Jaro, Mandurriao, etc.)"
+   - "Awesome! Do you want me to list available spaces in a specific district?"
+   - "Perfect! Are you looking to book or just browsing, gid?"
+
+✅ WHEN USER SAYS "no", "hindi", "dili", "ayaw":
+   Respond: "No problem, gid! Just let me know if you need help finding a workspace."
+
+✅ WHEN USER ASKS ABOUT SPACES (e.g., "molo?", "available space?", "may ara sa Jaro?"):
+   ONLY list spaces with prices. DO NOT mention booking.
+
+💰 FORMATTING RULES FOR SPACES:
+- **District names MUST be bold:** Use **DistrictName:**
+- **Prices MUST be bold:** Use **₱XX/hour**
+- Format each space as: "- Space Name: **₱XX/hour**"
+
+✅ WHEN USER ASKS ABOUT BOOKING (e.g., "how to book", "paano mag book", "booking process"):
+   COPY AND PASTE EXACTLY these steps:
+
+**To book a space on ${PROJECT_INFO.name}, please follow these steps:**
+
+1. **Register an account** / Magparehistro sang account
+
+2. **Login to your account** / Mag-login sa imo account
+
+3. **Browse spaces** and select your preferred space / Mag-browse kag pili sang imo gusto nga space
+
+4. **Choose your date and time** / Pilia ang petsa kag oras
+
+5. **Confirm your booking** / Kumpirmaha ang imo booking
+
+**🚶 Walk-in Option:**
+You can also walk in to any of our available spaces! Just visit the space directly and our staff will assist you.
+
+✅ WHEN USER GREETS ("hi", "hello", "halo", "kumusta", "musta"):
+   "Hi there! How can I help you today? Looking for a coworking space in Iloilo?"
+
+OTHER RULES:
 1. RESPOND IN THE SAME LANGUAGE AS THE USER'S QUESTION!
-2. WHEN ASKED ABOUT TEAM/DEVELOPER, ALWAYS mention ALL team members
-3. When introducing yourself, say "I am ${CHATBOT_IDENTITY.name}"
-4. When talking about the company/project, say "${PROJECT_INFO.name}" (without AI)
-5. ONLY recommend real spaces from the list above
-6. Keep responses helpful but concise
-
-⚡ RESPONSE PATTERNS:
-
-Greeting ("hi", "hello", "musta"):
-→ "Hey! Ready to find a workspace?" / "Hi there! Looking for a space?"
-
-Asking about spaces:
-→ List real spaces from the data above with rates
-
-Asking about districts (Molo, Jaro, etc.):
-→ "Sa [district], may ara kami: [space names] at ₱[rate]/hour"
-
-Asking about booking:
-→ Explain the 5-step process above
-
-Asking about the team:
-→ List all team members with their roles
-
-Asking "who developed this":
-→ "${TEAM.leadProgrammer} built ${PROJECT_INFO.name} as Lead Programmer"
-
-Unknown questions:
-→ "I can help with coworking spaces in Iloilo. Want to see available spaces in Molo, Jaro, or Mandurriao?"
-
-Remember: You're helpful, fast, and natural. No robotic responses!`;
-
-    }
-
-    async generateAIResponse(message, spaceContext, districtList) {
-        try {
-            const response = await this.genAI.models.generateContent({
-                model: 'gemini-3.1-flash-lite-preview',
-                contents: message,
-                config: {
-                    systemInstruction: this.getSystemInstruction(spaceContext, districtList),
-                    maxOutputTokens: 800, 
-                    temperature: 0.3
-                }
-            });
-            
-            return response.text?.trim() || null;
-        } catch (error) {
-            console.error("[AI] Gemini error:", error.message);
-            return null;
-        }
-    }
-
-    handleBookingQuery(userLanguage) {
-        const steps = BOOKING_PROCESS.steps.map(step => `• ${step}`).join('\n\n');
-        
-        if (userLanguage === 'hiligaynon') {
-            return `Para makabook sa ${PROJECT_INFO.name}, palihog sunda ini nga mga steps, gid:\n\n${steps}\n\nPwede ka mag-book sa amon website. Gusto mo makita ang available spaces, gid? 📍`;
-        }
-        if (userLanguage === 'tagalog') {
-            return `Para mag-book sa ${PROJECT_INFO.name}, sundin ang mga steps na ito, po:\n\n${steps}\n\nPwede kang mag-book sa aming website. Gusto mo bang makita ang available spaces, po? 📍`;
-        }
-        return `To book a space on ${PROJECT_INFO.name}, please follow these steps:\n\n${steps}\n\nYou can book through our website. Would you like to see available spaces, gid? 📍`;
-    }
-
-    handleTeamQuery(userLanguage) {
-        if (userLanguage === 'hiligaynon') {
-            return `Ang team sang ${PROJECT_INFO.name} amo sila gid: Lead Programmer si ${TEAM.leadProgrammer}, Project Manager si ${TEAM.projectManager}, UI/UX Designer si ${TEAM.uiuxDesigner}, kag Documentation nanday ${TEAM.documentation}. Salamat gid sa ila! 💻`;
-        }
-        if (userLanguage === 'tagalog') {
-            return `Ang team ng ${PROJECT_INFO.name} ay sina: Lead Programmer si ${TEAM.leadProgrammer}, Project Manager si ${TEAM.projectManager}, UI/UX Designer si ${TEAM.uiuxDesigner}, at Documentation sina ${TEAM.documentation}. Maraming salamat sa kanila! 💻`;
-        }
-        return `The ${PROJECT_INFO.name} team consists of: Lead Programmer ${TEAM.leadProgrammer}, Project Manager ${TEAM.projectManager}, UI/UX Designer ${TEAM.uiuxDesigner}, and Documentation by ${TEAM.documentation}. Thank you to the entire team! 💻`;
-    }
-
-    handleDistrictQuery(message, spaces, district, userLanguage) {
-        const spacesInDistrict = spaces.filter(s => 
-            s.district_id?.name?.toLowerCase() === district ||
-            s.area?.toLowerCase() === district
-        );
-        
-        if (spacesInDistrict.length > 0) {
-            const list = spacesInDistrict.map(s => `${s.name} (₱${s.rate_hour}/hr)`).join(', ');
-            if (userLanguage === 'hiligaynon') return `Sa ${district}, may ara kami: ${list} gid! Want to book? 📍`;
-            if (userLanguage === 'tagalog') return `Sa ${district}, mayroon kami: ${list} po! Want to book? 📍`;
-            return `In ${district}, we have: ${list} gid! Want to book? 📍`;
-        }
-        
-        const districtsWithSpaces = [...new Set(spaces.map(s => s.district_id?.name || s.area).filter(Boolean))];
-        if (districtsWithSpaces.length > 0) {
-            if (userLanguage === 'hiligaynon') return `Wala pa spaces sa ${district} subong, gid. Pero may ara sa ${districtsWithSpaces.slice(0, 3).join(', ')}.`;
-            if (userLanguage === 'tagalog') return `Wala pang spaces sa ${district} ngayon, po. Pero mayroon sa ${districtsWithSpaces.slice(0, 3).join(', ')}.`;
-            return `No spaces in ${district} yet, gid. But we have spaces in ${districtsWithSpaces.slice(0, 3).join(', ')}.`;
-        }
-        
-        if (userLanguage === 'hiligaynon') return `Wala pa spaces sa ${district} subong. Check again later, gid! 🙏`;
-        if (userLanguage === 'tagalog') return `Wala pang spaces sa ${district} ngayon. Check again later, po! 🙏`;
-        return `No spaces in ${district} yet. Check again later, gid! 🙏`;
-    }
-
-    handleGeneralQuery(message, spaces, userLanguage) {
-        const msg = message.toLowerCase();
-        
-        if (msg.includes('space') || msg.includes('available')) {
-            if (spaces.length === 0) {
-                return getLocalizedResponse(userLanguage, 'noSpaces');
-            }
-            
-            const districtsWithSpaces = [...new Set(spaces.map(s => s.district_id?.name || s.area).filter(Boolean))];
-            const cheapest = Math.min(...spaces.map(s => s.rate_hour));
-            
-            if (userLanguage === 'hiligaynon') {
-                return `May ara kami ${spaces.length} spaces available gid! 📍 Locations: ${districtsWithSpaces.join(', ')}. Rates start at ₱${cheapest}/hour. Ano nga district ang imo gusto?`;
-            }
-            if (userLanguage === 'tagalog') {
-                return `Mayroon kaming ${spaces.length} spaces available po! 📍 Locations: ${districtsWithSpaces.join(', ')}. Rates start at ₱${cheapest}/hour. Aling district ang gusto mo?`;
-            }
-            return `We have ${spaces.length} spaces available gid! 📍 Locations: ${districtsWithSpaces.join(', ')}. Rates start at ₱${cheapest}/hour. Which district interests you?`;
-        }
-        
-        return getLocalizedResponse(userLanguage, 'welcome');
-    }
+2. Have a natural conversation - ask follow-up questions
+3. NEVER repeat the same response twice in a row
+4. NEVER mention online payment - payment is upon walk-in only
+5. ONLY recommend spaces from the data above (in spaceContext)
+`;
+}
 
     async processMessage(message) {
         const userLanguage = detectLanguage(message);
@@ -210,28 +156,29 @@ Remember: You're helpful, fast, and natural. No robotic responses!`;
         const spaceContext = this.buildSpaceContext(activeSpaces, allDistricts);
         const districtList = allDistricts.map(d => d.name).join(', ');
         
-        let response = await this.generateAIResponse(message, spaceContext, districtList);
-        
-        if (!response) {
-            const msg = message.toLowerCase();
-            
-            if (msg.includes('book') || msg.includes('booking') || msg.includes('paano mag book') || msg.includes('how to book')) {
-                response = this.handleBookingQuery(userLanguage);
-            } 
-            else if (msg.includes('team') || msg.includes('developer') || msg.includes('who made') || msg.includes('who developed') || msg.includes('created by')) {
-                response = this.handleTeamQuery(userLanguage);
-            }
-            else {
-                const matchedDistrict = DISTRICTS.find(d => msg.includes(d));
-                if (matchedDistrict) {
-                    response = this.handleDistrictQuery(message, activeSpaces, matchedDistrict, userLanguage);
-                } else {
-                    response = this.handleGeneralQuery(message, activeSpaces, userLanguage);
+        try {
+            const response = await this.genAI.models.generateContent({
+                model: 'gemini-3.1-flash-lite-preview',
+                contents: message,
+                config: {
+                    systemInstruction: this.getSystemInstruction(spaceContext, districtList),
+                    maxOutputTokens: 800,
+                    temperature: 0.3
                 }
+            });
+            
+            const finalResponse = response.text?.trim();
+            
+            if (!finalResponse) {
+                throw new Error('Empty response');
             }
+            
+            return finalResponse;
+            
+        } catch (error) {
+            console.error("[AI] Gemini error:", error.message);
+            return "Sorry gid, something went wrong. Please try again! 🙏";
         }
-        
-        return response;
     }
 }
 
