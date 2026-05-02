@@ -24,6 +24,11 @@ const PROJECT_INFO = {
     developer: "Josiah Danielle Gallenero"
 };
 
+const CHATBOT_IDENTITY = {
+    name: "FlexSpace AI",
+    shortName: "Flex Support"
+};
+
 // District list
 const DISTRICTS = ['molo', 'jaro', 'mandurriao', 'city proper', 'la paz', 'arevalo'];
 
@@ -31,5 +36,6 @@ module.exports = {
     TEAM,
     BOOKING_PROCESS,
     PROJECT_INFO,
-    DISTRICTS
+    DISTRICTS,
+    CHATBOT_IDENTITY
 };

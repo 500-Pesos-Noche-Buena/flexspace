@@ -1,7 +1,7 @@
 const { GoogleGenAI } = require("@google/genai");
 const config = require('@/config/config');
 const { Space, District } = require('@/api/v1/models');
-const { TEAM, BOOKING_PROCESS, PROJECT_INFO, DISTRICTS } = require('@/api/v1/constants/chatConstants');
+const { TEAM, BOOKING_PROCESS, PROJECT_INFO, CHATBOT_IDENTITY, DISTRICTS } = require('@/api/v1/constants/chatConstants');
 const { detectLanguage, getLocalizedResponse } = require('@/api/v1/utils/languageUtils');
 
 const genAI = new GoogleGenAI({ apiKey: config.ai.geminiKey });
@@ -53,11 +53,16 @@ class ChatService {
 
     getSystemInstruction(spaceContext, districtList) {
         return `
-You are FlexSpace AI - a helpful assistant for coworking space bookings in Iloilo City.
+You are ${CHATBOT_IDENTITY.name} (also known as ${CHATBOT_IDENTITY.shortName}) - a helpful AI assistant for ${PROJECT_INFO.name} coworking space bookings in Iloilo City.
+
+CRITICAL RULES:
+- Your name is "${CHATBOT_IDENTITY.name}" or "${CHATBOT_IDENTITY.shortName}"
+- The company/project name is "${PROJECT_INFO.name}" ONLY (no "AI" after company name)
+- When asked about the team, say "${PROJECT_INFO.name} team" not "${PROJECT_INFO.name} AI team"
 
 ${spaceContext}
 
-TEAM MEMBERS:
+TEAM MEMBERS OF ${PROJECT_INFO.name}:
 - Lead Programmer: ${TEAM.leadProgrammer}
 - Project Manager: ${TEAM.projectManager}
 - UI/UX Designer: ${TEAM.uiuxDesigner}
@@ -73,23 +78,55 @@ Step 5: Confirm your booking / Kumpirmaha ang imo booking
 IMPORTANT RULES:
 1. RESPOND IN THE SAME LANGUAGE AS THE USER'S QUESTION!
 2. WHEN ASKED ABOUT TEAM/DEVELOPER, ALWAYS mention ALL team members
-3. ONLY recommend real spaces from the list above
-4. Keep responses helpful but concise (3-5 sentences for booking process)
-        `;
+3. When introducing yourself, say "I am ${CHATBOT_IDENTITY.name}"
+4. When talking about the company/project, say "${PROJECT_INFO.name}" (without AI)
+5. ONLY recommend real spaces from the list above
+6. Keep responses helpful but concise
+
+⚡ RESPONSE PATTERNS:
+
+Greeting ("hi", "hello", "musta"):
+→ "Hey! Ready to find a workspace?" / "Hi there! Looking for a space?"
+
+Asking about spaces:
+→ List real spaces from the data above with rates
+
+Asking about districts (Molo, Jaro, etc.):
+→ "Sa [district], may ara kami: [space names] at ₱[rate]/hour"
+
+Asking about booking:
+→ Explain the 5-step process above
+
+Asking about the team:
+→ List all team members with their roles
+
+Asking "who developed this":
+→ "${TEAM.leadProgrammer} built ${PROJECT_INFO.name} as Lead Programmer"
+
+Unknown questions:
+→ "I can help with coworking spaces in Iloilo. Want to see available spaces in Molo, Jaro, or Mandurriao?"
+
+Remember: You're helpful, fast, and natural. No robotic responses!`;
+
     }
 
     async generateAIResponse(message, spaceContext, districtList) {
-        const response = await this.genAI.models.generateContent({
-            model: 'gemini-3.1-flash-lite-preview',
-            contents: message,
-            config: {
-                systemInstruction: this.getSystemInstruction(spaceContext, districtList),
-                maxOutputTokens: 350,
-                temperature: 0.3
-            }
-        });
-        
-        return response.text?.trim() || null;
+        try {
+            const response = await this.genAI.models.generateContent({
+                model: 'gemini-3.1-flash-lite-preview',
+                contents: message,
+                config: {
+                    systemInstruction: this.getSystemInstruction(spaceContext, districtList),
+                    maxOutputTokens: 800, 
+                    temperature: 0.3
+                }
+            });
+            
+            return response.text?.trim() || null;
+        } catch (error) {
+            console.error("[AI] Gemini error:", error.message);
+            return null;
+        }
     }
 
     handleBookingQuery(userLanguage) {
@@ -178,10 +215,10 @@ IMPORTANT RULES:
         if (!response) {
             const msg = message.toLowerCase();
             
-            if (msg.includes('book') || msg.includes('booking')) {
+            if (msg.includes('book') || msg.includes('booking') || msg.includes('paano mag book') || msg.includes('how to book')) {
                 response = this.handleBookingQuery(userLanguage);
             } 
-            else if (msg.includes('team') || msg.includes('developer') || msg.includes('who made')) {
+            else if (msg.includes('team') || msg.includes('developer') || msg.includes('who made') || msg.includes('who developed') || msg.includes('created by')) {
                 response = this.handleTeamQuery(userLanguage);
             }
             else {

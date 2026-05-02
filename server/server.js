@@ -28,7 +28,7 @@ const ALLOWED_ORIGIN = process.env.VITE_API_URL || NETWORK_URL;
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 app.use(antiDdos.gatekeeper);
 app.use(antiDdos.globalLimiter);
 app.use(antiDdos.responseMonitor);
@@ -88,6 +88,7 @@ app.get('/health', (req, res) => {
     
     res.status(200).json({
         success: true,
+        status: 'online',
         message: 'FlexSpace API - System Online',
         timestamp: `${dateString} | ${timeString}`,
         uptime: process.uptime(),
