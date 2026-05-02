@@ -130,15 +130,15 @@ Remember: You're helpful, fast, and natural. No robotic responses!`;
     }
 
     handleBookingQuery(userLanguage) {
-        const steps = BOOKING_PROCESS.steps.join('\n');
+        const steps = BOOKING_PROCESS.steps.map(step => `• ${step}`).join('\n\n');
         
         if (userLanguage === 'hiligaynon') {
-            return `Para makabook sa ${PROJECT_INFO.name}, palihog sunda ini nga mga steps, gid:\n\n${steps}\n\nPwede ka mag-book sa amon website ukon mobile app. Gusto mo makita ang available spaces, gid? 📍`;
+            return `Para makabook sa ${PROJECT_INFO.name}, palihog sunda ini nga mga steps, gid:\n\n${steps}\n\nPwede ka mag-book sa amon website. Gusto mo makita ang available spaces, gid? 📍`;
         }
         if (userLanguage === 'tagalog') {
-            return `Para mag-book sa ${PROJECT_INFO.name}, sundin ang mga steps na ito, po:\n\n${steps}\n\nPwede kang mag-book sa aming website o mobile app. Gusto mo bang makita ang available spaces, po? 📍`;
+            return `Para mag-book sa ${PROJECT_INFO.name}, sundin ang mga steps na ito, po:\n\n${steps}\n\nPwede kang mag-book sa aming website. Gusto mo bang makita ang available spaces, po? 📍`;
         }
-        return `To book a space on ${PROJECT_INFO.name}, please follow these steps:\n\n${steps}\n\nYou can book through our website or mobile app. Would you like to see available spaces, gid? 📍`;
+        return `To book a space on ${PROJECT_INFO.name}, please follow these steps:\n\n${steps}\n\nYou can book through our website. Would you like to see available spaces, gid? 📍`;
     }
 
     handleTeamQuery(userLanguage) {
