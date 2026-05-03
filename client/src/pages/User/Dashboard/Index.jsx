@@ -133,7 +133,8 @@ const StatBox = ({ label, value, color, icon: Icon, subtitle, tooltip }) => (
 
 /** --- SPACE CARD COMPONENT (Mobile Optimized) --- **/
 const SpaceCard = ({ name, location, price, rating, image, userId, tags = [] }) => {
-    const imageUrl = image ? `${API_BASE_URL}/uploads/spaces/${userId}/${image}` : null;
+        const imageUrl = image && (image.startsWith('http') ? image : null);
+
 
     return (
         <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-[2.5rem] overflow-hidden hover:border-indigo-100 transition-all group cursor-pointer shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 h-full flex flex-col">

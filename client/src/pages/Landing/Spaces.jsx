@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiGet } from '@/utils/Api';
 import { MapPin, Star, Clock, Users } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getSpaceImage } from '@/utils/imageHelper';
 
 const ExploreSpaces = () => {
     const navigate = useNavigate();
@@ -17,6 +16,7 @@ const ExploreSpaces = () => {
             try {
                 setLoading(true);
                 const res = await apiGet('/landing/explorer');
+                console.log('Spaces data:', res.data?.spaces); // Debug log
                 setSpaces(res.data?.spaces || []);
                 setDistricts(res.data?.districts || []);
             } catch (err) {
@@ -33,13 +33,15 @@ const ExploreSpaces = () => {
         ? spaces.filter(s => s.district_id?._id === selectedDistrict)
         : spaces;
 
-    const getImageUrl = (space) => {
-        const image = space.images?.[0] || space.image;
-        if (image) {
-            return `${API_BASE_URL}/uploads/spaces/${space.user_id}/${image}`;
-        }
-        return '/placeholder.jpg';
-    };
+    if (loading) {
+        return (
+            <div className="bg-white min-h-screen px-4 md:px-6 py-10">
+                <div className="max-w-7xl mx-auto flex justify-center py-12">
+                    <div className="animate-pulse text-slate-400">Loading spaces...</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white min-h-screen px-4 md:px-6 py-10">
@@ -83,11 +85,7 @@ const ExploreSpaces = () => {
 
             {/* GRID */}
             <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {loading ? (
-                    <div className="col-span-full flex justify-center py-12">
-                        <div className="animate-pulse text-slate-400">Loading spaces...</div>
-                    </div>
-                ) : filteredSpaces.length === 0 ? (
+                {filteredSpaces.length === 0 ? (
                     <div className="col-span-full text-center py-12 text-slate-400">
                         No spaces found.
                     </div>
@@ -101,9 +99,13 @@ const ExploreSpaces = () => {
                             {/* IMAGE */}
                             <div className="relative h-48 bg-slate-100 overflow-hidden">
                                 <img
-                                    src={getImageUrl(space)}
+                                    src={getSpaceImage(space)}
                                     alt={space.name}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    onError={(e) => {
+                                        console.error('Image failed to load:', space.image);
+                                        e.target.src = '/placeholders/space.jpg';
+                                    }}
                                 />
                                 {/* Rating badge */}
                                 <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 flex items-center gap-1">

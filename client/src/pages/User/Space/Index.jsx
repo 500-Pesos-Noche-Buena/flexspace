@@ -42,13 +42,15 @@ const SpaceIndex = () => {
     };
 
     const getPrimaryImage = (space) => {
-        if (space.images && space.images.length > 0) {
-            return `${API_BASE_URL}/uploads/spaces/${space.user_id}/${space.images[0]}`;
+        const image = space.images?.[0] || space.image;
+        
+        if (!image) return '/placeholder.jpg';
+        
+        if (image.startsWith('http://') || image.startsWith('https://')) {
+            return image;
         }
-        if (space.image) {
-            return `${API_BASE_URL}/uploads/spaces/${space.user_id}/${space.image}`;
-        }
-        return '/placeholder.jpg';
+        
+        return `${API_BASE_URL}/uploads/spaces/${space.user_id}/${image}`;
     };
 
     const getImageCount = (space) => {
