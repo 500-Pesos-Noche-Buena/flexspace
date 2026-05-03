@@ -1,6 +1,7 @@
 const { Space, User } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
+const { deleteFileByUrl, extractPublicId } = require('@/api/v1/utils/cloudinary');
 
 class SpaceController {
     getUserId = (req) => {
@@ -45,7 +46,6 @@ class SpaceController {
                 lat, lng, district_id, available_rooms, amenities, description, hours_json
             } = req.body;
 
-            // Get Cloudinary URLs from middleware
             let imageUrls = [];
             if (req.cloudinaryUrls) {
                 imageUrls = Array.isArray(req.cloudinaryUrls) 
@@ -126,17 +126,25 @@ class SpaceController {
             if (updates.lat) updates.lat = Number(updates.lat);
             if (updates.lng) updates.lng = Number(updates.lng);
 
-            // Handle new image uploads from Cloudinary
+            // Handle new image uploads from Cloudinary - DELETE OLD IMAGES
             if (req.cloudinaryUrls) {
                 const newImages = Array.isArray(req.cloudinaryUrls) 
                     ? req.cloudinaryUrls 
                     : req.cloudinaryUrls.images || [];
                 
                 if (newImages.length > 0) {
-                    updates.images = [...(space.images || []), ...newImages].slice(0, 10);
-                    if (!updates.image && updates.images.length > 0) {
-                        updates.image = updates.images[0];
+                    // 🔥 DELETE OLD IMAGES FROM CLOUDINARY
+                    const oldImages = space.images || [];
+                    for (const oldImage of oldImages) {
+                        if (oldImage && oldImage.includes('cloudinary')) {
+                            await deleteFileByUrl(oldImage);
+                            console.log(`🗑️ Deleted old image: ${oldImage}`);
+                        }
                     }
+                    
+                    // Set new images
+                    updates.images = newImages;
+                    updates.image = newImages[0];
                 }
             }
 
@@ -164,6 +172,15 @@ class SpaceController {
             const space = await Space.findOne({ _id: id, user_id: userId });
             if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found.');
 
+            // 🔥 DELETE ALL IMAGES FROM CLOUDINARY BEFORE DELETING SPACE
+            const allImages = [...(space.images || []), space.image].filter(Boolean);
+            for (const image of allImages) {
+                if (image && image.includes('cloudinary')) {
+                    await deleteFileByUrl(image);
+                    console.log(`🗑️ Deleted image: ${image}`);
+                }
+            }
+
             await Space.findByIdAndDelete(id);
 
             return res.status(HTTP_STATUS.OK).json({
@@ -184,7 +201,6 @@ class SpaceController {
             const space = await Space.findOne({ _id: id, user_id: userId });
             if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
 
-            // Get Cloudinary URLs from middleware
             let newImages = [];
             if (req.cloudinaryUrls) {
                 newImages = Array.isArray(req.cloudinaryUrls) 
@@ -196,10 +212,8 @@ class SpaceController {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No images to add');
             }
 
-            // Update images array
             const updatedImages = [...(space.images || []), ...newImages].slice(0, 10);
             
-            // Use findByIdAndUpdate to avoid version issues
             const updatedSpace = await Space.findByIdAndUpdate(
                 id,
                 {
@@ -223,49 +237,57 @@ class SpaceController {
     };
 
     removeImage = async (req, res, next) => {
-        try {
-            const userId = this.getUserId(req);
-            const { id } = req.params;
-            const { image } = req.body;
+    try {
+        const userId = this.getUserId(req);
+        const { id } = req.params;
+        const { image } = req.body;
 
-            if (!image) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Image URL is required');
-            }
-
-            const space = await Space.findOne({ _id: id, user_id: userId });
-            if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
-
-            // Remove from array
-            const updatedImages = space.images.filter(img => img !== image);
-            
-            // Determine new primary image
-            let newPrimaryImage = space.image;
-            if (space.image === image) {
-                newPrimaryImage = updatedImages[0] || null;
-            }
-
-            // Use findByIdAndUpdate to avoid version issues
-            const updatedSpace = await Space.findByIdAndUpdate(
-                id,
-                {
-                    $set: {
-                        images: updatedImages,
-                        image: newPrimaryImage
-                    }
-                },
-                { new: true, runValidators: false }
-            );
-
-            return res.status(HTTP_STATUS.OK).json({ 
-                success: true, 
-                message: 'Image removed',
-                images: updatedSpace.images
-            });
-        } catch (error) {
-            console.error('Remove image error:', error);
-            next(error);
+        if (!image) {
+            throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Image URL is required');
         }
-    };
+
+        const space = await Space.findOne({ _id: id, user_id: userId });
+        if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
+
+        // 🔥 DELETE FROM CLOUDINARY
+        if (image && image.includes('cloudinary')) {
+            const deleted = await deleteFileByUrl(image);
+            if (deleted) {
+                console.log(`✅ Deleted image from Cloudinary: ${image}`);
+            } else {
+                console.log(`⚠️ Failed to delete from Cloudinary: ${image}`);
+            }
+        }
+
+        // Remove from database
+        const updatedImages = space.images.filter(img => img !== image);
+        
+        let newPrimaryImage = space.image;
+        if (space.image === image) {
+            newPrimaryImage = updatedImages[0] || null;
+        }
+
+        const updatedSpace = await Space.findByIdAndUpdate(
+            id,
+            {
+                $set: {
+                    images: updatedImages,
+                    image: newPrimaryImage
+                }
+            },
+            { new: true, runValidators: false }
+        );
+
+        return res.status(HTTP_STATUS.OK).json({ 
+            success: true, 
+            message: 'Image removed successfully',
+            images: updatedSpace.images
+        });
+    } catch (error) {
+        console.error('Remove image error:', error);
+        next(error);
+    }
+};
 
     setPrimaryImage = async (req, res, next) => {
         try {
@@ -284,7 +306,6 @@ class SpaceController {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Image not found in space gallery');
             }
 
-            // Use findByIdAndUpdate to avoid version issues
             const updatedSpace = await Space.findByIdAndUpdate(
                 id,
                 { $set: { image: image } },

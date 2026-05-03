@@ -19,8 +19,9 @@ const getCloudinaryFolderPath = (req, file) => {
         if (userId) {
             return `coworking/uploads/requirements/${userId}`;
         }
-        // For registration - use consistent pending folder
-        return `coworking/uploads/requirements/pending`;
+        const email = req.body?.email || 'unknown';
+        const emailFolder = email.replace(/[^a-zA-Z0-9]/g, '_');
+        return `coworking/uploads/requirements/${emailFolder}`;
     } 
     else if (file.fieldname === 'images' || file.fieldname === 'image') {
         if (userId) {
@@ -71,15 +72,84 @@ const getTransformationForField = (fieldname) => {
 };
 
 /**
- * Upload single file to Cloudinary (always)
+ * Extract public ID from Cloudinary URL
+ */
+const extractPublicId = (url) => {
+    if (!url || !url.includes('cloudinary')) return null;
+    
+    try {
+        // Find '/upload/' in the URL
+        const uploadIndex = url.indexOf('/upload/');
+        if (uploadIndex === -1) return null;
+        
+        let publicId = url.substring(uploadIndex + 8); // +8 for '/upload/'
+        
+        // Remove version number if present (v1234567890/)
+        const versionMatch = publicId.match(/^v\d+\//);
+        if (versionMatch) {
+            publicId = publicId.substring(versionMatch[0].length);
+        }
+        
+        // Remove file extension
+        const lastDotIndex = publicId.lastIndexOf('.');
+        if (lastDotIndex !== -1) {
+            publicId = publicId.substring(0, lastDotIndex);
+        }
+        
+        return publicId;
+    } catch (error) {
+        console.error('Error extracting public ID:', error);
+        return null;
+    }
+};
+
+/**
+ * Delete file by URL
+ */
+const deleteFileByUrl = async (url) => {
+    if (!url || !url.includes('cloudinary')) {
+        console.log('⚠️ Not a Cloudinary URL, skipping delete');
+        return false;
+    }
+    
+    const publicId = extractPublicId(url);
+    if (!publicId) {
+        console.log('⚠️ Could not extract public ID from URL');
+        return false;
+    }
+    
+    try {
+        console.log(`🗑️ Deleting: ${publicId}`);
+        const result = await cloudinary.uploader.destroy(publicId);
+        
+        if (result.result === 'ok') {
+            console.log(`✅ Deleted successfully: ${publicId}`);
+            return true;
+        } else {
+            console.log(`⚠️ Delete result: ${result.result}`);
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Delete error:', error);
+        return false;
+    }
+};
+
+/**
+ * Upload single file to Cloudinary
  */
 const uploadToCloudinary = async (filePath, req, file, options = {}) => {
     try {
         const cloudinaryFolder = getCloudinaryFolderPath(req, file);
         
-        // Generate unique filename
+        // Get extension correctly
+        const originalName = file.originalname;
+        const extension = path.extname(originalName);
+        const baseName = path.basename(originalName, extension);
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const filename = `${file.fieldname}_${uniqueSuffix}${path.extname(file.originalname)}`;
+        const filename = `${file.fieldname}_${uniqueSuffix}${extension}`;
+        
+        console.log(`📤 Uploading: ${filename} to folder: ${cloudinaryFolder}`);
         
         const result = await cloudinary.uploader.upload(filePath, {
             folder: cloudinaryFolder,
@@ -111,28 +181,27 @@ const uploadToCloudinary = async (filePath, req, file, options = {}) => {
 };
 
 /**
- * Move Cloudinary file from pending/old folder to permanent user folder
- * @param {string} oldUrl - Current Cloudinary URL
- * @param {string} userId - User ID for new folder
- * @param {string} fieldname - Field name (business_permit, dti_sec_reg, etc.)
- * @returns {Promise<string>} - New Cloudinary URL
+ * Move Cloudinary file from folder to user folder
  */
 const moveToUserFolder = async (oldUrl, userId, fieldname) => {
     if (!oldUrl) return null;
     
     try {
-        // Extract public ID from old URL
-        const urlParts = oldUrl.split('/upload/');
-        const oldPublicId = urlParts[1].split('.')[0];
+        const oldPublicId = extractPublicId(oldUrl);
+        if (!oldPublicId) {
+            console.log(`⚠️ Could not extract public ID from: ${oldUrl}`);
+            return oldUrl;
+        }
         
         console.log(`📦 Moving ${fieldname}: ${oldPublicId} → user/${userId}`);
         
-        // Extract file extension
-        const extension = oldUrl.split('.').pop();
+        // Extract file extension from URL
+        const extensionMatch = oldUrl.match(/\.(png|jpg|jpeg|gif|webp)/i);
+        const extension = extensionMatch ? extensionMatch[0] : '.png';
         const timestamp = Date.now();
         
         // New public ID in user folder
-        const newPublicId = `coworking/uploads/requirements/${userId}/${fieldname}_${timestamp}.${extension}`;
+        const newPublicId = `coworking/uploads/requirements/${userId}/${fieldname}_${timestamp}${extension}`;
         
         // Re-upload to new location
         const result = await cloudinary.uploader.upload(oldUrl, {
@@ -143,10 +212,11 @@ const moveToUserFolder = async (oldUrl, userId, fieldname) => {
         // Delete old file
         await cloudinary.uploader.destroy(oldPublicId);
         
+        console.log(`✅ Moved to: ${result.secure_url}`);
         return result.secure_url;
     } catch (error) {
         console.error(`❌ Error moving ${fieldname}:`, error);
-        return oldUrl; // Keep old URL if move fails
+        return oldUrl;
     }
 };
 
@@ -159,7 +229,6 @@ const processUploadedFiles = async (req, res, next) => {
     }
     
     try {
-        // Handle single file upload
         if (req.file) {
             console.log(`📤 Processing single file: ${req.file.fieldname}`);
             const result = await uploadToCloudinary(req.file.path, req, req.file);
@@ -168,11 +237,9 @@ const processUploadedFiles = async (req, res, next) => {
             console.log(`✅ Uploaded to Cloudinary: ${result.secure_url}`);
         }
         
-        // Handle multiple files
         if (req.files) {
             req.cloudinaryUrls = {};
             
-            // Handle array of files (upload.array)
             if (Array.isArray(req.files)) {
                 const urls = [];
                 for (const file of req.files) {
@@ -182,7 +249,6 @@ const processUploadedFiles = async (req, res, next) => {
                 req.cloudinaryUrls = urls;
                 console.log(`✅ Uploaded ${urls.length} files to Cloudinary`);
             } 
-            // Handle object with fieldnames (upload.fields)
             else {
                 for (const fieldname in req.files) {
                     const files = req.files[fieldname];
@@ -209,7 +275,7 @@ const processUploadedFiles = async (req, res, next) => {
 };
 
 /**
- * Delete image from Cloudinary
+ * Delete image from Cloudinary by public ID
  */
 const deleteFromCloudinary = async (publicId) => {
     if (!publicId) return true;
@@ -228,15 +294,17 @@ const deleteFromCloudinary = async (publicId) => {
  */
 const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
-    return imagePath; // Cloudinary URLs are already full URLs
+    return imagePath;
 };
 
 module.exports = {
     uploadToCloudinary,
     deleteFromCloudinary,
+    deleteFileByUrl,
+    extractPublicId,
     getImageUrl,
     processUploadedFiles,
-    moveToUserFolder,  // Export the new function
+    moveToUserFolder,
     getTransformationForField,
     cloudinary
 };

@@ -295,7 +295,7 @@ const ProfileIndex = () => {
             {(user?.role === 'space' || user?.role === 'admin' || user?.role === 'staff') && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* QR Code Upload Section */}
-                    <Card className="bg-gradient-to-br from-[#0a0a0f] to-[#0d0d12] border-gray-800/50 shadow-xl overflow-hidden">
+                    <Card className="bg-linear-to-br from-[#0a0a0f] to-[#0d0d12] border-gray-800/50 shadow-xl overflow-hidden">
                         <CardHeader className="pb-3 border-b border-gray-800/50">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-indigo-500/10 rounded-xl">
@@ -316,15 +316,17 @@ const ProfileIndex = () => {
                             {paymentQR ? (
                                 <div className="space-y-4">
                                     <div className="relative group flex justify-center">
-                                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-indigo-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                        <div className="relative bg-white p-6 rounded-2xl shadow-2xl">
+                                        <div className="bg-white p-2 rounded-2xl shadow-2xl w-full max-w-md mx-auto">
                                             <img
-                                                src={paymentQR}  // Direct Cloudinary URL
+                                                src={paymentQR}
                                                 alt="Payment QR Code"
-                                                className="w-48 h-48 object-contain"
+                                                className="w-full h-auto object-contain cursor-pointer"
                                                 onError={(e) => {
                                                     console.error('Failed to load QR image:', paymentQR);
                                                     e.target.src = '/placeholder-qr.png';
+                                                }}
+                                                onClick={() => {
+                                                    window.open(paymentQR, '_blank');
                                                 }}
                                             />
                                         </div>
@@ -333,33 +335,33 @@ const ProfileIndex = () => {
                                         <Button
                                             onClick={() => document.getElementById('qrUpload').click()}
                                             disabled={qrUploading}
-                                            variant="outline"
-                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
-
+                                            className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-sm px-6 py-3"
                                         >
-                                            {qrUploading ? <Loader2 className="animate-spin mr-2" size={14} /> : <Upload size={14} className="mr-2" />}
+                                            {qrUploading ? <Loader2 className="animate-spin mr-2" size={16} /> : <Upload size={16} className="mr-2" />}
                                             Change QR Code
                                         </Button>
                                     </div>
+                                    <p className="text-center text-[10px] text-gray-500">
+                                        Click QR code to view full size
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="text-center py-8">
                                     <div className="relative max-w-md mx-auto">
-                                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-indigo-500/10 rounded-2xl blur-xl"></div>
+                                        <div className="absolute inset-0 bg-linear-to-r from-emerald-500/10 to-indigo-500/10 rounded-2xl blur-xl"></div>
                                         <div className="relative border-2 border-dashed border-gray-700 rounded-2xl p-8 bg-[#1a1a1f]/30">
-                                            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-500/10 to-indigo-500/10 rounded-2xl flex items-center justify-center mb-4">
-                                                <QrCode size={40} className="text-gray-600" />
+                                            <div className="w-24 h-24 mx-auto bg-linear-to-br from-emerald-500/10 to-indigo-500/10 rounded-2xl flex items-center justify-center mb-4">
+                                                <QrCode size={48} className="text-gray-600" />
                                             </div>
-                                            <p className="text-sm font-medium text-gray-400 mb-1">No QR Code Uploaded</p>
-                                            <p className="text-[10px] text-gray-600 mb-4">Upload a QR code for customers to scan and pay</p>
+                                            <p className="text-base font-medium text-gray-400 mb-2">No QR Code Uploaded</p>
+                                            <p className="text-xs text-gray-600 mb-6">Upload a QR code for customers to scan and pay</p>
                                             <div className="flex justify-center">
                                                 <Button
                                                     onClick={() => document.getElementById('qrUpload').click()}
                                                     disabled={qrUploading}
-                                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
-
+                                                    className="bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl font-bold text-sm px-6 py-3"
                                                 >
-                                                    {qrUploading ? <Loader2 className="animate-spin mr-2" size={14} /> : <Upload size={14} className="mr-2" />}
+                                                    {qrUploading ? <Loader2 className="animate-spin mr-2" size={16} /> : <Upload size={16} className="mr-2" />}
                                                     Upload QR Code
                                                 </Button>
                                             </div>
@@ -375,13 +377,13 @@ const ProfileIndex = () => {
                                 className="hidden"
                             />
                             <div className="mt-4 text-center">
-                                <p className="text-[9px] text-gray-500">Formats: JPG, PNG, GIF | Max size: 5MB</p>
+                                <p className="text-[10px] text-gray-500">Formats: JPG, PNG, GIF | Max size: 5MB</p>
                             </div>
                         </CardContent>
                     </Card>
 
                     {/* Payment Methods Section */}
-                    <Card className="bg-gradient-to-br from-[#0a0a0f] to-[#0d0d12] border-gray-800/50 shadow-xl overflow-hidden">
+                    <Card className="bg-linear-to-br from-[#0a0a0f] to-[#0d0d12] border-gray-800/50 shadow-xl overflow-hidden">
                         <CardHeader className="pb-3 border-b border-gray-800/50">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -416,7 +418,7 @@ const ProfileIndex = () => {
                                         {paymentMethods.map((method) => (
                                             <div
                                                 key={method}
-                                                className="group relative bg-gradient-to-r from-[#1a1a1f] to-[#15151a] border border-gray-800/50 rounded-xl p-3 hover:border-emerald-500/30 transition-all duration-300 hover:scale-[1.02]"
+                                                className="group relative bg-linear-to-r from-[#1a1a1f] to-[#15151a] border border-gray-800/50 rounded-xl p-3 hover:border-emerald-500/30 transition-all duration-300 hover:scale-[1.02]"
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
@@ -488,7 +490,7 @@ const ProfileIndex = () => {
                                     <Button
                                         onClick={handleAddPaymentMethod}
                                         disabled={!newPaymentMethod || saving}
-                                        className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg hover:shadow-emerald-500/25 transition-all duration-300 h-11 px-6 rounded-xl font-bold text-xs tracking-wide"
+                                        className="bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg hover:shadow-emerald-500/25 transition-all duration-300 h-11 px-6 rounded-xl font-bold text-xs tracking-wide"
                                     >
                                         {saving ? (
                                             <Loader2 size={14} className="mr-2 animate-spin" />

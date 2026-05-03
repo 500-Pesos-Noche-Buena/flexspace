@@ -2,6 +2,7 @@ const { User } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const { hashPassword, comparePassword } = require('@/api/v1/utils/hash');
+const { deleteFileByUrl } = require('@/api/v1/utils/cloudinary');
 
 class ProfileController {
     getProfile = async (req, res, next) => {
@@ -74,44 +75,49 @@ class ProfileController {
         }
     };
 
-    updatePaymentQR = async (req, res, next) => {
-        try {
-            console.log('📸 updatePaymentQR called');
-            
-            const userId = req.user?.sub || req.user?._id;
-            
-            if (!req.file) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "QR code image is required");
-            }
-
-            const user = await User.findById(userId);
-            if (!user) {
-                throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
-            }
-
-            // Get Cloudinary URL from middleware
-            const qrUrl = req.cloudinaryUrl;
-            
-            if (!qrUrl) {
-                throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Failed to upload QR code");
-            }
-            
-            // Save to database
-            user.business_payment_qr = qrUrl;
-            await user.save();
-
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                message: "Payment QR code updated successfully",
-                data: {
-                    business_payment_qr: qrUrl
-                }
-            });
-        } catch (error) {
-            console.error('QR Update Error:', error.message);
-            next(error);
+  updatePaymentQR = async (req, res, next) => {
+    try {
+        console.log('📸 updatePaymentQR called');
+        
+        const userId = req.user?.sub || req.user?._id;
+        
+        if (!req.file) {
+            throw new ApiError(HTTP_STATUS.BAD_REQUEST, "QR code image is required");
         }
-    };
+
+        const user = await User.findById(userId);
+        if (!user) {
+            throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+        }
+
+        // 🔥 DELETE OLD QR CODE
+        if (user.business_payment_qr) {
+            await deleteFileByUrl(user.business_payment_qr);
+        }
+
+        // Get Cloudinary URL from middleware
+        const qrUrl = req.cloudinaryUrl;
+        
+        if (!qrUrl) {
+            throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Failed to upload QR code");
+        }
+        
+        // Save to database
+        user.business_payment_qr = qrUrl;
+        await user.save();
+
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            message: "Payment QR code updated successfully",
+            data: {
+                business_payment_qr: qrUrl
+            }
+        });
+    } catch (error) {
+        console.error('QR Update Error:', error.message);
+        next(error);
+    }
+};
 
     updatePaymentMethods = async (req, res, next) => {
         try {
