@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from "@/lib/utils";
+import { getSpaceImage } from '@/utils/imageHelper';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -150,20 +151,20 @@ const MySpaces = () => {
         }
     };
 
-    const handleRemoveSingleImage = async (imageName) => {
+    const handleRemoveSingleImage = async (imageUrl) => {
         setOpenImageModal(false);
         
         setTimeout(async () => {
             if (await showConfirm("Remove this image?", "This action cannot be undone.")) {
                 try {
-                    const res = await apiPost(`/space/spaces/${selectedSpace._id}/remove-image`, { image: imageName });
+                    const res = await apiPost(`/space/spaces/${selectedSpace._id}/remove-image`, { image: imageUrl });
                     if (res.success) {
                         showToast({ icon: 'success', title: 'Image removed' });
                         fetchInitialData();
                         setSelectedSpace(prev => ({
                             ...prev,
-                            images: prev.images.filter(img => img !== imageName),
-                            image: prev.image === imageName ? (prev.images[0] || null) : prev.image
+                            images: prev.images.filter(img => img !== imageUrl),
+                            image: prev.image === imageUrl ? (prev.images[0] || null) : prev.image
                         }));
                     }
                 } catch {
@@ -174,15 +175,15 @@ const MySpaces = () => {
         }, 100);
     };
 
-    const handleSetPrimaryImage = async (imageName) => {
+    const handleSetPrimaryImage = async (imageUrl) => {
         try {
-            const res = await apiPost(`/space/spaces/${selectedSpace._id}/set-primary`, { image: imageName });
+            const res = await apiPost(`/space/spaces/${selectedSpace._id}/set-primary`, { image: imageUrl });
             if (res.success) {
                 showToast({ icon: 'success', title: 'Primary image updated' });
                 fetchInitialData();
                 setSelectedSpace(prev => ({
                     ...prev,
-                    image: imageName
+                    image: imageUrl
                 }));
             }
         } catch {
@@ -257,16 +258,20 @@ const MySpaces = () => {
     };
 
     const renderImageGallery = (space) => {
-        const images = space.images && space.images.length > 0 ? space.images : [space.image];
+        const images = space.images && space.images.length > 0 ? space.images : (space.image ? [space.image] : []);
         const primaryImage = space.image || (images[0]);
 
         return (
             <div className="relative h-56 bg-white/5 overflow-hidden cursor-pointer" onClick={() => handleOpenImageManager(space)}>
                 {primaryImage ? (
                     <img
-                        src={`${API_URL}/uploads/spaces/${space.user_id}/${primaryImage}`}
+                        src={getSpaceImage(space)}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         alt={space.name}
+                        onError={(e) => {
+                            console.error('Failed to load image:', primaryImage);
+                            e.target.src = '/placeholders/space.jpg';
+                        }}
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-800">
@@ -428,7 +433,12 @@ const MySpaces = () => {
                             <div className="grid grid-cols-4 gap-2">
                                 {selectedSpace.images.map((img, idx) => (
                                     <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10 group">
-                                        <img src={`${API_URL}/uploads/spaces/${selectedSpace.user_id}/${img}`} className="w-full h-full object-cover" alt={`Image ${idx + 1}`} />
+                                        <img 
+                                            src={getSpaceImage({ ...selectedSpace, image: img })} 
+                                            className="w-full h-full object-cover" 
+                                            alt={`Image ${idx + 1}`}
+                                            onError={(e) => e.target.src = '/placeholders/space.jpg'}
+                                        />
                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
                                             <button
                                                 type="button"
@@ -624,9 +634,10 @@ const MySpaces = () => {
                                 {formData.images.map((img, idx) => (
                                     <div key={idx} className="relative aspect-video rounded-lg overflow-hidden bg-white/5 border border-white/10 group/image">
                                         <img
-                                            src={img instanceof File ? URL.createObjectURL(img) : `${API_URL}/uploads/spaces/${selectedSpace?.user_id}/${img}`}
+                                            src={img instanceof File ? URL.createObjectURL(img) : getSpaceImage({ ...selectedSpace, image: img })}
                                             className="w-full h-full object-cover"
                                             alt={`Preview ${idx + 1}`}
+                                            onError={(e) => e.target.src = '/placeholders/space.jpg'}
                                         />
                                         <button
                                             type="button"
@@ -649,7 +660,12 @@ const MySpaces = () => {
                             <div className="grid grid-cols-3 gap-2 mt-3">
                                 {selectedSpace.images.map((img, idx) => (
                                     <div key={idx} className="relative aspect-video rounded-lg overflow-hidden bg-white/5 border border-white/10">
-                                        <img src={`${API_URL}/uploads/spaces/${selectedSpace.user_id}/${img}`} className="w-full h-full object-cover" alt={`Existing ${idx + 1}`} />
+                                        <img 
+                                            src={getSpaceImage({ ...selectedSpace, image: img })} 
+                                            className="w-full h-full object-cover" 
+                                            alt={`Existing ${idx + 1}`}
+                                            onError={(e) => e.target.src = '/placeholders/space.jpg'}
+                                        />
                                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                                             <span className="text-white text-[8px] font-black">Existing</span>
                                         </div>

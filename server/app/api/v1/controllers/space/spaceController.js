@@ -1,14 +1,8 @@
 const { Space, User } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
-const fs = require('fs');
-const path = require('path');
 
 class SpaceController {
-    getUploadPath = (userId, filename) => {
-        return path.join(process.cwd(), 'server/public/uploads/spaces', userId, filename);
-    };
-
     getUserId = (req) => {
         return req.user?.id || req.user?._id || req.user?.sub;
     };
@@ -48,15 +42,15 @@ class SpaceController {
 
             const {
                 name, area, rate_hour, capacity, status,
-                lat, lng, district_id, available_rooms, amenities
+                lat, lng, district_id, available_rooms, amenities, description, hours_json
             } = req.body;
 
-            // Handle multiple images - files are already in user-specific folder
-            let imageFilenames = [];
-            if (req.files && req.files.length > 0) {
-                imageFilenames = req.files.slice(0, 10).map(file => file.filename);
-            } else if (req.file) {
-                imageFilenames = [req.file.filename];
+            // Get Cloudinary URLs from middleware
+            let imageUrls = [];
+            if (req.cloudinaryUrls) {
+                imageUrls = Array.isArray(req.cloudinaryUrls) 
+                    ? req.cloudinaryUrls 
+                    : req.cloudinaryUrls.images || [];
             }
 
             const spaceData = {
@@ -71,8 +65,10 @@ class SpaceController {
                 district_id: district_id || null,
                 available_rooms: available_rooms || null,
                 occupied_seats: 0,
-                images: imageFilenames,
-                image: imageFilenames[0] || null,
+                description: description || null,
+                hours_json: hours_json ? (typeof hours_json === 'string' ? JSON.parse(hours_json) : hours_json) : null,
+                images: imageUrls,
+                image: imageUrls[0] || null,
                 amenities: amenities ? (typeof amenities === 'string' ? JSON.parse(amenities) : amenities) : []
             };
 
@@ -84,17 +80,7 @@ class SpaceController {
                 data: space
             });
         } catch (error) {
-            // Clean up uploaded files if creation fails
-            const userId = this.getUserId(req);
-            if (req.files && req.files.length > 0) {
-                for (const file of req.files) {
-                    const filePath = this.getUploadPath(userId, file.filename);
-                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-                }
-            } else if (req.file) {
-                const filePath = this.getUploadPath(userId, req.file.filename);
-                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-            }
+            console.error('Store error:', error);
             next(error);
         }
     };
@@ -109,9 +95,20 @@ class SpaceController {
 
             const updates = { ...req.body };
 
+            // Remove fields that shouldn't be updated directly
+            delete updates._id;
+            delete updates.__v;
+            delete updates.created_at;
+            delete updates.updated_at;
+
             // Handle amenities
             if (updates.amenities && typeof updates.amenities === 'string') {
                 updates.amenities = JSON.parse(updates.amenities);
+            }
+
+            // Handle hours_json
+            if (updates.hours_json && typeof updates.hours_json === 'string') {
+                updates.hours_json = JSON.parse(updates.hours_json);
             }
 
             // Handle district_id
@@ -129,21 +126,24 @@ class SpaceController {
             if (updates.lat) updates.lat = Number(updates.lat);
             if (updates.lng) updates.lng = Number(updates.lng);
 
-            // Handle multiple image uploads
-            if (req.files && req.files.length > 0) {
-                // Delete old images from user folder
-                if (space.images && space.images.length > 0) {
-                    for (const oldImage of space.images) {
-                        const oldPath = this.getUploadPath(userId, oldImage);
-                        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            // Handle new image uploads from Cloudinary
+            if (req.cloudinaryUrls) {
+                const newImages = Array.isArray(req.cloudinaryUrls) 
+                    ? req.cloudinaryUrls 
+                    : req.cloudinaryUrls.images || [];
+                
+                if (newImages.length > 0) {
+                    updates.images = [...(space.images || []), ...newImages].slice(0, 10);
+                    if (!updates.image && updates.images.length > 0) {
+                        updates.image = updates.images[0];
                     }
                 }
-                const newImages = req.files.slice(0, 10).map(file => file.filename);
-                updates.images = newImages;
-                updates.image = newImages[0];
             }
 
-            const updatedSpace = await Space.findByIdAndUpdate(id, updates, { new: true });
+            const updatedSpace = await Space.findByIdAndUpdate(id, updates, { 
+                new: true,
+                runValidators: true
+            });
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
@@ -151,14 +151,7 @@ class SpaceController {
                 data: updatedSpace
             });
         } catch (error) {
-            // Clean up uploaded files if update fails
-            const userId = this.getUserId(req);
-            if (req.files && req.files.length > 0) {
-                for (const file of req.files) {
-                    const filePath = this.getUploadPath(userId, file.filename);
-                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-                }
-            }
+            console.error('Update error:', error);
             next(error);
         }
     };
@@ -171,24 +164,17 @@ class SpaceController {
             const space = await Space.findOne({ _id: id, user_id: userId });
             if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found.');
 
-            // Delete all images from user folder
-            const allImages = [...(space.images || []), space.image].filter(Boolean);
-            for (const image of allImages) {
-                const imgPath = this.getUploadPath(userId, image);
-                if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
-            }
-
             await Space.findByIdAndDelete(id);
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
-                message: 'Space and images removed.'
+                message: 'Space removed.'
             });
         } catch (error) {
+            console.error('Delete error:', error);
             next(error);
         }
     };
-
 
     addImages = async (req, res, next) => {
         try {
@@ -198,17 +184,40 @@ class SpaceController {
             const space = await Space.findOne({ _id: id, user_id: userId });
             if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
 
-            const newImages = req.files.map(file => file.filename);
-            const updatedImages = [...(space.images || []), ...newImages].slice(0, 10);
-
-            space.images = updatedImages;
-            if (!space.image && updatedImages.length > 0) {
-                space.image = updatedImages[0];
+            // Get Cloudinary URLs from middleware
+            let newImages = [];
+            if (req.cloudinaryUrls) {
+                newImages = Array.isArray(req.cloudinaryUrls) 
+                    ? req.cloudinaryUrls 
+                    : req.cloudinaryUrls.images || [];
             }
-            await space.save();
 
-            return res.status(HTTP_STATUS.OK).json({ success: true, message: 'Images added', images: space.images });
+            if (newImages.length === 0) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No images to add');
+            }
+
+            // Update images array
+            const updatedImages = [...(space.images || []), ...newImages].slice(0, 10);
+            
+            // Use findByIdAndUpdate to avoid version issues
+            const updatedSpace = await Space.findByIdAndUpdate(
+                id,
+                {
+                    $set: {
+                        images: updatedImages,
+                        image: space.image || updatedImages[0]
+                    }
+                },
+                { new: true, runValidators: false }
+            );
+
+            return res.status(HTTP_STATUS.OK).json({ 
+                success: true, 
+                message: `${newImages.length} image(s) added`, 
+                images: updatedSpace.images 
+            });
         } catch (error) {
+            console.error('Add images error:', error);
             next(error);
         }
     };
@@ -219,25 +228,41 @@ class SpaceController {
             const { id } = req.params;
             const { image } = req.body;
 
+            if (!image) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Image URL is required');
+            }
+
             const space = await Space.findOne({ _id: id, user_id: userId });
             if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
 
             // Remove from array
-            space.images = space.images.filter(img => img !== image);
-
-            // If removed image was primary, set new primary
+            const updatedImages = space.images.filter(img => img !== image);
+            
+            // Determine new primary image
+            let newPrimaryImage = space.image;
             if (space.image === image) {
-                space.image = space.images[0] || null;
+                newPrimaryImage = updatedImages[0] || null;
             }
 
-            await space.save();
+            // Use findByIdAndUpdate to avoid version issues
+            const updatedSpace = await Space.findByIdAndUpdate(
+                id,
+                {
+                    $set: {
+                        images: updatedImages,
+                        image: newPrimaryImage
+                    }
+                },
+                { new: true, runValidators: false }
+            );
 
-            // Delete file from disk
-            const filePath = this.getUploadPath(userId, image);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-
-            return res.status(HTTP_STATUS.OK).json({ success: true, message: 'Image removed' });
+            return res.status(HTTP_STATUS.OK).json({ 
+                success: true, 
+                message: 'Image removed',
+                images: updatedSpace.images
+            });
         } catch (error) {
+            console.error('Remove image error:', error);
             next(error);
         }
     };
@@ -248,6 +273,10 @@ class SpaceController {
             const { id } = req.params;
             const { image } = req.body;
 
+            if (!image) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Image URL is required');
+            }
+
             const space = await Space.findOne({ _id: id, user_id: userId });
             if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
 
@@ -255,11 +284,20 @@ class SpaceController {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Image not found in space gallery');
             }
 
-            space.image = image;
-            await space.save();
+            // Use findByIdAndUpdate to avoid version issues
+            const updatedSpace = await Space.findByIdAndUpdate(
+                id,
+                { $set: { image: image } },
+                { new: true, runValidators: false }
+            );
 
-            return res.status(HTTP_STATUS.OK).json({ success: true, message: 'Primary image updated' });
+            return res.status(HTTP_STATUS.OK).json({ 
+                success: true, 
+                message: 'Primary image updated',
+                image: updatedSpace.image
+            });
         } catch (error) {
+            console.error('Set primary image error:', error);
             next(error);
         }
     };

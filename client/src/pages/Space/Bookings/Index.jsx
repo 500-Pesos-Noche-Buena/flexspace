@@ -116,6 +116,25 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
     const [appliedVoucher, setAppliedVoucher] = useState(null);
     const [currentTotal, setCurrentTotal] = useState(liveTotalAmount || 0);
 
+    // Get QR code from multiple possible paths
+    const qrPaymentImage = 
+        booking?.space_id?.user_id?.business_payment_qr ||  // Space owner's QR
+        booking?.space_id?.business_payment_qr ||           // Direct space QR
+        booking?.business_payment_qr ||                     // Booking's own QR
+        null;
+
+    // Debug log to see what's available
+    useEffect(() => {
+        console.log('🔍 PaymentPanel - Debug QR paths:', {
+            'booking?.space_id?.user_id?.business_payment_qr': booking?.space_id?.user_id?.business_payment_qr,
+            'booking?.space_id?.business_payment_qr': booking?.space_id?.business_payment_qr,
+            'booking?.business_payment_qr': booking?.business_payment_qr,
+            'Full booking object': booking,
+            'Space ID': booking?.space_id,
+            'User ID within space': booking?.space_id?.user_id
+        });
+    }, [booking]);
+
     // Update current total when liveTotalAmount changes
     useEffect(() => {
         if (liveTotalAmount > 0) {
@@ -126,7 +145,6 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
     const numericReceived = parseFloat(received) || 0;
     const change = numericReceived - currentTotal;
     const cashValid = numericReceived >= currentTotal;
-    const qrPaymentImage = booking?.space_id?.qr_payment_image;
 
     // Check if voucher was already applied to this booking
     const hasExistingVoucher = booking?.voucher_discount > 0;
@@ -154,13 +172,11 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                     code: voucherCode.trim().toUpperCase(),
                     discount: res.data.discount_amount
                 });
-                // Update current total with discounted amount
                 setCurrentTotal(res.data.total_amount);
                 showToast({
                     icon: 'success',
                     title: `Voucher applied! Save ₱${res.data.discount_amount}`
                 });
-                // Refresh the booking to update total amount
                 if (onApplyVoucher) onApplyVoucher(res.data.booking);
             }
         } catch (err) {
@@ -173,8 +189,15 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
     const handleRemoveVoucher = () => {
         setAppliedVoucher(null);
         setVoucherDiscount(0);
-        setCurrentTotal(liveTotalAmount); // Reset to original live amount
+        setCurrentTotal(liveTotalAmount);
         setVoucherCode('');
+    };
+
+    // Construct full image URL
+    const getFullImageUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith('http')) return path;
+        return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${path}`;
     };
 
     return (
@@ -337,17 +360,23 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                 </div>
             )}
 
-            {/* QR / GCash */}
+            {/* QR / GCash - Fixed version */}
             {method === 'qr' && (
                 <div className="px-4 pb-4 text-center">
                     {qrPaymentImage ? (
                         <>
-                            <div className="bg-white p-3 rounded-2xl inline-block mb-3 shadow-xl">
-                                <img
-                                    src={qrPaymentImage}
-                                    alt="QR Payment"
-                                    className="w-44 h-44 object-contain"
-                                />
+                            <div className="flex justify-center mb-3">
+                                <div className="bg-white p-4 rounded-2xl shadow-xl">
+                                    <img
+                                        src={getFullImageUrl(qrPaymentImage)}
+                                        alt="Payment QR Code"
+                                        className="w-48 h-48 object-contain"
+                                        onError={(e) => {
+                                            console.error('QR failed to load:', qrPaymentImage);
+                                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Crect x="3" y="3" width="18" height="18" rx="2" ry="2"%3E%3C/rect%3E%3Cline x1="3" y1="9" x2="21" y2="9"%3E%3C/line%3E%3Cline x1="9" y1="21" x2="9" y2="15"%3E%3C/line%3E%3C/svg%3E';
+                                        }}
+                                    />
+                                </div>
                             </div>
                             <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest mb-1">
                                 Customer scans to pay
@@ -355,16 +384,32 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                             <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
                                 GCash / QRPh / Maya
                             </p>
+                            <div className="mt-2 p-2 bg-blue-500/10 rounded-lg">
+                                <p className="text-[8px] text-blue-400 font-mono">
+                                    Amount: ₱{(hasExistingVoucher ? currentTotal : finalTotal).toFixed(2)}
+                                </p>
+                            </div>
                         </>
                     ) : (
                         <div className="py-6">
-                            <QrCode size={32} className="mx-auto mb-2 text-slate-700" />
+                            <div className="w-20 h-20 mx-auto bg-slate-800 rounded-2xl flex items-center justify-center mb-3">
+                                <QrCode size={40} className="text-slate-600" />
+                            </div>
                             <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest">
-                                No QR image set for this space.
+                                No QR code available
                             </p>
-                            <p className="text-[9px] text-slate-700 mt-1">
-                                Add one in Space settings.
+                            <p className="text-[8px] text-slate-700 mt-1">
+                                Please contact the space owner
                             </p>
+                            <button
+                                onClick={() => {
+                                    // Optional: Refresh booking data
+                                    if (onApplyVoucher) onApplyVoucher(booking);
+                                }}
+                                className="mt-3 px-3 py-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg text-[8px] font-black uppercase"
+                            >
+                                Refresh
+                            </button>
                         </div>
                     )}
                 </div>

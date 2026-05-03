@@ -20,58 +20,67 @@ class BookingController {
     };
 
     index = async (req, res, next) => {
-        try {
-            // Use the helper to get the parent ID if staff
-            const ownerId = await this.getOwnerId(req);
-            const { search = '', status = '', type = 'all', page = 1, limit = 10 } = req.query;
+    try {
+        // Use the helper to get the parent ID if staff
+        const ownerId = await this.getOwnerId(req);
+        const { search = '', status = '', type = 'all', page = 1, limit = 10 } = req.query;
 
-            // Find spaces belonging to the parent owner
-            const userSpaces = await Space.find({ user_id: ownerId }).select('_id');
-            const spaceIds = userSpaces.map(s => s._id);
+        // Find spaces belonging to the parent owner
+        const userSpaces = await Space.find({ user_id: ownerId }).select('_id');
+        const spaceIds = userSpaces.map(s => s._id);
 
-            let query = { space_id: { $in: spaceIds } };
-            if (status) query.status = status;
-            if (type !== 'all') query.booking_type = type;
-            if (search) {
-                query.$or = [
-                    { ticket_number: { $regex: search, $options: 'i' } },
-                    { guest_name: { $regex: search, $options: 'i' } }
-                ];
-            }
+        let query = { space_id: { $in: spaceIds } };
+        if (status) query.status = status;
+        if (type !== 'all') query.booking_type = type;
+        if (search) {
+            query.$or = [
+                { ticket_number: { $regex: search, $options: 'i' } },
+                { guest_name: { $regex: search, $options: 'i' } }
+            ];
+        }
 
-            const bookings = await Booking.find(query)
-                .populate('space_id', 'name rate_hour qr_payment_image')
-                .populate('user_id', 'name email')
-                .sort({ created_at: -1 })
-                .limit(limit * 1).skip((page - 1) * limit);
+        const bookings = await Booking.find(query)
+            .populate({
+                path: 'space_id',
+                select: 'name rate_hour qr_payment_image user_id',
+                populate: {
+                    path: 'user_id',
+                    select: 'name email business_payment_qr payment_methods'  // This gets the QR from user
+                }
+            })
+            .populate('user_id', 'name email')
+            .sort({ created_at: -1 })
+            .limit(limit * 1).skip((page - 1) * limit);
 
-            const total = await Booking.countDocuments(query);
+        const total = await Booking.countDocuments(query);
 
-            // Stats logic remains focused on the parent's spaces
-            const stats = {
-                total,
-                pending: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'pending' }),
-                active: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'active' }),
-                online: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'online' }),
-                walkin: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'walkin' }),
-                revenue: (await Booking.aggregate([
-                    {
-                        $match: {
-                            space_id: { $in: spaceIds },
-                            status: 'completed',
-                            updated_at: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-                        }
-                    },
-                    { $group: { _id: null, total: { $sum: "$total_amount" } } }
-                ]))[0]?.total || 0
-            };
+        // Stats logic remains focused on the parent's spaces
+        const stats = {
+            total,
+            pending: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'pending' }),
+            active: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'active' }),
+            online: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'online' }),
+            walkin: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'walkin' }),
+            revenue: (await Booking.aggregate([
+                {
+                    $match: {
+                        space_id: { $in: spaceIds },
+                        status: 'completed',
+                        updated_at: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+                    }
+                },
+                { $group: { _id: null, total: { $sum: "$total_amount" } } }
+            ]))[0]?.total || 0
+        };
 
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: { bookings, total, stats }
-            });
-        } catch (error) { next(error); }
-    };
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            data: { bookings, total, stats }
+        });
+    } catch (error) { 
+        next(error); 
+    }
+};
 
     updateStatus = async (req, res, next) => {
         try {

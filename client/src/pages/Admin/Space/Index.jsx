@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import MapExplorer from '@/pages/Landing/MapExplorer';
 import { cn } from "@/lib/utils";
+import { getSpaceImage } from '@/utils/imageHelper';
 
 const SpaceManagement = () => {
     const [spaces, setSpaces] = useState([]);
@@ -38,7 +39,6 @@ const SpaceManagement = () => {
                 setStats(fetchedStats);
             }
         } catch {
-            // Fix: Removed unused 'err'
             if (isInitial) showToast({ icon: 'error', title: 'Failed to load hubs' });
         } finally {
             if (isInitial) setLoading(false);
@@ -63,7 +63,12 @@ const SpaceManagement = () => {
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
                         {space.image ? (
-                            <img src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${space.user_id?._id || space.user_id}/${space.image}`} className="w-full h-full object-cover" alt={space.name} />
+                            <img 
+                                src={getSpaceImage(space)} 
+                                className="w-full h-full object-cover" 
+                                alt={space.name}
+                                onError={(e) => e.target.src = '/placeholders/space.jpg'}
+                            />
                         ) : <Building2 className="text-indigo-500" size={18} />}
                     </div>
                     <div>
@@ -154,10 +159,10 @@ const SpaceManagement = () => {
                         <div className="flex items-center gap-4">
                             <div className="relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden border border-white/10">
                                 <img
-                                    src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${space.user_id?._id || space.user_id}/${space.image}`}
+                                    src={getSpaceImage(space)}
                                     className="w-full h-full object-cover"
                                     alt={space.name}
-                                    onError={(e) => { e.target.src = '/placeholder.jpg'; }}
+                                    onError={(e) => { e.target.src = '/placeholders/space.jpg'; }}
                                 />
                                 <div className="absolute top-0 right-0 bg-indigo-600 px-1.5 py-0.5 rounded-bl-lg text-[7px] font-black text-white">
                                     ₱{space.rate_hour}
@@ -171,7 +176,7 @@ const SpaceManagement = () => {
                                     {space.district_id?.name || 'Unknown District'}
                                 </p>
                                 <div className="flex items-center gap-2 mt-2">
-                                    <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-md ${space.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                    <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-md ${space.status === 'Open Now' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
                                         {space.status}
                                     </span>
                                     <span className="text-[7px] font-black text-slate-600 uppercase">
@@ -208,10 +213,10 @@ const SpaceManagement = () => {
                             <div className="flex items-center gap-4">
                                 <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/10">
                                     <img
-                                        src={`${import.meta.env.VITE_API_URL}/uploads/spaces/${selectedSpace.user_id?._id || selectedSpace.user_id}/${selectedSpace.image}`}
+                                        src={getSpaceImage(selectedSpace)}
                                         className="w-full h-full object-cover"
                                         alt={selectedSpace.name}
-                                        onError={(e) => { e.target.src = '/placeholder.jpg'; }}
+                                        onError={(e) => { e.target.src = '/placeholders/space.jpg'; }}
                                     />
                                 </div>
                                 <div>

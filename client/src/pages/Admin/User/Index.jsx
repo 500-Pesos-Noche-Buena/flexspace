@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from "@/lib/utils";
+import { getImageUrl } from '@/utils/imageHelper';
 
 // Maintained global polling instance as requested
 let globalPollingInstance = null;
@@ -25,13 +26,24 @@ const UserManagement = () => {
     const paramsRef = useRef(currentParams);
     const lastDataFingerprint = useRef("");
 
-    const getDocumentUrl = (owner, fileName) => {
-        if (!fileName) return null;
-
-        const folderId = owner.space_request_id || owner._id;
-        
-        return `${import.meta.env.VITE_API_URL}/uploads/requirements/${folderId}/${fileName}`;
-    };
+   const getDocumentUrl = (owner, fileName) => {
+    console.log('fileName:', fileName);
+    console.log('startsWith http:', fileName?.startsWith('http'));
+    
+    if (!fileName) return null;
+    
+    // If it's already a Cloudinary URL, return as is
+    if (fileName.startsWith('http://') || fileName.startsWith('https://')) {
+        console.log('Returning Cloudinary URL:', fileName);
+        return fileName;
+    }
+    
+    // For backward compatibility (old local paths - will likely 404)
+    const folderId = owner.space_request_id || owner._id;
+    const localUrl = `${import.meta.env.VITE_API_URL}/uploads/requirements/${folderId}/${fileName}`;
+    console.log('Returning local URL:', localUrl);
+    return localUrl;
+};
 
     useEffect(() => {
         paramsRef.current = { ...currentParams, role: userRole };
@@ -130,6 +142,10 @@ const UserManagement = () => {
 
     const viewDocument = (docUrl, docName) => {
         setPreviewDoc({ url: docUrl, name: docName });
+    };
+
+    const isImageFile = (url) => {
+        return url && /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
     };
 
     const columns = [
@@ -343,33 +359,33 @@ const UserManagement = () => {
                 variant="dark"
             >
                 {previewDoc && (
-                    <div className="w-full">
-                        {previewDoc.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                            <img
-                                src={previewDoc.url}
-                                alt={previewDoc.name}
-                                className="w-full max-h-[70vh] object-contain rounded-lg"
-                                onError={(e) => {
-                                    e.target.src = '/placeholder-image.jpg';
-                                }}
-                            />
-                        ) : (
-                            <iframe
-                                src={previewDoc.url}
-                                className="w-full h-[70vh] rounded-lg bg-white"
-                                title={previewDoc.name}
-                            />
-                        )}
-                        <div className="mt-4 text-center">
-                            <button
-                                onClick={() => window.open(previewDoc.url, '_blank')}
-                                className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors"
-                            >
-                                Open in new window →
-                            </button>
-                        </div>
-                    </div>
-                )}
+    <div className="w-full">
+        {isImageFile(previewDoc.url) ? (
+            <img
+                src={getImageUrl(previewDoc.url, 'document')}
+                alt={previewDoc.name}
+                className="w-full max-h-[70vh] object-contain rounded-lg"
+                onError={(e) => {
+                    e.target.src = '/placeholders/document.jpg';
+                }}
+            />
+        ) : (
+            <iframe
+                src={previewDoc.url}
+                className="w-full h-[70vh] rounded-lg bg-white"
+                title={previewDoc.name}
+            />
+        )}
+        <div className="mt-4 text-center">
+            <button
+                onClick={() => window.open(previewDoc.url, '_blank')}
+                className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors"
+            >
+                Open in new window →
+            </button>
+        </div>
+    </div>
+)}
             </Modal>
 
             {/* Edit Account Modal */}

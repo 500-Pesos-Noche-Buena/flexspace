@@ -6,6 +6,7 @@ import {
     CheckCircle2, List, Map as MapIcon, Loader2, 
     Search, SlidersHorizontal, X, Target 
 } from 'lucide-react';
+import { getSpaceImage } from '@/utils/imageHelper';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const DEFAULT_LAT = 10.7202;
@@ -218,10 +219,10 @@ const ExplorerView = () => {
                                     >
                                         <div className="aspect-4/3 relative bg-slate-100 overflow-hidden">
                                             <img 
-                                                src={s.image ? `${API_BASE_URL}/uploads/spaces/${s.user_id}/${s.image}` : '/placeholder.jpg'} 
+                                                src={getSpaceImage(s)}
                                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                                 alt={s.name}
-                                                onError={e => { e.target.src = '/placeholder.jpg'; }}
+                                                onError={e => { e.target.src = '/placeholders/space.jpg'; }}
                                             />
                                             <div className="absolute top-2 right-2 bg-slate-900 text-white px-2 py-1 rounded-lg text-[8px] font-black">
                                                 ₱{s.rate_hour}/hr

@@ -5,6 +5,7 @@ import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
+import { getImageUrl } from '@/utils/imageHelper';
 
 // Maintained global polling instance as requested
 let globalAppPollingInstance = null;
@@ -50,7 +51,6 @@ const SpaceApplications = () => {
                 setStats(fetchedStats);
             }
         } catch {
-            // Fix: Removed unused 'err'
             if (isInitial) showToast({ icon: 'error', title: 'Failed to sync requests' });
         } finally {
             if (isInitial) setLoading(false);
@@ -97,9 +97,30 @@ const SpaceApplications = () => {
             setOpenModal(false);
             fetchData();
         } catch {
-            // Fix: Removed unused 'err'
             showToast({ icon: 'error', title: 'Action failed' });
         }
+    };
+
+    const getDocumentUrl = (owner, fileName) => {
+    if (!fileName) return null;
+    
+    console.log('getDocumentUrl called with:', { fileName, ownerId: owner._id });
+    
+    // If it's already a Cloudinary URL, return as is
+    if (fileName.startsWith('http://') || fileName.startsWith('https://')) {
+        console.log('Returning Cloudinary URL directly:', fileName);
+        return fileName;
+    }
+    
+    // Try to get from the user's space_request_id
+    const folderId = owner.space_request_id || owner._id;
+    const localUrl = `${import.meta.env.VITE_API_URL}/uploads/requirements/${folderId}/${fileName}`;
+    console.log('Constructed local URL:', localUrl);
+    return localUrl;
+};
+
+    const isImageFile = (fileName) => {
+        return fileName && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
     };
 
     const columns = [
@@ -237,14 +258,10 @@ const SpaceApplications = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {['business_permit', 'dti_sec_reg'].map(fileKey => {
-const fileName = selectedReq[fileKey];
-    // Use _id as the user identifier
-    const userId = selectedReq._id;
-    const fileUrl = fileName && userId 
-        ? `${import.meta.env.VITE_API_URL}/uploads/requirements/${userId}/${fileName}` 
-        : null;
-    const isImage = fileName && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
-    
+                                const fileName = selectedReq[fileKey];
+                                const fileUrl = getDocumentUrl(selectedReq, fileName);
+                                const isImage = isImageFile(fileName);
+                                
                                 return (
                                     <div key={fileKey} className="group">
                                         <label className="text-[10px] font-black text-slate-500 uppercase mb-3 block italic tracking-[0.2em]">
@@ -255,10 +272,8 @@ const fileName = selectedReq[fileKey];
                                             onClick={() => {
                                                 if (fileUrl) {
                                                     if (isImage) {
-                                                        // Open image in modal
                                                         window.open(fileUrl, '_blank');
                                                     } else {
-                                                        // Download PDF
                                                         window.open(fileUrl, '_blank');
                                                     }
                                                 }
@@ -267,14 +282,15 @@ const fileName = selectedReq[fileKey];
                                             {fileName ? (
                                                 isImage ? (
                                                     <img
-                                                        src={fileUrl}
+                                                        src={getImageUrl(fileUrl, 'document')}
                                                         className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-500"
                                                         alt={fileKey}
+                                                        onError={(e) => { e.target.src = '/placeholders/document.jpg'; }}
                                                     />
                                                 ) : (
                                                     <div className="text-center p-4">
                                                         <svg className="w-12 h-12 text-red-500/30 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                                         </svg>
                                                         <span className="text-[10px] text-slate-400 font-black uppercase">PDF Document</span>
                                                         <span className="text-[8px] text-indigo-400 mt-2 block">Click to view</span>

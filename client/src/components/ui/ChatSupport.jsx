@@ -244,26 +244,37 @@ const ChatSupport = () => {
                                         ) : (
                                             <div className="text-sm sm:text-base font-medium leading-relaxed prose prose-invert max-w-none">
                                                 <ReactMarkdown
-                                                    components={{
-                                                        strong: ({ children }) => (
-                                                            <strong className="font-bold text-indigo-400">{children}</strong>
-                                                        ),
-                                                        ul: ({ children }) => (
-                                                            <ul className="list-disc pl-5 mt-1 mb-1 space-y-1">{children}</ul>
-                                                        ),
-                                                        ol: ({ children }) => (
-                                                            <ol className="list-decimal pl-5 mt-1 mb-1 space-y-1">{children}</ol>
-                                                        ),
-                                                        li: ({ children }) => (
-                                                            <li className="text-sm sm:text-base mb-1">{children}</li>
-                                                        ),
-                                                        p: ({ children }) => (
-                                                            <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
-                                                        ),
-                                                    }}
-                                                >
-                                                    {msg.text}
-                                                </ReactMarkdown>
+    components={{
+        // Add this to make links open in new tab
+        a: ({ href, children }) => (
+            <a 
+                href={href} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-indigo-400 hover:text-indigo-300 underline transition-colors"
+            >
+                {children}
+            </a>
+        ),
+        strong: ({ children }) => (
+            <strong className="font-bold text-indigo-400">{children}</strong>
+        ),
+        ul: ({ children }) => (
+            <ul className="list-disc pl-5 mt-1 mb-1 space-y-1">{children}</ul>
+        ),
+        ol: ({ children }) => (
+            <ol className="list-decimal pl-5 mt-1 mb-1 space-y-1">{children}</ol>
+        ),
+        li: ({ children }) => (
+            <li className="text-sm sm:text-base mb-1">{children}</li>
+        ),
+        p: ({ children }) => (
+            <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
+        ),
+    }}
+>
+    {msg.text}
+</ReactMarkdown>
                                             </div>
                                         )}
                                     </div>

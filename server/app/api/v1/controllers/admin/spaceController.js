@@ -2,6 +2,8 @@ const { User, SpaceRequest, Space } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const emailService = require('@/api/v1/services/emailService');
+const { moveToUserFolder } = require('@/api/v1/utils/cloudinary');
+
 
 class SpaceController {
 
@@ -30,12 +32,12 @@ class SpaceController {
 
                 Space.countDocuments(query),
                 Space.countDocuments({ status: "Open Now" }),
-                Space.countDocuments({ status: { $ne: "Open Now" } }) 
+                Space.countDocuments({ status: { $ne: "Open Now" } })
             ]);
 
             return res.status(200).json({
                 success: true,
-                data: spaces, 
+                data: spaces,
                 stats: {
                     total,
                     active: activeCount,
@@ -51,55 +53,55 @@ class SpaceController {
      * GET /admin/space/requests
      * Fetches pending/rejected application requests
      */
-  requests = async (req, res, next) => {
-    try {
-        const { page = 1, search = '', status = 'pending' } = req.query;
-        const targetStatus = ['pending', 'rejected'].includes(status) ? status : 'pending';
-        
-        const limit = 10;
-        const skip = (page - 1) * limit;
+    requests = async (req, res, next) => {
+        try {
+            const { page = 1, search = '', status = 'pending' } = req.query;
+            const targetStatus = ['pending', 'rejected'].includes(status) ? status : 'pending';
 
-        const query = {
-            status: targetStatus,
-            ...(search && {
-                $or: [
-                    { name: { $regex: search, $options: 'i' } },
-                    { email: { $regex: search, $options: 'i' } }
-                ]
-            })
-        };
+            const limit = 10;
+            const skip = (page - 1) * limit;
 
-        const [requests, total, pendingCount, rejectedCount] = await Promise.all([
-            SpaceRequest.find(query)
-                .sort({ created_at: targetStatus === 'pending' ? 1 : -1 })
-                .skip(skip)
-                .limit(limit),
+            const query = {
+                status: targetStatus,
+                ...(search && {
+                    $or: [
+                        { name: { $regex: search, $options: 'i' } },
+                        { email: { $regex: search, $options: 'i' } }
+                    ]
+                })
+            };
 
-            SpaceRequest.countDocuments(query),
-            SpaceRequest.countDocuments({ status: 'pending' }),
-            SpaceRequest.countDocuments({ status: 'rejected' })
-        ]);
+            const [requests, total, pendingCount, rejectedCount] = await Promise.all([
+                SpaceRequest.find(query)
+                    .sort({ created_at: targetStatus === 'pending' ? 1 : -1 })
+                    .skip(skip)
+                    .limit(limit),
 
-        // Transform the response to include user_id as the _id
-        const transformedRequests = requests.map(req => {
-            const reqObj = req.toObject();
-            reqObj.user_id = reqObj._id; // Add user_id field with the same value as _id
-            return reqObj;
-        });
+                SpaceRequest.countDocuments(query),
+                SpaceRequest.countDocuments({ status: 'pending' }),
+                SpaceRequest.countDocuments({ status: 'rejected' })
+            ]);
 
-        return res.status(HTTP_STATUS.OK).json({
-            success: true,
-            requests: transformedRequests,
-            total,
-            stats: {
-                pending: pendingCount,
-                rejected: rejectedCount
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+            // Transform the response to include user_id as the _id
+            const transformedRequests = requests.map(req => {
+                const reqObj = req.toObject();
+                reqObj.user_id = reqObj._id; // Add user_id field with the same value as _id
+                return reqObj;
+            });
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                requests: transformedRequests,
+                total,
+                stats: {
+                    pending: pendingCount,
+                    rejected: rejectedCount
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 
    approve = async (req, res, next) => {
     try {
@@ -107,25 +109,16 @@ class SpaceController {
         const request = await SpaceRequest.findById(id);
         if (!request) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Application request not found.');
 
-        // Check if user already exists
+        // Create the user first
         let newUser = await User.findOne({ email: request.email });
         
         if (newUser) {
-            // If user exists (created during registration), update their role and status
-            // IMPORTANT: Preserve the space_request_id if it exists
             newUser.role = 'space';
             newUser.status = 'approved';
             newUser.isActive = true;
-            newUser.business_permit = request.business_permit;
-            newUser.dti_sec_reg = request.dti_sec_reg;
-            // Keep the existing space_request_id or set it if null
-            if (!newUser.space_request_id) {
-                newUser.space_request_id = request._id;
-            }
+            newUser.space_request_id = request._id;
             await newUser.save();
-            console.log(`✅ Updated existing user: ${newUser._id} with space_request_id: ${newUser.space_request_id}`);
         } else {
-            // Create new user if doesn't exist (fallback)
             newUser = await User.create({
                 name: request.name,
                 email: request.email,
@@ -133,29 +126,29 @@ class SpaceController {
                 role: 'space',
                 status: 'approved',
                 isActive: true,
-                space_request_id: request._id, // CRITICAL: Link to space request
-                business_permit: request.business_permit,
-                dti_sec_reg: request.dti_sec_reg
+                space_request_id: request._id
             });
-            console.log(`✅ Created new user: ${newUser._id} with space_request_id: ${newUser.space_request_id}`);
         }
 
-        // Send Approval Email
-        try {
-            const loginUrl = 'https://flexspace-iloilo.vercel.app/auth/login';
-            const approvalDetails = {
-                name: request.name,
-                email: request.email,
-                loginUrl: loginUrl
-            };
-            
-            await emailService.sendSpaceApprovalEmail(request.email, request.name, approvalDetails);
-            console.log(`✅ Approval email sent to ${request.email}`);
-        } catch (emailError) {
-            console.error('❌ Failed to send approval email:', emailError.message);
-        }
+        // Move files from pending folder to user's permanent folder
+        const newPermitUrl = await moveToUserFolder(
+            request.business_permit, 
+            newUser._id, 
+            'business_permit'
+        );
+        
+        const newDtiUrl = await moveToUserFolder(
+            request.dti_sec_reg, 
+            newUser._id, 
+            'dti_sec_reg'
+        );
+        
+        // Update user with new permanent URLs
+        newUser.business_permit = newPermitUrl;
+        newUser.dti_sec_reg = newDtiUrl;
+        await newUser.save();
 
-        // Delete the space request after approval
+        // Delete space request
         await SpaceRequest.findByIdAndDelete(id);
 
         return res.status(HTTP_STATUS.OK).json({

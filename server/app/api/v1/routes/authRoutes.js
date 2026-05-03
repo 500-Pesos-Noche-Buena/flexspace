@@ -1,7 +1,7 @@
 const express = require('express');
 const authController = require('@/api/v1/controllers/authController');
 const profileController = require('@/api/v1/controllers/profileController');
-const upload = require('@/api/v1/utils/upload');
+const { upload, processUploadedFiles } = require('@/api/v1/utils/upload');
 const auth = require('@/api/v1/middleware/authMiddleware');
 const passwordController = require('@/api/v1/controllers/passwordController');
 
@@ -12,26 +12,38 @@ class AuthRoutes {
     }
 
     initializeRoutes = () => {
-        console.log('--- 🛡️ Initializing Auth Routes (Profile Enabled) ---');
+        console.log('--- 🛡️ Initializing Auth Routes (Profile + Payment Enabled) ---');
         
         // --- PUBLIC ROUTES ---
-        this.router.post('/login', (req, res, next) => authController.login(req, res, next));
-        this.router.post('/logout', (req, res, next) => authController.logout(req, res, next));
-
+        this.router.post('/login', authController.login);
+        this.router.post('/logout', authController.logout);
         this.router.post('/register', 
             upload.fields([
                 { name: 'business_permit', maxCount: 1 },
                 { name: 'dti_sec_reg', maxCount: 1 }
-            ]), 
-            (req, res, next) => authController.register(req, res, next)
+            ]),
+            processUploadedFiles, 
+            authController.register
         );
 
-        this.router.get('/profile', auth, (req, res, next) => profileController.getProfile(req, res, next));
-        this.router.post('/profile/update', auth, (req, res, next) => profileController.updateProfile(req, res, next));
+        this.router.get('/profile', auth, profileController.getProfile);
+        this.router.put('/profile/update', auth, profileController.updateProfile);
+        this.router.put('/profile/update-password', auth, profileController.updatePassword);
+        
+        this.router.put('/profile/payment-qr', 
+            auth, 
+            upload.single('qr_code'),
+            processUploadedFiles,   
+            profileController.updatePaymentQR
+        );
+        
+        this.router.put('/profile/payment-methods', auth, profileController.updatePaymentMethods);
+        this.router.get('/profile/payment-details', auth, profileController.getPaymentDetails);
 
-        this.router.post('/forgot-password', (req, res, next) => passwordController.forgotPassword(req, res, next));
-        this.router.post('/verify-otp', (req, res, next) => passwordController.verifyOTP(req, res, next));
-        this.router.post('/reset-password', (req, res, next) => passwordController.resetPassword(req, res, next));
+        // --- PASSWORD RESET ROUTES (Public) ---
+        this.router.post('/forgot-password', passwordController.forgotPassword);
+        this.router.post('/verify-otp', passwordController.verifyOTP);
+        this.router.post('/reset-password', passwordController.resetPassword);
     };
 
     getRouter() {

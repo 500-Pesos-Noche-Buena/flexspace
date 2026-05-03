@@ -24,7 +24,14 @@ const userSchema = new mongoose.Schema({
     status: { type: String, enum: ['pending', 'approved', 'rejected'] },
     business_permit: { type: String },
     dti_sec_reg: { type: String },
-    // Password reset fields - FIXED: Move these OUT of timestamps
+    business_payment_qr: { 
+        type: String,
+        default: null 
+    },
+    payment_methods: {
+        type: [String],
+        default: ['cash']
+    },
     resetPasswordToken: { type: String, default: null },
     resetPasswordExpires: { type: Date, default: null },
     otpCode: { type: String, default: null },

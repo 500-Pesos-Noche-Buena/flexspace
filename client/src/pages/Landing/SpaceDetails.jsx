@@ -13,8 +13,7 @@ import {
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getSpaceImage, getImageUrl } from '@/utils/imageHelper';
 
 const getPHDateString = () => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
@@ -292,9 +291,10 @@ const SpaceDetails = () => {
                                 }`}
                             >
                                 <img 
-                                    src={`${API_BASE_URL}/uploads/spaces/${space.user_id}/${img}`}
+                                    src={getImageUrl(img)}
                                     alt={`${space.name} ${idx + 1}`}
                                     className="w-full h-full object-cover"
+                                    onError={(e) => e.target.src = '/placeholders/space.jpg'}
                                 />
                             </button>
                         ))}
@@ -315,9 +315,10 @@ const SpaceDetails = () => {
                             {images[currentImageIndex] ? (
                                 <>
                                     <img 
-                                        src={`${API_BASE_URL}/uploads/spaces/${space.user_id}/${images[currentImageIndex]}`}
+                                        src={getImageUrl(images[currentImageIndex])}
                                         alt={space.name}
                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        onError={(e) => e.target.src = '/placeholders/space.jpg'}
                                     />
                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                                         <div className="bg-white/90 rounded-full p-2">
@@ -365,9 +366,10 @@ const SpaceDetails = () => {
                                         }`}
                                     >
                                         <img 
-                                            src={`${API_BASE_URL}/uploads/spaces/${space.user_id}/${img}`}
+                                            src={getImageUrl(img)}
                                             alt={`${space.name} ${idx + 1}`}
                                             className="w-full h-full object-cover"
+                                            onError={(e) => e.target.src = '/placeholders/space.jpg'}
                                         />
                                     </button>
                                 ))}
@@ -504,11 +506,6 @@ const SpaceDetails = () => {
                     <div className="lg:col-span-1">
                         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden sticky top-24 shadow-lg">
                             <div className="p-6">
-                                {/* <div className="text-center mb-4">
-                                    <span className="text-3xl font-black text-indigo-600">₱{space.rate_hour}</span>
-                                    <span className="text-slate-400">/hour</span>
-                                </div> */}
-                                
                                 <Button
                                     onClick={handleBookNow}
                                     className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3 font-black text-sm"
@@ -655,9 +652,10 @@ const SpaceDetails = () => {
                     {images.length > 0 && (
                         <>
                             <img 
-                                src={`${API_BASE_URL}/uploads/spaces/${space.user_id}/${images[lightboxIndex]}`}
+                                src={getImageUrl(images[lightboxIndex])}
                                 alt={space.name}
                                 className="max-w-full max-h-full object-contain"
+                                onError={(e) => e.target.src = '/placeholders/space.jpg'}
                             />
                             {images.length > 1 && (
                                 <>
