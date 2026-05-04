@@ -22,6 +22,44 @@ const config = {
         saltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 10,
     },
 
+    email: {
+        smtp: {
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT) || 587,
+            secure: process.env.SMTP_SECURE === 'true',
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+            from: process.env.SMTP_FROM_EMAIL,
+        },
+        // Queue configuration
+        queue: {
+            enabled: process.env.ENABLE_EMAIL_QUEUE === 'true',
+            concurrency: parseInt(process.env.QUEUE_CONCURRENCY) || 5,
+            attempts: parseInt(process.env.QUEUE_ATTEMPTS) || 3,
+            backoffDelay: parseInt(process.env.QUEUE_BACKOFF_DELAY) || 5000,
+        }
+    },
+
+    redis: {
+        // Support both REDIS_URL and individual config
+        url: process.env.REDIS_URL,
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD,
+        
+        // Helper method to get connection config
+        getConnectionConfig() {
+            if (this.url) {
+                return { url: this.url };
+            }
+            return {
+                host: this.host,
+                port: this.port,
+                password: this.password,
+            };
+        }
+    },
+
     ai: {
         geminiKey: process.env.GEMINI_API_KEY,
     },
@@ -30,7 +68,7 @@ const config = {
         cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
         api_key: process.env.CLOUDINARY_API_KEY,
         api_secret: process.env.CLOUDINARY_API_SECRET,
-        folder: 'coworking', // Default folder for all uploads
+        folder: 'coworking',
         transformations: {
             qr_code: [
                 { width: 500, height: 500, crop: "limit" },

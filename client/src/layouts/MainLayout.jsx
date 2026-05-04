@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, LayoutDashboard, User, LogOut, Globe, ReceiptText } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import ChatSupport from '@/components/ui/ChatSupport';
+import { showToast } from '@/components/ui/SweetAlert2';
+import { apiPost } from '@/utils/Api';
 
 const MainLayout = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,16 +14,66 @@ const MainLayout = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Redirect admin and space owners to their respective dashboards
+    // ✅ Check if current route requires authentication
+    const isProtectedRoute = useCallback(() => {
+        const protectedPaths = ['/dashboard', '/user', '/profile', '/account'];
+        return protectedPaths.some(path => location.pathname.startsWith(path));
+    }, [location.pathname]);
+
+    // ✅ Redirect unauthenticated users from protected routes to login
+    useEffect(() => {
+        if (!isAuthenticated && isProtectedRoute()) {
+            console.log('🔐 Protected route - redirecting to login');
+            navigate('/login', { replace: true });
+            return;
+        }
+    }, [isAuthenticated, isProtectedRoute, navigate]);
+
+    // ✅ Redirect admin and space owners to their specific dashboards
     useEffect(() => {
         if (isAuthenticated && user) {
-            if (user.role === 'admin') {
+            const currentPath = location.pathname;
+            
+            // Don't redirect if already on login/register
+            if (currentPath === '/login' || currentPath === '/register') {
+                return;
+            }
+            
+            // Admin goes to admin dashboard
+            if (user.role === 'admin' && !currentPath.startsWith('/admin')) {
                 navigate('/admin/dashboard', { replace: true });
-            } else if (user.role === 'space' || user.role === 'staff') {
+            } 
+            // Space/Staff goes to space dashboard  
+            else if ((user.role === 'space' || user.role === 'staff') && !currentPath.startsWith('/space')) {
                 navigate('/space/dashboard', { replace: true });
             }
+            // ✅ Regular users (role === 'user') - stay in MainLayout
         }
-    }, [isAuthenticated, user, navigate]);
+    }, [isAuthenticated, user, navigate, location.pathname]);
+
+    // ✅ Handle logout with toast message (same as DashboardLayout)
+    const handleLogout = async () => {
+        try {
+            await apiPost('/auth/logout');
+            showToast({ 
+                icon: 'success', 
+                title: 'Logged Out', 
+                text: 'Come back soon!'
+            });
+        } catch (error) {
+            console.error("Logout error:", error);
+            showToast({ 
+                icon: 'warning', 
+                title: 'Logged Out', 
+                text: 'Session cleared'
+            });
+        } finally {
+            // Small delay to let toast show before redirect
+            setTimeout(() => {
+                logout();
+            }, 500);
+        }
+    };
 
     // Helper to close all UI overlays
     const closeOverlays = useCallback(() => {
@@ -36,17 +88,10 @@ const MainLayout = () => {
     };
 
     useEffect(() => {
-        const handle = requestAnimationFrame(() => {
-            closeOverlays();
-        });
-        return () => cancelAnimationFrame(handle);
+        closeOverlays();
     }, [location.pathname, closeOverlays]);
 
-    // If user is admin or space owner, don't render the main layout (redirect will handle)
-    if (isAuthenticated && user && (user.role === 'admin' || user.role === 'space' || user.role === 'staff')) {
-        return null;
-    }
-
+    // ✅ Always render the layout (redirects happen in effects)
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col antialiased">
 
@@ -88,7 +133,7 @@ const MainLayout = () => {
                                     </button>
                                 </>
                             ) : (
-                                // Only show user menu for regular users (role = 'user')
+                                // User is authenticated - show user menu
                                 <>
                                     <Button variant="ghost" asChild onClick={closeOverlays} className="hidden sm:inline-flex rounded-2xl font-black text-indigo-600 text-[10px] uppercase tracking-widest hover:bg-indigo-50 h-11">
                                         <Link to="/dashboard">
@@ -113,10 +158,12 @@ const MainLayout = () => {
                                                 <div className="px-5 py-4 mb-2 bg-slate-50 rounded-[1.8rem]">
                                                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Authenticated Account</p>
                                                     <p className="text-xs font-black text-slate-900 truncate italic uppercase">{user?.name}</p>
-                                                    <p className="text-[8px] text-slate-400 mt-1">Regular User</p>
+                                                    <p className="text-[8px] text-slate-400 mt-1 uppercase">
+                                                        {user?.role === 'admin' ? 'Administrator' : user?.role === 'space' ? 'Space Provider' : 'Regular User'}
+                                                    </p>
                                                 </div>
                                                 <div className="flex flex-col gap-1">
-                                                    <button onClick={() => handleNavigate('/dashboard')} className="md:hidden w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
+                                                    <button onClick={() => handleNavigate('/dashboard')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
                                                         <LayoutDashboard size={14} /> Dashboard
                                                     </button>
                                                     <button onClick={() => handleNavigate('/user/bookings')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
@@ -125,11 +172,14 @@ const MainLayout = () => {
                                                     <button onClick={() => handleNavigate('/user/redeem')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
                                                         <ReceiptText className="w-3.5 h-3.5" /> Redeem Points
                                                     </button>
-                                                    <button onClick={() => handleNavigate('/account')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
+                                                    <button onClick={() => handleNavigate('/profile')} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.2rem] transition-all text-left">
                                                         <User className="w-3.5 h-3.5" /> My Profile
                                                     </button>
                                                     <div className="h-px bg-slate-100 mx-4 my-2" />
-                                                    <button onClick={() => { logout(); closeOverlays(); }} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-[1.2rem] transition-all text-left">
+                                                    <button 
+                                                        onClick={handleLogout}
+                                                        className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-[1.2rem] transition-all text-left"
+                                                    >
                                                         <LogOut className="w-3.5 h-3.5" /> Sign Out
                                                     </button>
                                                 </div>

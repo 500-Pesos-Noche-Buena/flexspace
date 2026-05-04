@@ -3,6 +3,7 @@ import { AppRoutes } from '@/routes/AppRoutes';
 import { AppLayout } from './layouts/AppLayout';
 import { AuthProvider } from './context/AuthContext'; 
 import AnalyticsTracker from '@/components/ui/AnalyticsTracker';
+import TokenExpiryChecker from '@/components/ui/TokenExpiryChecker';
 
 // Only import Analytics in production
 const Analytics = process.env.NODE_ENV === 'production' 
@@ -14,6 +15,7 @@ const App = () => {
     <Router>
       <AuthProvider>
         <AppLayout>
+          <TokenExpiryChecker />
           <AppRoutes />
           <AnalyticsTracker />
           {process.env.NODE_ENV === 'production' && <Analytics />}

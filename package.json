@@ -4,8 +4,12 @@
   "main": "index.js",
   "scripts": {
     "server": "nodemon server/index.js",
-    "client": "npm run dev --prefix client", 
-    "start": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue,bgMagenta\" \"npm run server\" \"npm run client\""
+    "worker": "nodemon server/worker.js",
+    "worker:prod": "node server/worker.js",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently -n \"BACKEND,FRONTEND,WORKER\" -c \"bgBlue,bgMagenta,bgGreen\" \"npm run server\" \"npm run client\" \"npm run worker\"",
+    "start": "concurrently -n \"BACKEND,FRONTEND,WORKER\" -c \"bgBlue,bgMagenta,bgGreen\" \"node server/index.js\" \"npm run client\" \"node server/worker.js\"",
+    "start:prod": "concurrently -n \"BACKEND,WORKER\" -c \"bgBlue,bgGreen\" \"NODE_ENV=production node server/index.js\" \"NODE_ENV=production node server/worker.js\""
   },
   "keywords": [],
   "author": "",

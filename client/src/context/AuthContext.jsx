@@ -1,8 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { setLogoutCallback } from '@/utils/Api';
 
 export const AuthContext = createContext(null);
 
-// Custom hook for easier access
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -17,17 +17,21 @@ export const AuthProvider = ({ children }) => {
         try {
             return savedUser ? JSON.parse(savedUser) : null;
         } catch {
-            // FIXED: Removed 'e' to satisfy the linter. 
-            // If JSON.parse fails, we just default to null.
             return null;
         }
     });
+
+    // Register logout callback with API module
+    useEffect(() => {
+        setLogoutCallback(() => {
+            logout();
+        });
+    }, []);
 
     useEffect(() => {
         const syncLogout = (event) => {
             if (event.key === 'authToken' && !event.newValue) {
                 setUser(null);
-                window.location.href = '/login';
             }
         };
 
@@ -42,10 +46,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
+        console.log('🔓 Clearing auth state...');
         localStorage.removeItem('user');
         localStorage.removeItem('authToken');
         setUser(null);
-        window.location.href = '/login';
     };
 
     return (

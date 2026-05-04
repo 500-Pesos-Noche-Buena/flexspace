@@ -6,25 +6,50 @@ const getBaseUrl = () => {
         return import.meta.env.VITE_API_URL;
     }
 
-    // localhost, any 192.168.x.x, any 10.x.x.x, OR any raw IP address
     if (
         host === 'localhost' ||
-        /^\d+\.\d+\.\d+\.\d+$/.test(host) // covers ALL IPs including public
+        /^\d+\.\d+\.\d+\.\d+$/.test(host)
     ) {
         return `${protocol}//${host}:5000`;
     }
 
     return import.meta.env.VITE_API_URL || `${protocol}//${host}:5000`;
 };
+
 const API_BASE_URL = getBaseUrl();
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
-
 const FULL_BASE_URL = `${API_BASE_URL}/api/${API_VERSION}`;
-
 const INTERNAL_SECRET = import.meta.env.VITE_INTERNAL_SECRET;
 
-// Ensure this key matches what you use in your Login function!
 const getToken = () => localStorage.getItem('authToken');
+
+// Flag to prevent multiple redirects
+let isRedirecting = false;
+
+// Global logout callback
+let globalLogoutCallback = null;
+
+export const setLogoutCallback = (callback) => {
+    globalLogoutCallback = callback;
+};
+
+const triggerLogout = () => {
+    // Clear storage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    sessionStorage.clear();
+    
+    // Call the AuthContext logout if available
+    if (globalLogoutCallback) {
+        globalLogoutCallback();
+    }
+    
+    // Only redirect if not already redirecting
+    if (!isRedirecting && !window.location.pathname.includes('/login')) {
+        isRedirecting = true;
+        window.location.href = '/login';
+    }
+};
 
 async function apiRequest(method, endpoint, data = null) {
     const url = `${FULL_BASE_URL}${endpoint}`;
@@ -38,7 +63,6 @@ async function apiRequest(method, endpoint, data = null) {
         },
     };
 
-    // Attach Bearer Token if available
     if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -52,17 +76,18 @@ async function apiRequest(method, endpoint, data = null) {
 
     try {
         const response = await fetch(url, config);
+        
+        // 🔥 Handle 401 Unauthorized - Token expired
+        if (response.status === 401 && endpoint !== '/auth/login') {
+            console.log('🔐 Token expired - logging out');
+            triggerLogout();
+            throw new Error('Session expired. Please login again.');
+        }
+        
         const responseText = await response.text();
         const responseData = responseText ? JSON.parse(responseText) : {};
 
         if (!response.ok) {
-            if (response.status === 401 && endpoint !== '/auth/login') {
-                // Clear stale session
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('user');
-                window.location.href = '/login';
-                return;
-            }
             throw new Error(responseData.message || `Error: ${response.status}`);
         }
 
@@ -71,6 +96,16 @@ async function apiRequest(method, endpoint, data = null) {
         console.error(`API Error [${method} ${endpoint}]:`, error.message);
         throw error;
     }
+}
+
+// Reset redirect flag when page loads and on login page
+window.addEventListener('load', () => {
+    isRedirecting = false;
+});
+
+// Also reset when on login page
+if (window.location.pathname.includes('/login')) {
+    isRedirecting = false;
 }
 
 export const apiGet = (endpoint) => apiRequest('GET', endpoint);

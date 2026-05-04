@@ -6,48 +6,37 @@ import {
     Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
-import { useAuth } from '@/context/AuthContext'; // Import useAuth
+import { useAuth } from '@/context/AuthContext';
+import { showToast } from '@/components/ui/SweetAlert2';
 
 export default function DashboardLayout() {
-    const { user: authUser, isAuthenticated, logout } = useAuth(); // Use real auth
+    const { user: authUser, isAuthenticated, logout } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Redirect if not authenticated
-    useEffect(() => {
-        if (!isAuthenticated) {
-            navigate('/login', { replace: true });
-            return;
-        }
-        
-        // Check if user has permission to access this dashboard
-        const isAdminRoute = location.pathname.startsWith('/admin');
-        const isSpaceRoute = location.pathname.startsWith('/space');
-        
-        if (isAdminRoute && authUser?.role !== 'admin') {
-            // Regular user trying to access admin - redirect to user dashboard
-            navigate('/dashboard', { replace: true });
-        } else if (isSpaceRoute && !['space', 'staff'].includes(authUser?.role)) {
-            // Non-space user trying to access space dashboard - redirect
-            navigate('/dashboard', { replace: true });
-        }
-    }, [isAuthenticated, authUser, location.pathname, navigate]);
-
-    // Don't render anything while checking auth
-    if (!isAuthenticated) {
-        return null;
-    }
-
-    const isAdmin = authUser?.role === "admin";
-    const hasSpaceAccess = ["space", "staff"].includes(authUser?.role);
-    const isActualOwner = authUser?.role === "space";
-    const isStaff = authUser?.role === "staff";
-
+    // ✅ ALL HOOKS MUST BE HERE - BEFORE ANY CONDITIONAL RETURN
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [parentName, setParentName] = useState(null);
     const dropdownRef = useRef(null);
+
+    // ✅ Redirect effect - after hooks
+    useEffect(() => {
+        if (!isAuthenticated) {
+            navigate('/login', { replace: true });
+            return;
+        }
+
+        const isAdminRoute = location.pathname.startsWith('/admin');
+        const isSpaceRoute = location.pathname.startsWith('/space');
+
+        if (isAdminRoute && authUser?.role !== 'admin') {
+            navigate('/dashboard', { replace: true });
+        } else if (isSpaceRoute && !['space', 'staff'].includes(authUser?.role)) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [isAuthenticated, authUser, location.pathname, navigate]);
 
     useEffect(() => {
         setIsMobileMenuOpen(false);
@@ -67,7 +56,7 @@ export default function DashboardLayout() {
         if (authUser?.role !== 'staff') return;
         apiGet('/auth/me/parent')
             .then(res => { if (res.success) setParentName(res.parentName); })
-            .catch(() => {});
+            .catch(() => { });
     }, [authUser?.role]);
 
     const isRouteActive = useCallback((path) => {
@@ -76,18 +65,44 @@ export default function DashboardLayout() {
 
     const handleLogout = async () => {
         try {
-            await apiPost('/auth/logout');
+            const response = await apiPost('/auth/logout');
+
+            // ✅ Check if logout was successful
+            if (response.success || response.status === 'success') {
+                showToast({
+                    icon: 'success',
+                    title: 'Logged Out',
+                    text: 'Come back soon!'
+                });
+            } else {
+                // Still show success even if API response is weird
+                showToast({
+                    icon: 'success',
+                    title: 'Logged Out'
+                });
+            }
         } catch (error) {
             console.error("Logout error:", error);
+            // Even if API fails, still log out locally
+            showToast({
+                icon: 'warning',
+                title: 'Logged Out Locally',
+                text: 'Session cleared'
+            });
         } finally {
-            logout(); // Use AuthContext logout
+            logout();
         }
     };
+
+    // ✅ Compute these values AFTER hooks
+    const isAdmin = authUser?.role === "admin";
+    const hasSpaceAccess = ["space", "staff"].includes(authUser?.role);
+    const isActualOwner = authUser?.role === "space";
+    const isStaff = authUser?.role === "staff";
 
     const sidebarSections = useMemo(() => {
         const sections = [];
 
-        // Only show sections for admin
         if (isAdmin) {
             sections.push({
                 title: "Management",
@@ -96,7 +111,7 @@ export default function DashboardLayout() {
                     { href: "/admin/users", active: isRouteActive("/admin/users"), icon: <Users />, label: "Users" },
                 ],
             });
-            
+
             sections.push({
                 title: "Core Business",
                 items: [
@@ -106,21 +121,21 @@ export default function DashboardLayout() {
                     { href: "/admin/insights", active: isRouteActive("/admin/insights"), icon: <Activity />, label: "Insights" },
                 ],
             });
-            
+
             sections.push({
                 title: "Finance",
                 items: [
                     { href: "/admin/earnings", active: isRouteActive("/admin/earnings"), icon: <Receipt />, label: "Earnings Tracker" },
                 ],
             });
-            
+
             sections.push({
                 title: "System",
                 items: [
                     { href: "/admin/logs", active: isRouteActive("/admin/logs"), icon: <History />, label: "Activity Logs" },
                 ],
             });
-        } 
+        }
         else if (hasSpaceAccess) {
             sections.push({
                 title: "Management",
@@ -128,7 +143,7 @@ export default function DashboardLayout() {
                     { href: "/space/dashboard", active: isRouteActive("/space/dashboard"), icon: <LayoutGrid />, label: "Dashboard" },
                 ],
             });
-            
+
             sections.push({
                 title: "Core Business",
                 items: [
@@ -140,7 +155,7 @@ export default function DashboardLayout() {
                     { href: "/space/bookings", active: isRouteActive("/space/bookings"), icon: <Calendar />, label: "Bookings" },
                 ],
             });
-            
+
             sections.push({
                 title: "Finance",
                 items: [
@@ -153,6 +168,11 @@ export default function DashboardLayout() {
 
         return sections.filter(section => section.items.length > 0);
     }, [isAdmin, hasSpaceAccess, isActualOwner, isRouteActive]);
+
+    // ✅ Show loading or null AFTER all hooks
+    if (!isAuthenticated) {
+        return null;
+    }
 
     return (
         <div className="min-h-screen bg-[#09090b] text-slate-100 font-sans selection:bg-emerald-500/30">
