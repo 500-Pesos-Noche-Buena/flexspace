@@ -4,6 +4,7 @@ import TopSpaces from './TopSpaces';
 import Features from './Features';
 import HowItWorks from './HowItWorks';
 import Contact from './Contact';
+import CustomerReviews from './CustomerReviews';
 import { apiGet } from '@/utils/Api';
 
 const LandingPage = () => {
@@ -107,6 +108,10 @@ const LandingPage = () => {
             <div className="px-4 md:px-0">
                 <Features />
                 <TopSpaces spaces={popularSpaces} />
+                
+                {/* NEW: Customer Reviews Section */}
+                <CustomerReviews />
+                
                 <HowItWorks />
             </div>
 

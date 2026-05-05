@@ -29,9 +29,9 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
-app.use(antiDdos.gatekeeper);
-app.use(antiDdos.globalLimiter);
-app.use(antiDdos.responseMonitor);
+// app.use(antiDdos.gatekeeper);
+// app.use(antiDdos.globalLimiter);
+// app.use(antiDdos.responseMonitor);
 
 app.use(
     cors({

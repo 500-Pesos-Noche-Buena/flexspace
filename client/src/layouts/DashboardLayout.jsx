@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutGrid, Users, FileText, Calendar, Box, Fence,
     ShoppingCart, Receipt, ChevronLeft, LogOut, User,
-    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity
+    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity, Star
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
 import { useAuth } from '@/context/AuthContext';
@@ -151,6 +151,7 @@ export default function DashboardLayout() {
                         { href: "/space/staff", active: isRouteActive("/space/staff"), icon: <Users />, label: "Staff Management" },
                         { href: "/space/my-spaces", active: isRouteActive("/space/my-spaces"), icon: <MapPin />, label: "My Spaces" },
                         { href: "/space/vouchers", active: isRouteActive("/space/vouchers"), icon: <Ticket />, label: "Vouchers" },
+                        { href: "/space/reviews", active: isRouteActive("/space/reviews"), icon: <Star />, label: "Reviews" },
                     ] : []),
                     { href: "/space/bookings", active: isRouteActive("/space/bookings"), icon: <Calendar />, label: "Bookings" },
                 ],

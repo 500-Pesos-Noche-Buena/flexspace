@@ -22,6 +22,14 @@ class LandingRoutes {
         this.router.get('/stats', protect, (req, res, next) => 
             landingController.getPublicStats(req, res, next)
         );
+
+        this.router.get('/reviews', protect, (req, res, next) => 
+            landingController.getCustomerReviews(req, res, next)
+        );
+
+        this.router.post('/reviews/:reviewId/like', (req, res, next) => 
+            landingController.publicLikeReview(req, res, next)
+        );
     }
 
     getRouter() {

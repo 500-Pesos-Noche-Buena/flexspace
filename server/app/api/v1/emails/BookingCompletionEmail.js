@@ -4,7 +4,7 @@ const BaseEmail = require('./BaseEmail');
 const BookingCompletionEmail = ({ name, booking }) => {
     const content = `
         <div style="padding: 0 0 20px 0;">
-            <h2 style="color: #4F46E5; margin: 0 0 16px 0; font-size: 24px;">Session Completed! 🎉</h2>
+            <h2 style="color: #4F46E5; margin: 0 0 16px 0; font-size: 24px;">Session Completed!</h2>
             <p style="font-size: 16px; line-height: 1.6; color: #4a4a4a; margin: 0 0 16px 0;">
                 Hello ${name},
             </p>
@@ -82,6 +82,36 @@ const BookingCompletionEmail = ({ name, booking }) => {
             <p style="margin: 0; color: #92400E; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">🎉 Points Earned</p>
             <p style="margin: 12px 0; font-size: 36px; font-weight: 800; color: #92400E;">${booking.points_earned} points</p>
             <p style="margin: 0; color: #92400E; font-size: 13px;">= ₱${booking.points_earned} value on your next booking!</p>
+        </div>
+        
+        <!-- FEEDBACK REQUEST SECTION - NEW -->
+        <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border-radius: 16px; padding: 32px 24px; margin: 20px 0; text-align: center; border: 2px solid #F59E0B;">
+            <div style="margin-bottom: 16px;">
+                <span style="font-size: 48px;">⭐</span>
+            </div>
+            <h3 style="color: #92400E; margin: 0 0 8px 0; font-size: 22px; font-weight: 800;">Share Your Experience!</h3>
+            <p style="color: #78350F; font-size: 14px; line-height: 1.5; margin: 0 0 16px 0;">
+                How was your stay at <strong>${booking.space_name}</strong>? Your feedback helps other remote workers find the perfect workspace and helps us improve.
+            </p>
+            <div style="background-color: #FFFFFF; border-radius: 12px; padding: 16px; margin: 20px 0 16px 0;">
+                <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 12px;">
+                    <span style="font-size: 24px;">⭐</span>
+                    <span style="font-size: 24px;">⭐</span>
+                    <span style="font-size: 24px;">⭐</span>
+                    <span style="font-size: 24px;">⭐</span>
+                    <span style="font-size: 24px;">⭐</span>
+                </div>
+                <p style="margin: 0; color: #6B7280; font-style: italic; font-size: 13px;">
+                    "Great workspace! Will definitely come back."
+                </p>
+            </div>
+            <a href="https://flexspace-iloilo.vercel.app/user/bookings" 
+               style="display: inline-block; background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; text-decoration: none; padding: 14px 32px; border-radius: 40px; font-weight: 700; font-size: 14px; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                📝 Write a Review
+            </a>
+            <p style="color: #78350F; font-size: 11px; margin-top: 16px;">
+                It takes less than 2 minutes and helps the community! ✨
+            </p>
         </div>
         
         <!-- Pro Tip -->

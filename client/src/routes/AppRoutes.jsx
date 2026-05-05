@@ -37,6 +37,7 @@ import Walkins from '@/pages/Space/Walkins/Index';
 import EarningsTracker from '@/pages/Space/Earnings/Index';
 import StaffManagement from '@/pages/Space/Staff/Index';
 import Vouchers from '@/pages/Space/Voucher/Index';
+import SpaceReviewList from '@/pages/Space/Reviews/Index';
 
 // Regular User Pages
 import UserDashboard from '@/pages/User/Dashboard/Index';
@@ -95,6 +96,7 @@ export const AppRoutes = () => {
                     <Route path="earnings" element={<EarningsTracker />} />
                     <Route path="staff" element={<StaffManagement />} />
                     <Route path="vouchers" element={<Vouchers />} />
+                    <Route path="reviews" element={<SpaceReviewList />} />
                 </Route>
             </Route>
 

@@ -1,4 +1,4 @@
-const { Space, District, User, Booking } = require('@/api/v1/models');
+const { Space, District, User, Booking, Review } = require('@/api/v1/models');
 
 class LandingController {
     async getExplorerData(req, res) {
@@ -58,16 +58,16 @@ class LandingController {
     async getPublicStats(req, res) {
         try {
             console.log('📊 Fetching public stats...');
-            
+
             const [totalSpaces, totalUsers, activeBookings] = await Promise.all([
                 Space.countDocuments({ status: 'Open Now' }),
-                User.countDocuments({ 
-                    role: 'user',  
+                User.countDocuments({
+                    role: 'user',
                     isActive: { $ne: false }
                 }),
-                Booking.countDocuments({ 
+                Booking.countDocuments({
                     status: 'active',
-                    check_out_at: null 
+                    check_out_at: null
                 })
             ]);
 
@@ -87,6 +87,114 @@ class LandingController {
                 success: false,
                 message: error.message
             });
+        }
+    }
+
+    async getCustomerReviews(req, res) {
+        try {
+            const { spaceId, limit = 6 } = req.query;
+
+            let query = { status: 'approved' };
+
+            // If spaceId is provided, filter by specific space
+            if (spaceId) {
+                query.space_id = spaceId;
+            }
+
+            const reviews = await Review.find(query)
+                .populate('space_id', 'name')
+                .populate('user_id', 'name avatar')
+                .sort({ created_at: -1 })
+                .limit(parseInt(limit))
+                .lean();
+
+            // Get total count for statistics
+            const totalReviews = await Review.countDocuments({ status: 'approved' });
+
+            // Get average rating
+            const avgResult = await Review.aggregate([
+                { $match: { status: 'approved' } },
+                { $group: { _id: null, avg: { $avg: '$rating' } } }
+            ]);
+
+            const averageRating = avgResult.length > 0 ? avgResult[0].avg : 0;
+
+            // Format reviews for response
+            const formattedReviews = reviews.map(review => ({
+                _id: review._id,
+                rating: review.rating,
+                comment: review.comment,
+                reviewer_name: review.user_id?.name || review.guest_name || 'Anonymous',
+                reviewer_avatar: review.user_id?.avatar || null,
+                space_name: review.space_id?.name,
+                is_verified: review.is_verified_booking,
+                helpful_count: review.helpful_count,
+                created_at: review.created_at,
+                reply: review.reply ? {
+                    text: review.reply.text,
+                    created_at: review.reply.created_at
+                } : null
+            }));
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    reviews: formattedReviews,
+                    stats: {
+                        total_reviews: totalReviews,
+                        average_rating: parseFloat(averageRating.toFixed(1))
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Get customer reviews error:', error);
+            return res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    async publicLikeReview(req, res) {
+        try {
+            const { reviewId } = req.params;
+
+            // Get client IP
+            let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+            if (clientIp === '::1' || clientIp === '::ffff:127.0.0.1') {
+                clientIp = '127.0.0.1';
+            }
+            if (clientIp && clientIp.includes(',')) {
+                clientIp = clientIp.split(',')[0].trim();
+            }
+
+            const review = await Review.findById(reviewId);
+            if (!review) {
+                return res.status(404).json({ success: false, message: 'Review not found' });
+            }
+
+            // Check if IP already liked
+            if (review.liked_ips && review.liked_ips.includes(clientIp)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'You have already liked this review'
+                });
+            }
+
+            // Add IP and increment count
+            if (!review.liked_ips) review.liked_ips = [];
+            review.liked_ips.push(clientIp);
+            review.helpful_count = (review.helpful_count || 0) + 1;
+            await review.save();
+
+            return res.status(200).json({
+                success: true,
+                message: 'Thanks for your feedback!',
+                data: { helpful_count: review.helpful_count }
+            });
+        } catch (error) {
+            console.error('Public like error:', error);
+            return res.status(500).json({ success: false, message: error.message });
         }
     }
 }

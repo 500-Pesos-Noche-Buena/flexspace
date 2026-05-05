@@ -1,4 +1,4 @@
-const { Booking, Space, User } = require('@/api/v1/models');
+const { Booking, Space, User, Review } = require('@/api/v1/models'); // Fixed: Review instead of Reviews
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const crypto = require('crypto');
@@ -7,41 +7,70 @@ const rewardService = require('@/api/v1/services/rewardService');
 class BookingController {
     getUserId = (req) => req.user?.sub || req.user?._id || req.user?.id;
 
-    getMyBookings = async (req, res, next) => {
-        try {
-            const userId = this.getUserId(req);
-            const { page = 1, limit = 10, status = '' } = req.query;
+   // In your BookingController.js - update getMyBookings method
+getMyBookings = async (req, res, next) => {
+    try {
+        const userId = this.getUserId(req);
+        const { page = 1, limit = 10, status = '' } = req.query;
 
-            let query = { user_id: userId };
-            if (status) query.status = status;
+        let query = { user_id: userId };
+        if (status) query.status = status;
 
-            // Get total points for the user to display in dashboard
-            const userPoints = await rewardService.getUserPoints(userId);
+        // Get total points for the user to display in dashboard
+        const userPoints = await rewardService.getUserPoints(userId);
 
-            const total = await Booking.countDocuments(query);
-            const bookings = await Booking.find(query)
-                .populate('space_id', 'name image area rate_hour user_id')
-                .sort({ created_at: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit);
+        const total = await Booking.countDocuments(query);
+        let bookings = await Booking.find(query)
+            .populate('space_id', 'name image area rate_hour user_id')
+            .sort({ created_at: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .lean();
 
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: {
-                    bookings,
-                    total,
-                    points: userPoints // Send points to frontend
-                }
+        // Check which completed bookings have been reviewed
+        if (bookings.length > 0) {
+            const bookingIds = bookings.map(b => b._id);
+            
+            // Get all reviews for these bookings
+            const reviews = await Review.find({ 
+                booking_id: { $in: bookingIds },
+                user_id: userId 
+            }).lean();
+
+            // Create a Set of booking_ids that have reviews
+            const reviewedBookingIds = new Set(
+                reviews.map(r => r.booking_id.toString())
+            );
+
+            // Add has_reviewed and is_edited flags to each booking
+            bookings = bookings.map(booking => {
+                const review = reviews.find(r => r.booking_id.toString() === booking._id.toString());
+                return {
+                    ...booking,
+                    has_reviewed: reviewedBookingIds.has(booking._id.toString()),
+                    is_edited: review ? review.is_edited : false
+                };
             });
-        } catch (error) {
-            next(error);
         }
-    };
+
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            data: {
+                bookings,
+                total,
+                points: userPoints
+            }
+        });
+    } catch (error) {
+        console.error('Error in getMyBookings:', error);
+        next(error);
+    }
+};
 
     createBooking = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
-            const { space_id, date, start_time, end_time, is_open_time, notes } = req.body; // REMOVED voucher_code
+            const { space_id, date, start_time, end_time, is_open_time, notes } = req.body;
 
             const bookingData = {
                 user_id: userId,
@@ -54,7 +83,6 @@ class BookingController {
                 ticket_number: `FLX-${Math.floor(1000 + Math.random() * 9000)}`
             };
 
-            // Fix for timezone consistency in Iloilo (+8)
             const dateStr = date.split('T')[0];
 
             if (is_open_time) {
@@ -90,7 +118,6 @@ class BookingController {
 
             const now = new Date();
 
-            // 1. LATENESS CHECK (1 Hour Grace Period)
             if (booking.status === 'confirmed' && !booking.is_open_time) {
                 const limit = new Date(booking.start_time.getTime() + (60 * 60 * 1000));
                 if (now > limit) {
@@ -101,7 +128,6 @@ class BookingController {
                 }
             }
 
-            // 2. CHECK-IN LOGIC
             if (booking.status === 'confirmed') {
                 booking.check_in_at = now;
                 booking.status = 'active';
@@ -113,7 +139,6 @@ class BookingController {
                 });
             }
 
-            // 3. ALREADY ACTIVE LOGIC
             if (booking.status === 'active') {
                 return res.status(HTTP_STATUS.OK).json({
                     success: true,
@@ -133,7 +158,6 @@ class BookingController {
             const { id } = req.params;
             const { voucherCode } = req.body;
 
-            // Get booking and verify ownership
             const booking = await Booking.findOne({ _id: id, user_id: userId })
                 .populate('space_id');
 
@@ -145,7 +169,6 @@ class BookingController {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Vouchers can only be applied to pending payments');
             }
 
-            // Calculate current total (same logic as calculateBill)
             let totalAmount = 0;
             if (booking.is_open_time) {
                 totalAmount = parseFloat(booking.space_id.rate_hour || 0);
@@ -157,10 +180,8 @@ class BookingController {
                 totalAmount = parseFloat((seconds * ratePerSecond).toFixed(2));
             }
 
-            // Validate voucher without consuming it (includes min_spend check)
             const voucherResult = await rewardService.validateVoucher(voucherCode, userId);
             
-            // Check minimum spend requirement
             if (voucherResult.min_spend && totalAmount < voucherResult.min_spend) {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Minimum spend of ₱${voucherResult.min_spend} required to use this voucher. Current total: ₱${totalAmount.toFixed(2)}`);
             }
@@ -189,7 +210,6 @@ class BookingController {
             const { id } = req.params;
             const { voucherCode } = req.body;
 
-            // Get booking and verify ownership
             const booking = await Booking.findOne({ _id: id, user_id: userId })
                 .populate('space_id');
 
@@ -201,7 +221,6 @@ class BookingController {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Vouchers can only be applied to pending payments');
             }
 
-            // Calculate current total
             let totalAmount = 0;
             if (booking.is_open_time) {
                 totalAmount = parseFloat(booking.space_id.rate_hour || 0);
@@ -213,21 +232,17 @@ class BookingController {
                 totalAmount = parseFloat((seconds * ratePerSecond).toFixed(2));
             }
 
-            // First validate the voucher (includes min_spend check)
             const validationResult = await rewardService.validateVoucher(voucherCode, userId);
             
-            // Check minimum spend requirement
             if (validationResult.min_spend && totalAmount < validationResult.min_spend) {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Minimum spend of ₱${validationResult.min_spend} required to use this voucher. Current total: ₱${totalAmount.toFixed(2)}`);
             }
 
-            // Validate AND consume the voucher
             const voucherResult = await rewardService.validateAndUseVoucher(voucherCode, userId);
 
             const discount = voucherResult.discount_amount;
             const finalAmount = Math.max(0, totalAmount - discount);
 
-            // Update booking with discounted amount
             const updatedBooking = await Booking.findByIdAndUpdate(
                 id,
                 {
@@ -261,7 +276,6 @@ class BookingController {
             const userId = this.getUserId(req);
             const { voucherCode } = req.body;
 
-            // Validate voucher without consuming it
             const voucherResult = await rewardService.validateVoucher(voucherCode, userId);
             
             return res.status(HTTP_STATUS.OK).json({

@@ -1,13 +1,13 @@
 // User/Bookings/List.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { apiGet, apiPost } from '@/utils/Api';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/Api';
 import {
     XCircle, Loader2, LogIn, LogOut,
-    ReceiptText, Zap, ScanLine, Ticket, Coins, Gift, ChevronLeft, ChevronRight
+    ReceiptText, Zap, ScanLine, Ticket, Coins, Gift, ChevronLeft, ChevronRight, Star, PenSquare, Trash2
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { cn } from '@/lib/utils';
-
+import FeedbackModal from './Feedback';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const getPHDateDisplay = (dateStr) => new Date(dateStr).toLocaleDateString('en-PH', {
@@ -19,23 +19,23 @@ const getPHTimeDisplay = (dateStr) => new Date(dateStr).toLocaleTimeString('en-P
 });
 
 const STATUS_FILTERS = [
-    'all', 
-    'pending', 
-    'confirmed', 
-    'active', 
+    'all',
+    'pending',
+    'confirmed',
+    'active',
     'pending_payment',
-    'completed', 
+    'completed',
     'cancelled'
 ];
 
 const statusStyles = {
-    pending:         { badge: 'bg-amber-500/10 text-amber-600',    dot: 'bg-amber-500' },
-    confirmed:       { badge: 'bg-emerald-500/10 text-emerald-600', dot: 'bg-emerald-500' },
-    active:          { badge: 'bg-indigo-500/10 text-indigo-500',   dot: 'bg-indigo-500' },
-    pending_payment: { badge: 'bg-purple-500/10 text-purple-600',   dot: 'bg-purple-500' },
-    completed:       { badge: 'bg-slate-100 text-slate-500',        dot: 'bg-slate-400' },
-    cancelled:       { badge: 'bg-red-500/10 text-red-500',         dot: 'bg-red-400' },
-    rejected:        { badge: 'bg-red-500/10 text-red-500',         dot: 'bg-red-400' },
+    pending: { badge: 'bg-amber-500/10 text-amber-600', dot: 'bg-amber-500' },
+    confirmed: { badge: 'bg-emerald-500/10 text-emerald-600', dot: 'bg-emerald-500' },
+    active: { badge: 'bg-indigo-500/10 text-indigo-500', dot: 'bg-indigo-500' },
+    pending_payment: { badge: 'bg-purple-500/10 text-purple-600', dot: 'bg-purple-500' },
+    completed: { badge: 'bg-slate-100 text-slate-500', dot: 'bg-slate-400' },
+    cancelled: { badge: 'bg-red-500/10 text-red-500', dot: 'bg-red-400' },
+    rejected: { badge: 'bg-red-500/10 text-red-500', dot: 'bg-red-400' },
 };
 
 // ── Loading Spinner Component ────────────────────────────────────────────────
@@ -75,10 +75,10 @@ const VoucherModal = ({ booking, userPoints, onClose, onSuccess }) => {
 
         setLoading(true);
         try {
-            const res = await apiPost(`/user/bookings/${booking._id}/preview-voucher`, { 
-                voucherCode: voucherCode.trim().toUpperCase() 
+            const res = await apiPost(`/user/bookings/${booking._id}/preview-voucher`, {
+                voucherCode: voucherCode.trim().toUpperCase()
             });
-            
+
             if (res.success) {
                 setPreviewData(res.data);
                 setStep('preview');
@@ -94,14 +94,14 @@ const VoucherModal = ({ booking, userPoints, onClose, onSuccess }) => {
     const handleRedeemVoucher = async () => {
         setLoading(true);
         try {
-            const res = await apiPost(`/user/bookings/${booking._id}/redeem-voucher`, { 
-                voucherCode: voucherCode.trim().toUpperCase() 
+            const res = await apiPost(`/user/bookings/${booking._id}/redeem-voucher`, {
+                voucherCode: voucherCode.trim().toUpperCase()
             });
-            
+
             if (res.success) {
-                showToast({ 
-                    icon: 'success', 
-                    title: `Voucher redeemed! ₱${previewData.discount_amount} saved` 
+                showToast({
+                    icon: 'success',
+                    title: `Voucher redeemed! ₱${previewData.discount_amount} saved`
                 });
                 onSuccess();
                 onClose();
@@ -130,14 +130,14 @@ const VoucherModal = ({ booking, userPoints, onClose, onSuccess }) => {
                 </button>
 
                 <div className="text-center mb-4 sm:mb-6">
-                    <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 mb-3 sm:mb-4">
+                    <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-linear-to-br from-indigo-500 to-purple-600 mb-3 sm:mb-4">
                         <Ticket size={24} className="text-white sm:w-8 sm:h-8" />
                     </div>
                     <h2 className="text-xl sm:text-2xl font-[1000] italic uppercase tracking-tight">Redeem Voucher</h2>
                     <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
                         Booking: {booking.ticket_number}
                     </p>
-                    
+
                     <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
                         <Coins size={12} className="text-amber-600" />
                         <span className="text-[9px] sm:text-[10px] font-black uppercase text-amber-700">
@@ -175,7 +175,7 @@ const VoucherModal = ({ booking, userPoints, onClose, onSuccess }) => {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-xl sm:rounded-2xl border border-emerald-200">
+                        <div className="bg-linear-to-r from-emerald-50 to-green-50 p-4 rounded-xl sm:rounded-2xl border border-emerald-200">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-[9px] sm:text-[10px] font-black uppercase text-emerald-600">Subtotal</span>
                                 <span className="text-xs sm:text-sm font-bold">₱{previewData.sub_total?.toFixed(2)}</span>
@@ -201,7 +201,7 @@ const VoucherModal = ({ booking, userPoints, onClose, onSuccess }) => {
                             <button
                                 onClick={handleRedeemVoucher}
                                 disabled={loading}
-                                className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-lg active:scale-95 disabled:opacity-50"
+                                className="flex-1 py-3 bg-linear-to-r from-emerald-600 to-green-600 text-white rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-lg active:scale-95 disabled:opacity-50"
                             >
                                 {loading ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Confirm & Redeem'}
                             </button>
@@ -212,7 +212,6 @@ const VoucherModal = ({ booking, userPoints, onClose, onSuccess }) => {
         </div>
     );
 };
-
 // ── QR Scanner Modal ─────────────────────────────────────────────────────────
 const QRScannerModal = ({ booking, onClose, onSuccess }) => {
     const instanceRef = useRef(null);
@@ -234,7 +233,7 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
                 async (decodedText) => {
                     if (processing) return;
                     setProcessing(true);
-                    await html5QrCode.stop().catch(() => {});
+                    await html5QrCode.stop().catch(() => { });
                     setScanning(false);
 
                     try {
@@ -251,12 +250,12 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
                         await html5QrCode.start(
                             { facingMode: 'environment' },
                             { fps: 10, qrbox: { width: 220, height: 220 } },
-                            () => {}
+                            () => { }
                         );
                         setScanning(true);
                     }
                 },
-                () => {}
+                () => { }
             );
 
             setScanning(true);
@@ -265,7 +264,7 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
         startScanner().catch(console.error);
 
         return () => {
-            instanceRef.current?.stop().catch(() => {});
+            instanceRef.current?.stop().catch(() => { });
         };
     }, []);
 
@@ -331,11 +330,33 @@ const QRScannerModal = ({ booking, onClose, onSuccess }) => {
 };
 
 // ── Booking Card ─────────────────────────────────────────────────────────────
-const BookingCard = ({ booking, userPoints, onScan, onRedeemVoucher }) => {
+const BookingCard = ({ booking, userPoints, onScan, onRedeemVoucher, onFeedback }) => {
     const space = booking.space_id;
     const style = statusStyles[booking.status] || statusStyles.cancelled;
     const rateHour = space?.rate_hour || 0;
     const totalPaid = booking.total_amount || 0;
+
+    // Helper function to get the primary image URL (supports Cloudinary)
+    const getPrimaryImage = (space) => {
+        // Check if there are images in the images array
+        if (space?.images && space.images.length > 0) {
+            // Images are already full Cloudinary URLs
+            return space.images[0];
+        }
+
+        // Fallback to single image field
+        if (space?.image) {
+            // Check if it's a full URL (Cloudinary) or local path
+            if (space.image.startsWith('http://') || space.image.startsWith('https://')) {
+                return space.image;
+            }
+            // Local path (fallback)
+            return `${API_BASE_URL}/uploads/spaces/${space.user_id}/${space.image}`;
+        }
+
+        // Default placeholder
+        return '/placeholder.jpg';
+    };
 
     return (
         <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-6 hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group relative overflow-hidden h-full">
@@ -345,7 +366,7 @@ const BookingCard = ({ booking, userPoints, onScan, onRedeemVoucher }) => {
                 <div className="w-full sm:w-20 h-40 sm:h-20 rounded-xl sm:rounded-2xl bg-slate-100 overflow-hidden shrink-0 border border-slate-50 relative">
                     {space?.image ? (
                         <img
-                            src={`${API_BASE_URL}/uploads/spaces/${space.user_id}/${space.image}`}
+                            src={getPrimaryImage(space)}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                             alt={space?.name}
                             onError={(e) => { e.target.onerror = null; e.target.src = '/placeholder.jpg'; }}
@@ -393,7 +414,7 @@ const BookingCard = ({ booking, userPoints, onScan, onRedeemVoucher }) => {
                             #{booking.ticket_number}
                         </span>
                         <span className="w-1 h-1 rounded-full bg-slate-200 hidden sm:inline-block" />
-                        <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-slate-400 break-words">
+                        <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-slate-400 wrap-break-word">
                             {getPHDateDisplay(booking.start_time)} · {getPHTimeDisplay(booking.start_time)}
                         </span>
                     </div>
@@ -472,11 +493,11 @@ const BookingCard = ({ booking, userPoints, onScan, onRedeemVoucher }) => {
                             Total Due: ₱{booking.total_amount?.toFixed(2) || '0.00'}
                         </p>
                     </div>
-                    
+
                     {!booking.voucher_applied && (
                         <button
                             onClick={() => onRedeemVoucher(booking)}
-                            className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-lg active:scale-95"
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-lg active:scale-95"
                         >
                             <Ticket size={12} className="sm:w-3.5 sm:h-3.5" />
                             Redeem Voucher
@@ -486,11 +507,44 @@ const BookingCard = ({ booking, userPoints, onScan, onRedeemVoucher }) => {
             )}
 
             {booking.status === 'completed' && (
-                <div className="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-slate-50 flex items-center justify-between">
-                    <p className="text-[9px] sm:text-[10px] text-slate-400 font-black uppercase tracking-widest">Amount Paid</p>
-                    <p className="text-base sm:text-lg font-[1000] italic text-emerald-600 tracking-tighter">
-                        ₱{totalPaid.toFixed(2)}
-                    </p>
+                <div className="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-slate-50 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-black uppercase tracking-widest">Amount Paid</p>
+                        <p className="text-base sm:text-lg font-[1000] italic text-emerald-600 tracking-tighter">
+                            ₱{totalPaid.toFixed(2)}
+                        </p>
+                    </div>
+
+                    {!booking.has_reviewed ? (
+                        <button
+                            onClick={() => onFeedback(booking)}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:shadow-lg active:scale-95"
+                        >
+                            <Star size={12} />
+                            Write a Review
+                        </button>
+                    ) : (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => onFeedback({ ...booking, isEdit: true })}
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:bg-blue-100"
+                            >
+                                <PenSquare size={12} />
+                                Edit Review
+                            </button>
+                            <button
+                                onClick={() => onFeedback({ ...booking, isDelete: true })}
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-50 text-red-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:bg-red-100"
+                            >
+                                <Trash2 size={12} />
+                                Delete
+                            </button>
+                        </div>
+                    )}
+
+                    {booking.has_reviewed && booking.is_edited && (
+                        <p className="text-[7px] text-amber-600 text-center">(Edited)</p>
+                    )}
                 </div>
             )}
         </div>
@@ -545,6 +599,8 @@ const FilterTabs = ({ activeFilter, onFilterChange }) => {
     );
 };
 
+// Update the handleFeedback function and modal rendering
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 const UserBookings = () => {
     const [bookings, setBookings] = useState([]);
@@ -553,6 +609,9 @@ const UserBookings = () => {
     const [scanningBooking, setScanningBooking] = useState(null);
     const [voucherBooking, setVoucherBooking] = useState(null);
     const [userPoints, setUserPoints] = useState(0);
+    const [feedbackBooking, setFeedbackBooking] = useState(null);
+    const [editingReview, setEditingReview] = useState(null);
+    const [userReviews, setUserReviews] = useState([]);
 
     const fetchBookings = useCallback(async () => {
         setLoading(true);
@@ -568,13 +627,98 @@ const UserBookings = () => {
         }
     }, [activeFilter]);
 
+    const fetchUserReviews = useCallback(async () => {
+        try {
+            const res = await apiGet('/user/reviews');
+            if (res.success) {
+                console.log('Fetched reviews:', res.data.reviews); // Debug log
+                setUserReviews(res.data.reviews);
+            }
+        } catch (err) {
+            console.error('Failed to fetch reviews:', err);
+        }
+    }, []);
+
     useEffect(() => {
         fetchBookings();
-    }, [fetchBookings]);
+        fetchUserReviews();
+    }, [fetchBookings, fetchUserReviews]);
+
+    const handleDeleteReview = async (booking) => {
+        const review = userReviews.find(r => {
+            const reviewBookingId = r.booking_id?._id || r.booking_id;
+            return reviewBookingId?.toString() === booking._id.toString();
+        });
+
+        if (!review) {
+            showToast({
+                icon: 'error',
+                title: 'Review not found',
+                text: 'Unable to find the review to delete.'
+            });
+            return;
+        }
+
+        if (confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
+            try {
+                const res = await apiDelete(`/user/reviews/${review._id}`);
+                if (res.success) {
+                    showToast({
+                        icon: 'success',
+                        title: 'Review deleted successfully!'
+                    });
+                    fetchBookings();
+                    fetchUserReviews();
+                }
+            } catch (err) {
+                showToast({
+                    icon: 'error',
+                    title: 'Failed to delete review',
+                    text: err.response?.data?.message || err.message
+                });
+            }
+        }
+    };
+
+    /// Handle edit button click - FIXED comparison
+    const handleEditClick = (booking) => {
+        console.log('Looking for review with booking_id:', booking._id);
+        console.log('Available reviews:', userReviews);
+
+        // Convert both to string for comparison
+        const review = userReviews.find(r => {
+            const reviewBookingId = r.booking_id?._id || r.booking_id;
+            return reviewBookingId?.toString() === booking._id.toString();
+        });
+
+        console.log('Found review:', review);
+
+        if (review) {
+            setEditingReview(review);
+        } else {
+            console.error('Review not found for booking:', booking._id);
+            showToast({
+                icon: 'error',
+                title: 'Review not found',
+                text: 'Unable to find the review for editing. Please try again.'
+            });
+        }
+    };
+
+
+    // Handle feedback from BookingCard
+    const handleBookingAction = (item) => {
+        if (item.isEdit) {
+            handleEditClick(item);
+        } else if (item.isDelete) {
+            handleDeleteReview(item);
+        } else {
+            setFeedbackBooking(item);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 sm:pb-32 selection:bg-indigo-100 animate-in fade-in duration-700">
-            
             {/* Header Section */}
             <section className="pt-6 sm:pt-8 pb-8 sm:pb-12 px-4 sm:px-6 max-w-7xl mx-auto">
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 lg:gap-8">
@@ -591,7 +735,7 @@ const UserBookings = () => {
                         <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-md">
                             Review your past sessions and active hub visits.
                         </p>
-                        
+
                         {/* Points Display */}
                         <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-amber-50 border border-amber-200">
                             <Coins size={14} className="text-amber-600" />
@@ -614,12 +758,13 @@ const UserBookings = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                         {bookings.map((b) => (
-                            <BookingCard 
-                                key={b._id} 
-                                booking={b} 
+                            <BookingCard
+                                key={b._id}
+                                booking={b}
                                 userPoints={userPoints}
                                 onScan={setScanningBooking}
                                 onRedeemVoucher={setVoucherBooking}
+                                onFeedback={handleBookingAction}
                             />
                         ))}
                     </div>
@@ -641,6 +786,36 @@ const UserBookings = () => {
                     userPoints={userPoints}
                     onClose={() => setVoucherBooking(null)}
                     onSuccess={fetchBookings}
+                />
+            )}
+
+            {/* Create Review Modal */}
+            {feedbackBooking && (
+                <FeedbackModal
+                    booking={feedbackBooking}
+                    onClose={() => setFeedbackBooking(null)}
+                    onSuccess={() => {
+                        fetchBookings();
+                        fetchUserReviews();
+                    }}
+                />
+            )}
+
+            {/* Edit Review Modal */}
+            {editingReview && (
+                <FeedbackModal
+                    booking={null}
+                    review={editingReview}
+                    onClose={() => {
+                        console.log('Closing edit modal');
+                        setEditingReview(null);
+                    }}
+                    onSuccess={() => {
+                        console.log('Edit success');
+                        fetchBookings();
+                        fetchUserReviews();
+                        setEditingReview(null);
+                    }}
                 />
             )}
         </div>

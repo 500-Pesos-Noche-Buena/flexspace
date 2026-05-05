@@ -431,6 +431,46 @@ class BookingController {
             next(error);
         }
     };
+
+    // Add this method to check if user has reviewed a booking
+getUserBookingWithReviewStatus = async (req, res, next) => {
+    try {
+        const userId = req.user?.sub || req.user?._id || req.user?.id;
+        const { status = '' } = req.query;
+
+        let query = { user_id: userId };
+        if (status) query.status = status;
+
+        const bookings = await Booking.find(query)
+            .populate('space_id', 'name image rate_hour')
+            .sort({ created_at: -1 });
+
+        // Check which bookings have reviews
+        const Review = require('@/api/v1/models/Review');
+        const reviewedBookings = await Review.find({
+            user_id: userId,
+            booking_id: { $in: bookings.map(b => b._id) }
+        }).select('booking_id');
+
+        const reviewedBookingIds = new Set(reviewedBookings.map(r => r.booking_id.toString()));
+
+        // Add has_reviewed flag to each booking
+        const bookingsWithReviewFlag = bookings.map(booking => ({
+            ...booking.toObject(),
+            has_reviewed: reviewedBookingIds.has(booking._id.toString())
+        }));
+
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            data: {
+                bookings: bookingsWithReviewFlag,
+                points: await rewardService.getUserPoints(userId)
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 }
 
 module.exports = new BookingController();
