@@ -5,9 +5,9 @@ import { getSpaceImage } from '@/utils/imageHelper';
 const TopSpaces = ({ spaces = [] }) => {
     const displaySpaces = spaces.slice(0, 4);
     
-    // Debug: Log the first space to see its structure
-    console.log("TopSpaces received data:", spaces);
-    console.log("First space:", displaySpaces[0]);
+    // // Debug: Log the first space to see its structure
+    // console.log("TopSpaces received data:", spaces);
+    // console.log("First space:", displaySpaces[0]);
 
     if (displaySpaces.length === 0) {
         return (
@@ -30,13 +30,13 @@ const TopSpaces = ({ spaces = [] }) => {
                 <h2 className="text-3xl font-black text-slate-900 mb-8 tracking-tight">Popular Workspaces</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {displaySpaces.map((s) => {
-                        // Debug each space's image
-                        console.log(`Space ${s.name}:`, {
-                            image: s.image,
-                            imageType: typeof s.image,
-                            imageStartsWithHttp: s.image?.startsWith('http'),
-                            fullSpace: s
-                        });
+                        // // Debug each space's image
+                        // console.log(`Space ${s.name}:`, {
+                        //     image: s.image,
+                        //     imageType: typeof s.image,
+                        //     imageStartsWithHttp: s.image?.startsWith('http'),
+                        //     fullSpace: s
+                        // });
                         
                         return (
                             <Card 

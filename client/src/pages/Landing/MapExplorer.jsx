@@ -223,7 +223,7 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
     // INIT MAP
     useEffect(() => {
         if (!mapRef.current) {
-            console.log("🗺️ Initializing map...");
+            // console.log("🗺️ Initializing map...");
             mapRef.current = L.map('map-container', {
                 zoomControl: false,
                 attributionControl: false

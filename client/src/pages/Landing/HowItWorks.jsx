@@ -53,7 +53,7 @@ const HowItWorks = () => {
         
         try {
             const response = await apiGet('/landing/stats');
-            console.log("Stats response:", response);
+            // console.log("Stats response:", response);
             
             const freshData = {
                 totalSpaces: response.data?.totalSpaces || 0,
@@ -68,17 +68,17 @@ const HowItWorks = () => {
                 lastStatsFingerprint.current = currentFingerprint;
                 setStats(freshData);
                 
-                if (!isInitial) {
-                    console.log("📊 Real-time Stats Updated:", new Date().toLocaleTimeString());
-                    console.log(`  → Workspaces: ${freshData.totalSpaces}`);
-                    console.log(`  → Active Users: ${freshData.totalUsers}`);
-                    console.log(`  → Active Now: ${freshData.activeBookings}`);
-                }
+                // if (!isInitial) {
+                //     console.log("📊 Real-time Stats Updated:", new Date().toLocaleTimeString());
+                //     console.log(`  → Workspaces: ${freshData.totalSpaces}`);
+                //     console.log(`  → Active Users: ${freshData.totalUsers}`);
+                //     console.log(`  → Active Now: ${freshData.activeBookings}`);
+                // }
             } else if (!isInitial) {
-                console.log("🔄 Stats unchanged, skipping re-render:", new Date().toLocaleTimeString());
+                // console.log("🔄 Stats unchanged, skipping re-render:", new Date().toLocaleTimeString());
             }
         } catch (error) {
-            console.error("Error fetching stats:", error);
+            // console.error("Error fetching stats:", error);
             if (isInitial) {
                 setStats({
                     totalSpaces: 1,
@@ -107,7 +107,7 @@ const HowItWorks = () => {
             if (document.visibilityState === 'visible') {
                 fetchStats(false);
             } else {
-                console.log("⏸️ Polling paused (tab inactive)");
+                // console.log("⏸️ Polling paused (tab inactive)");
             }
         }, 3000); // 3-second real-time heartbeat
 
