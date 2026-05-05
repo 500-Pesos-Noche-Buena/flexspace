@@ -132,12 +132,31 @@ const StatBox = ({ label, value, color, icon: Icon, subtitle, tooltip }) => (
 );
 
 /** --- SPACE CARD COMPONENT (Mobile Optimized) --- **/
-const SpaceCard = ({ name, location, price, rating, image, userId, tags = [] }) => {
-        const imageUrl = image && (image.startsWith('http') ? image : null);
-
+const SpaceCard = ({ spaceId, name, location, price, rating, image, userId, tags = [] }) => {
+    // Fix: Properly get the image URL
+    const getImageUrl = () => {
+        if (!image) return '/placeholder.jpg';
+        
+        // If it's a full URL (Cloudinary or external)
+        if (image.startsWith('http://') || image.startsWith('https://')) {
+            return image;
+        }
+        
+        // If it's a local path
+        if (userId) {
+            return `${API_BASE_URL}/uploads/spaces/${userId}/${image}`;
+        }
+        
+        return '/placeholder.jpg';
+    };
+    
+    const imageUrl = getImageUrl();
 
     return (
-        <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-[2.5rem] overflow-hidden hover:border-indigo-100 transition-all group cursor-pointer shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 h-full flex flex-col">
+        <div 
+            className="bg-white border border-slate-100 rounded-2xl sm:rounded-[2.5rem] overflow-hidden hover:border-indigo-100 transition-all group cursor-pointer shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 h-full flex flex-col"
+            onClick={() => window.location.href = `/explore/${spaceId}`}
+        >
             {/* Image Container - Responsive height */}
             <div className="relative h-40 sm:h-48 bg-slate-100 overflow-hidden">
                 <div className="absolute top-3 right-3 sm:top-4 sm:right-4 px-2 py-0.5 sm:px-3 sm:py-1 bg-white/90 backdrop-blur-md rounded-full z-10 text-[8px] sm:text-[9px] font-black text-slate-900 uppercase tracking-widest border border-slate-100 shadow-sm">
@@ -156,7 +175,7 @@ const SpaceCard = ({ name, location, price, rating, image, userId, tags = [] }) 
                 {/* Rating overlay on mobile */}
                 <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full sm:hidden">
                     <Star size={10} fill="currentColor" className="text-amber-400" />
-                    <span className="text-[10px] font-black text-white">{rating}</span>
+                    <span className="text-[10px] font-black text-white">{rating?.toFixed(1) || 4.5}</span>
                 </div>
             </div>
 
@@ -168,13 +187,13 @@ const SpaceCard = ({ name, location, price, rating, image, userId, tags = [] }) 
                         </h3>
                         <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1 mt-1">
                             <MapPin size={9} className="text-indigo-600 shrink-0" />
-                            <span className="truncate">{location}</span>
+                            <span className="truncate">{location || 'Iloilo City'}</span>
                         </p>
                     </div>
                     {/* Desktop rating - hidden on mobile */}
                     <div className="hidden sm:flex items-center gap-1 text-amber-500 shrink-0">
                         <Star size={12} fill="currentColor" />
-                        <span className="text-xs font-black">{rating}</span>
+                        <span className="text-xs font-black">{rating?.toFixed(1) || 4.5}</span>
                     </div>
                 </div>
 
@@ -395,14 +414,6 @@ const UserDashboard = () => {
                                 Live availability in Iloilo
                             </p>
                         </div>
-                        {/* <div className="flex bg-slate-50 p-1 rounded-xl sm:rounded-2xl border border-slate-100 self-center sm:self-auto">
-                            <button className="px-4 py-1.5 sm:px-6 sm:py-2.5 bg-indigo-600 text-white rounded-lg sm:rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-widest shadow-lg">
-                                List View
-                            </button>
-                            <button className="px-4 py-1.5 sm:px-6 sm:py-2.5 text-slate-400 text-[8px] sm:text-[10px] font-black uppercase tracking-widest hover:text-slate-900 transition-all">
-                                Map View
-                            </button>
-                        </div> */}
                     </div>
                     <div className="min-h-75 sm:min-h-112.5">
                         <ExplorerView />
@@ -417,11 +428,11 @@ const UserDashboard = () => {
                     viewAllLink="/user/space"
                 >
                     {trending.length > 0 ? trending.map((space) => (
-                        /* ADD THIS WRAPPER DIV */
                         <div key={space._id} className="w-70 sm:w-87.5 shrink-0 snap-start">
                             <SpaceCard
+                                spaceId={space._id}
                                 name={space.name}
-                                location={space.location}
+                                location={space.location || space.district_id?.name || 'Iloilo City'}
                                 price={space.rate_hour}
                                 rating={space.rating || 4.5}
                                 tags={space.amenities}
@@ -431,7 +442,7 @@ const UserDashboard = () => {
                         </div>
                     )) : (
                         <div className="w-full py-16 text-center">
-                            {/* ... empty state ... */}
+                            <p className="text-slate-400">No trending spaces available</p>
                         </div>
                     )}
                 </HorizontalScroll>
@@ -444,4 +455,3 @@ const UserDashboard = () => {
 };
 
 export default UserDashboard;
-
