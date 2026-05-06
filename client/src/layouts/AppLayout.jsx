@@ -60,7 +60,7 @@ export const AppLayout = ({ children, logoSrc = "/logo.png" }) => {
         checkMaintenance();
         
         // Poll every 30 seconds for status changes
-        const interval = setInterval(checkMaintenance, 30000);
+        const interval = setInterval(checkMaintenance, 5000);
         return () => clearInterval(interval);
     }, []);
 
@@ -129,7 +129,7 @@ export const AppLayout = ({ children, logoSrc = "/logo.png" }) => {
     // Show maintenance screen
     if (showMaintenanceScreen) {
         return (
-            <div className="fixed inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800 z-[10000]">
+            <div className="fixed inset-0 flex flex-col items-center justify-center bg-linear-to-b from-slate-900 to-slate-800 z-10000">
                 <img src={logoSrc} alt="Logo" className="w-32 h-32 mb-6 animate-pulse opacity-50" />
                 
                 <div className="w-20 h-20 rounded-full bg-amber-500/10 flex items-center justify-center mb-6">
