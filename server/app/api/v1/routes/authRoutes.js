@@ -1,9 +1,11 @@
 const express = require('express');
+const passport = require('@/config/passport');
 const authController = require('@/api/v1/controllers/authController');
 const profileController = require('@/api/v1/controllers/profileController');
 const { upload, processUploadedFiles } = require('@/api/v1/utils/upload');
 const auth = require('@/api/v1/middleware/authMiddleware');
 const passwordController = require('@/api/v1/controllers/passwordController');
+const jwt = require('jsonwebtoken');
 
 class AuthRoutes {
     constructor() {
@@ -12,7 +14,7 @@ class AuthRoutes {
     }
 
     initializeRoutes = () => {
-        console.log('--- 🛡️ Initializing Auth Routes (Profile + Payment Enabled) ---');
+        console.log('--- 🛡️ Initializing Auth Routes (Google OAuth + JWT) ---');
         
         // --- PUBLIC ROUTES ---
         this.router.post('/login', authController.login);
@@ -26,7 +28,18 @@ class AuthRoutes {
             authController.register
         );
 
+        // ============ GOOGLE OAUTH ROUTES (JWT-based) ============
+        this.router.get('/google',
+            passport.authenticate('google', { scope: ['profile', 'email'], session: false })
+        );
+        
+        this.router.get('/google/callback',
+            passport.authenticate('google', { failureRedirect: '/login', session: false }),
+            (req, res, next) => authController.googleCallback(req, res, next)
+        );
+
         this.router.get('/profile', auth, profileController.getProfile);
+        this.router.get('/recent-activity', auth, profileController.getRecentActivity);
         this.router.put('/profile/update', auth, profileController.updateProfile);
         this.router.put('/profile/update-password', auth, profileController.updatePassword);
         

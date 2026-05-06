@@ -11,6 +11,7 @@ import { NotFound } from '@/error/404';
 import Profile from '@/pages/Profile/Index'; // shared or admin/space profile
 import UserProfile from '@/pages/User/Profile/Index'; // New dedicated user profile page
 import Login from '@/pages/Auth/Login';
+import GoogleCallback from '@/pages/Auth/GoogleCallback';
 import Register from '@/pages/Auth/Register';
 import Pending from '@/pages/Auth/Pending';
 import Spaces from '@/pages/Landing/Spaces';
@@ -115,6 +116,7 @@ export const AppRoutes = () => {
             <Route path="" element={<AuthLayout />}>
                 <Route index element={<Navigate to="login" replace />} />
                 <Route path="login" element={<Login />} />
+                <Route path="/auth/google-callback" element={<GoogleCallback />} />
                 <Route path="register" element={<Register />} />
                 <Route path="registration-status" element={<Pending />} />
             </Route>

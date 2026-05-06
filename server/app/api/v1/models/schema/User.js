@@ -9,7 +9,31 @@ const userSchema = new mongoose.Schema({
     },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    
+    // Make password optional for Google OAuth users
+    password: { 
+        type: String, 
+        required: false,  // ← Changed to false
+        default: null 
+    },
+    
+    // ============ GOOGLE OAUTH FIELDS ============
+    googleId: { 
+        type: String, 
+        default: null,
+        unique: true,
+        sparse: true  // Allows multiple null values
+    },
+    authProvider: { 
+        type: String, 
+        enum: ['local', 'google'],
+        default: 'local' 
+    },
+    avatar: { 
+        type: String, 
+        default: null 
+    },
+    
     role: { type: String, default: 'user' },
     parent_id: { 
         type: mongoose.Schema.Types.ObjectId, 
@@ -21,6 +45,10 @@ const userSchema = new mongoose.Schema({
         default: 0 
     },
     isActive: { type: Boolean, default: true },
+    isVerified: { 
+        type: Boolean, 
+        default: false  // Google users will be auto-verified
+    },
     status: { type: String, enum: ['pending', 'approved', 'rejected'] },
     business_permit: { type: String },
     dti_sec_reg: { type: String },

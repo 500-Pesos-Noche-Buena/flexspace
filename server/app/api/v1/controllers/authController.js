@@ -28,6 +28,15 @@ class AuthController {
                 });
             }
 
+            // Check if user is a Google OAuth user (has no password)
+            if (result.user.authProvider === 'google' && !result.user.password) {
+                return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+                    success: false,
+                    message: "This account uses Google Sign-In. Please log in with Google.",
+                    requiresGoogle: true
+                });
+            }
+
             if (result.user.isActive === false) {
                 throw new ApiError(HTTP_STATUS.FORBIDDEN, "Your account is not yet activated.");
             }
@@ -41,7 +50,10 @@ class AuthController {
                 user: {
                     id: result.user._id,
                     name: result.user.name,
-                    role: result.user.role
+                    email: result.user.email,
+                    role: result.user.role,
+                    avatar: result.user.avatar || null,
+                    authProvider: result.user.authProvider || 'local'
                 }
             });
 
@@ -99,15 +111,16 @@ class AuthController {
             }
 
             // Standard User Registration (ONLY for regular users)
-            const newUser = await userService.createUser({ 
-                name, 
-                email, 
+            const newUser = await userService.createUser({
+                name,
+                email,
                 password,
                 role: 'user',
                 status: 'approved',
-                isActive: true
+                isActive: true,
+                authProvider: 'local'
             });
-            
+
             console.log(`✅ User registered: ${newUser.email}, ID: ${newUser._id}`);
 
             // Send Welcome Email
@@ -137,7 +150,7 @@ class AuthController {
             next(error);
         }
     };
-    
+
     logout = async (req, res, next) => {
         try {
             return res.status(HTTP_STATUS.OK).json({
@@ -148,6 +161,49 @@ class AuthController {
         } catch (error) {
             console.error("Logout Error:", error.message);
             next(error);
+        }
+    };
+
+    // ============ GOOGLE OAUTH CALLBACK HANDLER ============
+    googleCallback = async (req, res, next) => {
+        try {
+            const user = req.user;
+
+            console.log('🔍 Google user from DB:', {
+                id: user._id,
+                email: user.email,
+                name: user.name,
+                role: user.role
+            });
+
+            if (!user) {
+                return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=google_auth_failed`);
+            }
+
+            // Generate JWT token
+            const { access } = generateAuthTokens(user);
+
+            // Prepare user data as JSON string then base64 encode for URL safety
+            const userData = {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                avatar: user.avatar || null,
+                authProvider: 'google'
+            };
+
+            const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
+
+            console.log('🔍 Encoded user data:', encodedUserData);
+
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            return res.redirect(`${frontendUrl}/auth/google-callback?token=${access.token}&user=${encodedUserData}`);
+
+        } catch (error) {
+            console.error('Google Callback Error:', error);
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            return res.redirect(`${frontendUrl}/login?error=server_error`);
         }
     };
 }

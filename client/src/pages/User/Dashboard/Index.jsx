@@ -359,10 +359,12 @@ const UserDashboard = () => {
                                 {isSyncing ? 'Syncing...' : 'Deep Work Mode'}
                             </span>
                         </div>
-                        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-[1000] italic tracking-tighter uppercase leading-[0.85] mb-3 sm:mb-4 text-slate-900">
-                            {greeting.hiligaynon}, <br />
-                            <span className="text-indigo-600 wrap-break-word">{user?.name?.split(' ')[0] || 'User'}.</span>
-                        </h1>
+                       <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-[1000] italic tracking-tighter uppercase leading-[0.85] mb-3 sm:mb-4 text-slate-900">
+    {greeting.hiligaynon}, <br />
+    <span className="text-indigo-600 wrap-break-word">
+        {user?.name ? user.name.split(' ')[0] : 'User'}.
+    </span>
+</h1>
                         <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-md">
                             Ready to stay productive in {greeting.english.toLowerCase()}?
                         </p>

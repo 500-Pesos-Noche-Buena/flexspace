@@ -21,6 +21,9 @@ export default function DashboardLayout() {
     const [parentName, setParentName] = useState(null);
     const dropdownRef = useRef(null);
 
+    // ✅ Get user avatar from authUser (for Google users)
+    const userAvatar = authUser?.avatar || null;
+
     // ✅ Redirect effect - after hooks
     useEffect(() => {
         if (!isAuthenticated) {
@@ -67,7 +70,6 @@ export default function DashboardLayout() {
         try {
             const response = await apiPost('/auth/logout');
 
-            // ✅ Check if logout was successful
             if (response.success || response.status === 'success') {
                 showToast({
                     icon: 'success',
@@ -75,7 +77,6 @@ export default function DashboardLayout() {
                     text: 'Come back soon!'
                 });
             } else {
-                // Still show success even if API response is weird
                 showToast({
                     icon: 'success',
                     title: 'Logged Out'
@@ -83,7 +84,6 @@ export default function DashboardLayout() {
             }
         } catch (error) {
             console.error("Logout error:", error);
-            // Even if API fails, still log out locally
             showToast({
                 icon: 'warning',
                 title: 'Logged Out Locally',
@@ -99,6 +99,15 @@ export default function DashboardLayout() {
     const hasSpaceAccess = ["space", "staff"].includes(authUser?.role);
     const isActualOwner = authUser?.role === "space";
     const isStaff = authUser?.role === "staff";
+
+    // ✅ Get avatar URL
+    const getAvatarUrl = () => {
+        if (userAvatar) {
+            return userAvatar;
+        }
+        // Fallback to UI Avatars
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=059669&color=fff&bold=true`;
+    };
 
     const sidebarSections = useMemo(() => {
         const sections = [];
@@ -255,7 +264,7 @@ export default function DashboardLayout() {
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
                                 {authUser?.role === 'staff' && parentName
                                     ? `Staff of ${parentName}`
-                                    : authUser?.role
+                                    : authUser?.role === 'google' ? 'Google User' : authUser?.role
                                 }
                             </p>
                         </div>
@@ -263,9 +272,13 @@ export default function DashboardLayout() {
                         <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="relative flex items-center group focus:outline-none">
                             <div className={`absolute -inset-1 bg-linear-to-tr from-emerald-600 to-emerald-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300 ${isProfileOpen ? 'opacity-60' : ''}`} />
                             <img
-                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=059669&color=fff&bold=true`}
-                                className={`relative w-10 h-10 rounded-xl border-2 transition-all duration-300 ${isProfileOpen ? "border-emerald-500 scale-95" : "border-transparent"}`}
+                                src={getAvatarUrl()}
+                                className={`relative w-10 h-10 rounded-xl border-2 transition-all duration-300 object-cover ${isProfileOpen ? "border-emerald-500 scale-95" : "border-transparent"}`}
                                 alt="profile"
+                                onError={(e) => {
+                                    // Fallback if avatar fails to load
+                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=059669&color=fff&bold=true`;
+                                }}
                             />
                         </button>
 

@@ -2,13 +2,15 @@ const jwt = require('jsonwebtoken');
 const moment = require('moment');
 const config = require('@/config/config');
 
-const generateToken = (userId, expires, type, role) => {
+const generateToken = (userId, expires, type, role, name = null, email = null) => {
     const payload = {
         sub: userId,
         iat: moment().unix(),
         exp: expires.unix(),
         type,
-        role, // Added role so you don't have to query the DB every time
+        role,
+        name,      // ← Add name
+        email,     // ← Add email (optional but useful)
     };
     return jwt.sign(payload, config.jwt.secret);
 };
@@ -18,7 +20,14 @@ const generateAuthTokens = (user) => {
     
     const userId = user._id ? user._id.toString() : user.id;
     
-    const accessToken = generateToken(userId, expires, 'access', user.role);
+    const accessToken = generateToken(
+        userId, 
+        expires, 
+        'access', 
+        user.role,
+        user.name,      // ← Pass the user's name
+        user.email      // ← Pass the user's email (optional)
+    );
 
     return {
         access: {

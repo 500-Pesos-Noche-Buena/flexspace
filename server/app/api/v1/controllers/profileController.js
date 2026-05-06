@@ -1,4 +1,4 @@
-const { User } = require('@/api/v1/models');
+const { User, Booking } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const { hashPassword, comparePassword } = require('@/api/v1/utils/hash');
@@ -9,7 +9,7 @@ class ProfileController {
         try {
             const userId = req.user?.sub || req.user?._id;
             const user = await User.findById(userId).select('-password');
-            
+
             if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
 
             return res.status(HTTP_STATUS.OK).json({
@@ -62,7 +62,7 @@ class ProfileController {
             if (!isMatch) {
                 throw new ApiError(HTTP_STATUS.UNAUTHORIZED, "Incorrect current password");
             }
-            
+
             user.password = await hashPassword(new_password);
             await user.save();
 
@@ -75,49 +75,49 @@ class ProfileController {
         }
     };
 
-  updatePaymentQR = async (req, res, next) => {
-    try {
-        console.log('📸 updatePaymentQR called');
-        
-        const userId = req.user?.sub || req.user?._id;
-        
-        if (!req.file) {
-            throw new ApiError(HTTP_STATUS.BAD_REQUEST, "QR code image is required");
-        }
+    updatePaymentQR = async (req, res, next) => {
+        try {
+            console.log('📸 updatePaymentQR called');
 
-        const user = await User.findById(userId);
-        if (!user) {
-            throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
-        }
+            const userId = req.user?.sub || req.user?._id;
 
-        // 🔥 DELETE OLD QR CODE
-        if (user.business_payment_qr) {
-            await deleteFileByUrl(user.business_payment_qr);
-        }
-
-        // Get Cloudinary URL from middleware
-        const qrUrl = req.cloudinaryUrl;
-        
-        if (!qrUrl) {
-            throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Failed to upload QR code");
-        }
-        
-        // Save to database
-        user.business_payment_qr = qrUrl;
-        await user.save();
-
-        return res.status(HTTP_STATUS.OK).json({
-            success: true,
-            message: "Payment QR code updated successfully",
-            data: {
-                business_payment_qr: qrUrl
+            if (!req.file) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "QR code image is required");
             }
-        });
-    } catch (error) {
-        console.error('QR Update Error:', error.message);
-        next(error);
-    }
-};
+
+            const user = await User.findById(userId);
+            if (!user) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
+            }
+
+            // 🔥 DELETE OLD QR CODE
+            if (user.business_payment_qr) {
+                await deleteFileByUrl(user.business_payment_qr);
+            }
+
+            // Get Cloudinary URL from middleware
+            const qrUrl = req.cloudinaryUrl;
+
+            if (!qrUrl) {
+                throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Failed to upload QR code");
+            }
+
+            // Save to database
+            user.business_payment_qr = qrUrl;
+            await user.save();
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: "Payment QR code updated successfully",
+                data: {
+                    business_payment_qr: qrUrl
+                }
+            });
+        } catch (error) {
+            console.error('QR Update Error:', error.message);
+            next(error);
+        }
+    };
 
     updatePaymentMethods = async (req, res, next) => {
         try {
@@ -155,7 +155,7 @@ class ProfileController {
         try {
             const userId = req.user?.sub || req.user?._id;
             const user = await User.findById(userId).select('business_payment_qr payment_methods name email');
-            
+
             if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
 
             return res.status(HTTP_STATUS.OK).json({
@@ -171,6 +171,32 @@ class ProfileController {
             next(error);
         }
     };
+
+    getRecentActivity = async (req, res, next) => {
+    try {
+        const userId = req.user?.sub || req.user?._id;
+
+        const bookings = await Booking.find({ user_id: userId, status: 'completed' })
+            .populate('space_id', 'name')
+            .sort({ updated_at: -1 })
+            .limit(10);
+
+        const activities = bookings.map(booking => ({
+            spaceName: booking.space_id?.name || 'Unknown Space',
+            duration: booking.total_hours || 0,
+            amount: booking.total_amount || 0,
+            date: new Date(booking.updated_at).toLocaleDateString()
+        }));
+
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            data: activities  // Make sure data is an array
+        });
+    } catch (error) {
+        console.error('Recent activity error:', error);
+        next(error);
+    }
+};
 }
 
 module.exports = new ProfileController();

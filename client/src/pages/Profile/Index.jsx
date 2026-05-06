@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { apiGet, apiPost, apiPut } from '@/utils/Api';
 import { User, Shield, BadgeCheck, Save, Loader2, Lock, QrCode, CreditCard, Plus, Trash2, Upload, Wallet, Building2, Landmark, Smartphone, CheckCircle2 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
@@ -14,6 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 const ProfileIndex = () => {
+    const { user: authUser, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -30,6 +34,17 @@ const ProfileIndex = () => {
 
     // Available payment options
     const availablePaymentMethods = ['gcash', 'maya', 'cash', 'bank_transfer', 'credit_card', 'paypal'];
+
+    // ✅ Redirect regular users away from this page
+    useEffect(() => {
+        if (isAuthenticated && authUser) {
+            // Regular users should go to /account instead
+            if (authUser.role === 'user') {
+                navigate('/account', { replace: true });
+                return;
+            }
+        }
+    }, [isAuthenticated, authUser, navigate]);
 
     const fetchProfile = useCallback(async (isSilent = false) => {
         try {
@@ -182,11 +197,17 @@ const ProfileIndex = () => {
         }
     };
 
+    // Show loading while checking auth
     if (loading) return (
         <div className="p-10 text-white italic opacity-50 uppercase text-[10px] tracking-widest animate-pulse">
             Loading Identity...
         </div>
     );
+
+    // Don't render if user is regular (will redirect)
+    if (authUser?.role === 'user') {
+        return null;
+    }
 
     return (
         <div className="animate-in space-y-8 fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
@@ -208,6 +229,7 @@ const ProfileIndex = () => {
                 </div>
             </div>
 
+            {/* Rest of your component remains the same */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* General Information */}
                 <div className="bg-[#111114] border border-white/5 p-8 rounded-[2.5rem] space-y-6">
