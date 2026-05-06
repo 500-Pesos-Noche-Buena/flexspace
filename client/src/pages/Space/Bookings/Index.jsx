@@ -1277,7 +1277,7 @@ const BookingsIndex = () => {
                             </p>
                             <div className="bg-white p-4 rounded-xl flex justify-center mx-auto" style={{ width: 'fit-content' }}>
                                 <QRCodeSVG
-                                    value={`http://localhost:5000/api/v1/space/qr/${selectedReviewBooking?.qr_code_token}`}
+                                    value={`${import.meta.env.VITE_API_URL}/api/v1/space/qr/${selectedReviewBooking?.qr_code_token}`}
                                     size={180}
                                     level="H"
                                     includeMargin={false}
