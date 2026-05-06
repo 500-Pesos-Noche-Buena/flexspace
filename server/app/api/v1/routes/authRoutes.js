@@ -5,7 +5,7 @@ const profileController = require('@/api/v1/controllers/profileController');
 const { upload, processUploadedFiles } = require('@/api/v1/utils/upload');
 const auth = require('@/api/v1/middleware/authMiddleware');
 const passwordController = require('@/api/v1/controllers/passwordController');
-const jwt = require('jsonwebtoken');
+const antiDdos = require('@/api/v1/middleware/antiDdos');
 
 class AuthRoutes {
     constructor() {
@@ -17,9 +17,16 @@ class AuthRoutes {
         console.log('--- 🛡️ Initializing Auth Routes (Google OAuth + JWT) ---');
         
         // --- PUBLIC ROUTES ---
-        this.router.post('/login', authController.login);
+        this.router.post('/login', 
+            antiDdos.strictLimiter,  // 10 attempts per 15 minutes
+            antiDdos.gatekeeper,      // Check banned IPs
+            authController.login
+        );
+        
         this.router.post('/logout', authController.logout);
         this.router.post('/register', 
+            antiDdos.strictLimiter,  // 10 attempts per 15 minutes
+            antiDdos.gatekeeper,      // Check banned IPs
             upload.fields([
                 { name: 'business_permit', maxCount: 1 },
                 { name: 'dti_sec_reg', maxCount: 1 }

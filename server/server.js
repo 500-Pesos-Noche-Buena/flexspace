@@ -29,9 +29,10 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
-// app.use(antiDdos.gatekeeper);
-// app.use(antiDdos.globalLimiter);
-// app.use(antiDdos.responseMonitor);
+app.use(antiDdos.detectAttack);
+app.use(antiDdos.gatekeeper);
+app.use(antiDdos.globalLimiter);
+app.use(antiDdos.responseMonitor);
 
 app.use(
     cors({
@@ -66,7 +67,9 @@ app.use(
 
 
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-
+app.get('/api/v1/health/antiddos-status', (req, res) => {
+    res.json(antiDdos.getStatus());
+});
 app.get('/health', (req, res) => {
     const now = new Date();
     

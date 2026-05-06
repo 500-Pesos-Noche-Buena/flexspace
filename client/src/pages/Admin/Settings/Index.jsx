@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiGet, apiPut } from '@/utils/Api';
 import { showToast } from '@/components/ui/SweetAlert2';
-import { Settings, Percent, Save, Loader2, RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Settings, Percent, Save, Loader2, RefreshCw, ToggleLeft, ToggleRight, Shield, AlertTriangle, Activity, Clock } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 const SETTINGS_META = {
@@ -85,13 +85,21 @@ const AdminSettings = () => {
     const [original,    setOriginal]    = useState({});
     const [loading,     setLoading]     = useState(true);
     const [saving,      setSaving]      = useState({});
+    
+    // Anti-DDoS Status State
+    const [ddosStatus, setDdosStatus] = useState({
+        isUnderAttack: false,
+        attackDuration: null,
+        activeIPS: 0,
+        serverLoadLastMinute: 0
+    });
+    const [ddosLoading, setDdosLoading] = useState(true);
 
     const fetchSettings = useCallback(async () => {
         setLoading(true);
         try {
             const res = await apiGet('/admin/settings');
             if (res.success) {
-                // Convert array [{key, value}] to map { key: value }
                 const map = {};
                 (res.data || []).forEach(s => { map[s.key] = s.value; });
                 setSettings(map);
@@ -104,7 +112,35 @@ const AdminSettings = () => {
         }
     }, []);
 
-    useEffect(() => { fetchSettings(); }, [fetchSettings]);
+    const fetchDdosStatus = useCallback(async () => {
+        try {
+            const res = await apiGet('/health/antiddos-status');
+            if (res) {
+                setDdosStatus({
+                    isUnderAttack: res.isUnderAttack || false,
+                    attackDuration: res.attackDuration || null,
+                    activeIPS: res.activeIPS || 0,
+                    serverLoadLastMinute: res.serverLoadLastMinute || 0
+                });
+            }
+        } catch (err) {
+            console.error('Failed to fetch DDoS status:', err);
+        } finally {
+            setDdosLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchSettings();
+        fetchDdosStatus();
+        
+        // Poll for real-time DDoS status every 5 seconds
+        const interval = setInterval(() => {
+            fetchDdosStatus();
+        }, 5000);
+        
+        return () => clearInterval(interval);
+    }, [fetchSettings, fetchDdosStatus]);
 
     const handleChange = (key, value) => {
         setSettings(prev => ({ ...prev, [key]: value }));
@@ -148,11 +184,85 @@ const AdminSettings = () => {
                     </p>
                 </div>
                 <button
-                    onClick={fetchSettings}
+                    onClick={() => { fetchSettings(); fetchDdosStatus(); }}
                     className="p-3 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all active:scale-95 group"
                 >
                     <RefreshCw className="w-4 h-4 text-indigo-500 group-hover:rotate-180 transition-transform duration-500" />
                 </button>
+            </div>
+
+            {/* ========== ANTI-DDoS STATUS CARD ========== */}
+            <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center">
+                        <Shield size={16} className="text-red-400" />
+                    </div>
+                    <h2 className="text-lg font-black text-white uppercase italic tracking-tighter">Security Status</h2>
+                    {ddosLoading && <Loader2 size={14} className="text-slate-500 animate-spin ml-2" />}
+                </div>
+
+                <div className={cn(
+                    "border rounded-4xl p-6 transition-all duration-500",
+                    ddosStatus.isUnderAttack 
+                        ? "bg-red-500/5 border-red-500/30 shadow-lg shadow-red-900/20" 
+                        : "bg-[#111114] border-white/5"
+                )}>
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className={cn(
+                                "w-3 h-3 rounded-full animate-pulse",
+                                ddosStatus.isUnderAttack ? "bg-red-500" : "bg-emerald-500"
+                            )} />
+                            <span className={cn(
+                                "text-[10px] font-black uppercase tracking-widest",
+                                ddosStatus.isUnderAttack ? "text-red-400" : "text-emerald-400"
+                            )}>
+                                {ddosStatus.isUnderAttack ? "⚠️ ATTACK DETECTED" : "✅ SYSTEM NORMAL"}
+                            </span>
+                        </div>
+                        {ddosStatus.isUnderAttack && ddosStatus.attackDuration && (
+                            <span className="text-[8px] text-red-400 bg-red-500/10 px-2 py-1 rounded-full">
+                                Ongoing for: {ddosStatus.attackDuration}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div className="bg-black/30 rounded-2xl p-4 text-center">
+                            <Activity size={18} className="text-indigo-400 mx-auto mb-2" />
+                            <p className="text-[8px] text-slate-500 uppercase tracking-wider">Server Load</p>
+                            <p className="text-xl font-black text-white">{ddosStatus.serverLoadLastMinute}</p>
+                            <p className="text-[7px] text-slate-600">requests/min</p>
+                        </div>
+                        <div className="bg-black/30 rounded-2xl p-4 text-center">
+                            <AlertTriangle size={18} className="text-amber-400 mx-auto mb-2" />
+                            <p className="text-[8px] text-slate-500 uppercase tracking-wider">Attack Mode</p>
+                            <p className={cn(
+                                "text-xl font-black",
+                                ddosStatus.isUnderAttack ? "text-red-400" : "text-emerald-400"
+                            )}>
+                                {ddosStatus.isUnderAttack ? "ACTIVE" : "INACTIVE"}
+                            </p>
+                            <p className="text-[7px] text-slate-600">
+                                {ddosStatus.isUnderAttack ? "Strict limits enabled" : "Normal operation"}
+                            </p>
+                        </div>
+                        <div className="bg-black/30 rounded-2xl p-4 text-center">
+                            <Clock size={18} className="text-blue-400 mx-auto mb-2" />
+                            <p className="text-[8px] text-slate-500 uppercase tracking-wider">Active IPs</p>
+                            <p className="text-xl font-black text-white">{ddosStatus.activeIPS}</p>
+                            <p className="text-[7px] text-slate-600">temporarily blocked</p>
+                        </div>
+                    </div>
+
+                    {ddosStatus.isUnderAttack && (
+                        <div className="mt-4 p-3 bg-red-500/10 rounded-xl border border-red-500/20">
+                            <p className="text-[9px] text-red-400 text-center font-bold uppercase tracking-wider">
+                                ⚠️ High traffic detected - Rate limiting is now strict (30 req/min per IP)
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Settings Cards */}
