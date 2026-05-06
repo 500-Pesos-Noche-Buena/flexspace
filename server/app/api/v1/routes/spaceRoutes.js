@@ -27,6 +27,10 @@ class SpaceRoutes {
 
         // Dashboard
         this.router.get('/dashboard', auth, (req, res, next) => DashboardController.index(req, res, next));
+        this.router.get('/dashboard/occupancy', auth, (req, res, next) => DashboardController.getOccupancyAnalytics(req, res, next));
+        this.router.get('/dashboard/peak-hours', auth, (req, res, next) => DashboardController.getPeakHours(req, res, next));
+        this.router.get('/dashboard/customer-loyalty', auth, (req, res, next) => DashboardController.getCustomerLoyalty(req, res, next));
+        this.router.get('/dashboard/revenue-trend', auth, (req, res, next) => DashboardController.getRevenueTrend(req, res, next));
 
         // Districts
         this.router.get('/districts/active', auth, (req, res, next) => DistrictController.getActive(req, res, next));
@@ -81,6 +85,7 @@ class SpaceRoutes {
         
         // Earnings
         this.router.get('/earnings', auth, (req, res, next) => EarningsController.index(req, res, next));
+        this.router.get('/earnings/export/csv', auth, (req, res, next) => EarningsController.exportCSV(req, res, next));
 
         // Staff Management
         this.router.get('/staff', auth, (req, res, next) => StaffController.index(req, res, next));

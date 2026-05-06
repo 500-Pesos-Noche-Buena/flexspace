@@ -18,6 +18,10 @@ class AdminRoutes {
         console.log('--- 🛡️ Initializing Admin Routes (Arrow Mode) ---');
         
         this.router.get('/dashboard', auth, (req, res, next) => dashboardController.index(req, res, next));
+        this.router.get('/dashboard/occupancy', auth, (req, res, next) => dashboardController.getPlatformOccupancy(req, res, next));
+        this.router.get('/dashboard/revenue-trend', auth, (req, res, next) => dashboardController.getPlatformRevenueTrend(req, res, next));
+        this.router.get('/dashboard/top-spaces', auth, (req, res, next) => dashboardController.getTopSpaces(req, res, next));
+        this.router.get('/dashboard/user-growth', auth, (req, res, next) => dashboardController.getUserGrowth(req, res, next));
 
         this.router.get('/users', auth, (req, res, next) => userController.index(req, res, next));
         this.router.post('/users/:id/toggle', auth, (req, res, next) => userController.toggleStatus(req, res, next));

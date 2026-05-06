@@ -1,27 +1,30 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { apiGet } from '@/utils/Api';
-import { 
-    Receipt, TrendingUp, Wallet, ArrowUpRight, History, 
-    Calendar, Search, Loader2, Zap, Ticket, Gift, Percent
+import { apiGet, downloadFile } from '@/utils/Api';
+import {
+    Receipt, TrendingUp, Wallet, ArrowUpRight, History,
+    Calendar, Search, Loader2, Zap, Ticket, Gift, Percent,
+    Download, FileText, FileSpreadsheet, Printer
 } from 'lucide-react';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from '@/utils/cn';
+import { showToast } from '@/components/ui/SweetAlert2';
 
 const PERIODS = [
-    { id: 'daily',   label: 'Today' },
-    { id: 'weekly',  label: 'Weekly' },
+    { id: 'daily', label: 'Today' },
+    { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
-    { id: 'yearly',  label: 'Yearly' },
+    { id: 'yearly', label: 'Yearly' },
 ];
 
 const EarningsTracker = () => {
-    const [data,    setData]    = useState(null);
+    const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [period,  setPeriod]  = useState('daily');
+    const [period, setPeriod] = useState('daily');
     const [dateFrom, setDateFrom] = useState('');
-    const [dateTo,   setDateTo]   = useState('');
-    const [search,   setSearch]   = useState('');
-    const [page,     setPage]     = useState(1);
+    const [dateTo, setDateTo] = useState('');
+    const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const [exporting, setExporting] = useState(false);
 
     const paramsRef = useRef({ period, dateFrom, dateTo, search, page });
 
@@ -31,7 +34,7 @@ const EarningsTracker = () => {
             const { period, dateFrom, dateTo, search, page } = paramsRef.current;
             const params = new URLSearchParams({ period, page, search });
             if (dateFrom) params.append('dateFrom', dateFrom);
-            if (dateTo)   params.append('dateTo',   dateTo);
+            if (dateTo) params.append('dateTo', dateTo);
 
             const res = await apiGet(`/space/earnings?${params.toString()}`);
             if (res.success) setData(res.data);
@@ -50,8 +53,280 @@ const EarningsTracker = () => {
 
     // Clear period selection when manual date range is set
     const handleDateFrom = (v) => { setDateFrom(v); setPeriod(''); setPage(1); };
-    const handleDateTo   = (v) => { setDateTo(v);   setPeriod(''); setPage(1); };
-    const handlePeriod   = (p) => { setPeriod(p); setDateFrom(''); setDateTo(''); setPage(1); };
+    const handleDateTo = (v) => { setDateTo(v); setPeriod(''); setPage(1); };
+    const handlePeriod = (p) => { setPeriod(p); setDateFrom(''); setDateTo(''); setPage(1); };
+
+    // ============================================
+    // EXPORT TO CSV
+    // ============================================
+    const exportToCSV = async () => {
+        setExporting(true);
+        try {
+            const params = new URLSearchParams({ period });
+            if (dateFrom) params.append('dateFrom', dateFrom);
+            if (dateTo) params.append('dateTo', dateTo);
+            if (search) params.append('search', search);
+
+            const filename = `earnings_${period}_${Date.now()}.csv`;
+            await downloadFile(`/space/earnings/export/csv?${params.toString()}`, filename);
+
+            showToast({ icon: 'success', title: 'CSV exported successfully' });
+        } catch (err) {
+            console.error('Export CSV error:', err);
+            showToast({ icon: 'error', title: 'Failed to export CSV' });
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    // ============================================
+    // EXPORT TO PDF (FIXED - opens print dialog with clean report)
+    // ============================================
+    const exportToPDF = () => {
+        setExporting(true);
+        try {
+            // Generate the report HTML
+            const reportHtml = generateReportHTML();
+
+            // Open a new window with just the report
+            const printWindow = window.open('', '_blank', 'width=1000,height=800,toolbar=yes,scrollbars=yes');
+
+            if (!printWindow) {
+                showToast({ icon: 'error', title: 'Popup blocked! Please allow popups for this site' });
+                setExporting(false);
+                return;
+            }
+
+            // Write the report HTML to the new window
+            printWindow.document.write(reportHtml);
+            printWindow.document.close();
+
+            // Wait for content to load then print
+            printWindow.onload = () => {
+                printWindow.print();
+                // Optional: close the window after print (user might want to save as PDF first)
+                // printWindow.close();
+            };
+
+            showToast({ icon: 'success', title: 'PDF report opened' });
+        } catch (err) {
+            console.error('Export PDF error:', err);
+            showToast({ icon: 'error', title: 'Failed to generate PDF' });
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    // ============================================
+    // Generate HTML for PDF/Print (UPDATED with better print styles)
+    // ============================================
+    const generateReportHTML = () => {
+        const totalRevenue = data?.totalRevenue || 0;
+        const netEarnings = data?.netEarnings || 0;
+        const platformFee = data?.platformFee || 0;
+        const totalVoucherDiscount = data?.totalVoucherDiscount || 0;
+        const feePercent = data?.feePercent || 3;
+
+        const transactionsHTML = (data?.transactions || []).map(t => `
+        <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.reference || 'N/A'}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.guest || 'Guest'}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.space || 'N/A'}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">₱${(t.amount || 0).toLocaleString()}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${t.discount > 0 ? `-₱${t.discount.toLocaleString()}` : '—'}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-transform: capitalize;">${t.type || 'unknown'}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.date ? new Date(t.date).toLocaleDateString() : 'N/A'}</td>
+        </tr>
+    `).join('');
+
+        const periodText = period.toUpperCase();
+        const dateRange = dateFrom && dateTo ? `${dateFrom} to ${dateTo}` : periodText;
+
+        const currentDate = new Date().toLocaleString('en-PH', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        return `<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Earnings Report - ${dateRange}</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                padding: 40px;
+                color: #111827;
+                background: white;
+            }
+            @media print {
+                body {
+                    padding: 20px;
+                }
+                .no-break {
+                    page-break-inside: avoid;
+                }
+            }
+            h1 {
+                color: #10b981;
+                border-bottom: 2px solid #10b981;
+                padding-bottom: 12px;
+                margin-bottom: 24px;
+                font-size: 28px;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 32px;
+            }
+            .header h2 {
+                margin: 8px 0;
+                color: #374151;
+                font-size: 20px;
+            }
+            .header p {
+                color: #6b7280;
+                font-size: 12px;
+                margin: 4px 0;
+            }
+            .summary {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 16px;
+                margin-bottom: 40px;
+            }
+            .summary-card {
+                background: #f9fafb;
+                padding: 20px;
+                border-radius: 12px;
+                text-align: center;
+                border: 1px solid #e5e7eb;
+            }
+            .summary-card h3 {
+                font-size: 11px;
+                color: #6b7280;
+                margin-bottom: 8px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .summary-card .amount {
+                font-size: 24px;
+                font-weight: bold;
+                color: #10b981;
+            }
+            .summary-card .net {
+                color: #6366f1;
+            }
+            .section-title {
+                font-size: 16px;
+                font-weight: bold;
+                margin: 24px 0 16px 0;
+                color: #374151;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 16px 0;
+                font-size: 12px;
+            }
+            th {
+                background: #f9fafb;
+                padding: 12px;
+                text-align: left;
+                font-weight: 600;
+                color: #374151;
+                border-bottom: 2px solid #e5e7eb;
+            }
+            td {
+                padding: 10px 12px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .text-right {
+                text-align: right;
+            }
+            .footer {
+                margin-top: 40px;
+                text-align: center;
+                font-size: 10px;
+                color: #9ca3af;
+                border-top: 1px solid #e5e7eb;
+                padding-top: 20px;
+            }
+            .badge {
+                display: inline-block;
+                padding: 2px 8px;
+                background: #f3f4f6;
+                border-radius: 12px;
+                font-size: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>📊 Earnings Report</h1>
+            <h2>FlexSpace Iloilo</h2>
+            <p>Period: ${dateRange}</p>
+            <p>Generated: ${currentDate}</p>
+        </div>
+
+        <div class="summary">
+            <div class="summary-card">
+                <h3>Gross Revenue</h3>
+                <div class="amount">₱${totalRevenue.toLocaleString()}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Platform Fee (${feePercent}%)</h3>
+                <div class="amount">₱${platformFee.toLocaleString()}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Net Earnings</h3>
+                <div class="amount net">₱${netEarnings.toLocaleString()}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Voucher Discounts</h3>
+                <div class="amount">₱${totalVoucherDiscount.toLocaleString()}</div>
+            </div>
+        </div>
+
+        <div class="section-title">📋 Transaction History</div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Reference</th>
+                    <th>Guest</th>
+                    <th>Space</th>
+                    <th class="text-right">Amount</th>
+                    <th class="text-right">Discount</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${transactionsHTML || `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px;">
+                            No transactions found for this period
+                        </td>
+                    </tr>
+                `}
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>This is a computer-generated document. No signature required.</p>
+            <p>© ${new Date().getFullYear()} FlexSpace Iloilo. All rights reserved.</p>
+        </div>
+    </body>
+    </html>`;
+    };
 
     if (loading && !data) {
         return (
@@ -70,16 +345,33 @@ const EarningsTracker = () => {
     }
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
-            
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10 no-print">
+
             {/* Header */}
             <div className="mb-6 md:mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-xl md:text-2xl font-black tracking-tight text-white uppercase italic">Earnings Tracker</h1>
                     <p className="text-[10px] md:text-xs text-slate-500 font-medium uppercase tracking-widest">Financial performance & payout history</p>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
+                    {/* Export Buttons */}
+                    <button
+                        onClick={exportToCSV}
+                        disabled={exporting}
+                        className="text-[9px] font-black text-emerald-500 flex items-center gap-1.5 uppercase tracking-tighter bg-emerald-500/10 px-3 py-1.5 rounded-full hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+                    >
+                        {exporting ? <Loader2 size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />}
+                        CSV
+                    </button>
+                    <button
+                        onClick={exportToPDF}
+                        disabled={exporting}
+                        className="text-[9px] font-black text-indigo-500 flex items-center gap-1.5 uppercase tracking-tighter bg-indigo-500/10 px-3 py-1.5 rounded-full hover:bg-indigo-500/20 transition-all disabled:opacity-50"
+                    >
+                        {exporting ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                        PDF
+                    </button>
                     <div className="text-[9px] font-black text-emerald-500 flex items-center gap-1.5 uppercase tracking-tighter bg-emerald-500/10 px-3 py-1.5 rounded-full">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                         Live Data
@@ -140,7 +432,7 @@ const EarningsTracker = () => {
                 </div>
             </div>
 
-            {/* Stats Grid - 5 cards now */}
+            {/* Stats Grid - 5 cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 <StatCard
                     title="Gross Revenue"
@@ -188,8 +480,18 @@ const EarningsTracker = () => {
                             Transaction History
                         </h3>
                     </div>
-                    <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">
-                        {data?.total || 0} records
+                    <div className="flex items-center gap-3">
+                        <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">
+                            {data?.total || 0} records
+                        </div>
+                        {/* Print button */}
+                        <button
+                            onClick={exportToPDF}
+                            className="text-[8px] font-black text-slate-400 hover:text-white transition-all flex items-center gap-1"
+                        >
+                            <Printer size={10} />
+                            Print
+                        </button>
                     </div>
                 </div>
 
@@ -278,7 +580,7 @@ const EarningsTracker = () => {
                                     <Calendar size={10} className="text-slate-600" />
                                     <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
                                         {new Date(r.date).toLocaleDateString('en-PH', {
-                                            month: 'short', 
+                                            month: 'short',
                                             day: 'numeric',
                                             year: '2-digit'
                                         })}

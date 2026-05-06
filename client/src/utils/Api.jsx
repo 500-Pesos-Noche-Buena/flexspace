@@ -108,6 +108,34 @@ if (window.location.pathname.includes('/login')) {
     isRedirecting = false;
 }
 
+export const downloadFile = async (url, filename) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${FULL_BASE_URL}${url}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) throw new Error('Download failed');
+        
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        const objectUrl = window.URL.createObjectURL(blob);
+        link.href = objectUrl;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(objectUrl);
+        
+        return true;
+    } catch (error) {
+        console.error('Download error:', error);
+        throw error;
+    }
+};
 export const apiGet = (endpoint) => apiRequest('GET', endpoint);
 export const apiPost = (endpoint, data) => apiRequest('POST', endpoint, data);
 export const apiPut = (endpoint, data) => apiRequest('PUT', endpoint, data);

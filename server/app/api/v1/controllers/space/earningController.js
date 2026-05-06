@@ -18,12 +18,12 @@ class EarningsController {
             const isAdmin = req.user?.role === 'admin';
 
             const {
-                period   = 'daily',
+                period = 'daily',
                 dateFrom = null,
-                dateTo   = null,
-                page     = 1,
-                limit    = 10,
-                search   = ''
+                dateTo = null,
+                page = 1,
+                limit = 10,
+                search = ''
             } = req.query;
 
             // ── Date range resolution ─────────────────────────────────────
@@ -32,38 +32,38 @@ class EarningsController {
             if (dateFrom && dateTo) {
                 startDate = new Date(dateFrom);
                 startDate.setHours(0, 0, 0, 0);
-                endDate   = new Date(dateTo);
+                endDate = new Date(dateTo);
                 endDate.setHours(23, 59, 59, 999);
             } else {
-                endDate   = new Date();
+                endDate = new Date();
                 startDate = new Date();
-                if      (period === 'daily')   { startDate.setHours(0, 0, 0, 0); }
-                else if (period === 'weekly')  { startDate.setDate(startDate.getDate() - 7); }
+                if (period === 'daily') { startDate.setHours(0, 0, 0, 0); }
+                else if (period === 'weekly') { startDate.setDate(startDate.getDate() - 7); }
                 else if (period === 'monthly') { startDate.setMonth(startDate.getMonth() - 1); }
-                else if (period === 'yearly')  { startDate.setFullYear(startDate.getFullYear() - 1); }
+                else if (period === 'yearly') { startDate.setFullYear(startDate.getFullYear() - 1); }
             }
 
             // ── Space scope ───────────────────────────────────────────────
             let spaceIds = [];
             if (isAdmin) {
                 const all = await Space.find({}).select('_id');
-                spaceIds  = all.map(s => s._id);
+                spaceIds = all.map(s => s._id);
             } else {
                 const own = await Space.find({ user_id: ownerId }).select('_id');
-                spaceIds  = own.map(s => s._id);
+                spaceIds = own.map(s => s._id);
             }
 
             // ── Base query ────────────────────────────────────────────────
             let query = {
-                space_id:   { $in: spaceIds },
-                status:     'completed',
+                space_id: { $in: spaceIds },
+                status: 'completed',
                 updated_at: { $gte: startDate, $lte: endDate }
             };
 
             if (search) {
                 query.$or = [
                     { ticket_number: { $regex: search, $options: 'i' } },
-                    { guest_name:    { $regex: search, $options: 'i' } }
+                    { guest_name: { $regex: search, $options: 'i' } }
                 ];
             }
 
@@ -75,16 +75,18 @@ class EarningsController {
             const [agg, transactions, total, voucherStats] = await Promise.all([
                 Booking.aggregate([
                     { $match: query },
-                    { $group: {
-                        _id:          null,
-                        totalRevenue: { $sum: '$total_amount' },
-                        count:        { $sum: 1 },
-                        totalDiscount: { $sum: '$voucher_discount' }
-                    }}
+                    {
+                        $group: {
+                            _id: null,
+                            totalRevenue: { $sum: '$total_amount' },
+                            count: { $sum: 1 },
+                            totalDiscount: { $sum: '$voucher_discount' }
+                        }
+                    }
                 ]),
                 Booking.find(query)
                     .populate('space_id', 'name')
-                    .populate('user_id',  'name')
+                    .populate('user_id', 'name')
                     .sort({ updated_at: -1 })
                     .limit(limit * 1)
                     .skip((page - 1) * limit),
@@ -92,11 +94,13 @@ class EarningsController {
                 // Voucher discount stats for the period
                 Booking.aggregate([
                     { $match: query },
-                    { $group: {
-                        _id: null,
-                        totalVoucherDiscount: { $sum: '$voucher_discount' },
-                        bookingsWithVouchers: { $sum: { $cond: [{ $gt: ['$voucher_discount', 0] }, 1, 0] } }
-                    }}
+                    {
+                        $group: {
+                            _id: null,
+                            totalVoucherDiscount: { $sum: '$voucher_discount' },
+                            bookingsWithVouchers: { $sum: { $cond: [{ $gt: ['$voucher_discount', 0] }, 1, 0] } }
+                        }
+                    }
                 ])
             ]);
 
@@ -120,21 +124,94 @@ class EarningsController {
                     bookingsWithVouchers,
                     total,
                     transactions: transactions.map(b => ({
-                        id:        b._id,
+                        id: b._id,
                         reference: b.ticket_number,
-                        guest:     b.guest_name || b.user_id?.name || 'Guest',
-                        space:     b.space_id?.name,
-                        amount:    b.total_amount,
+                        guest: b.guest_name || b.user_id?.name || 'Guest',
+                        space: b.space_id?.name,
+                        amount: b.total_amount,
                         originalAmount: b.total_amount + (b.voucher_discount || 0),
-                        discount:  b.voucher_discount || 0,
-                        type:      b.booking_type,
-                        date:      b.updated_at,
+                        discount: b.voucher_discount || 0,
+                        type: b.booking_type,
+                        date: b.updated_at,
                         hasVoucher: !!b.voucher_applied
                     }))
                 }
             });
         } catch (error) {
             console.error('Earnings error:', error);
+            next(error);
+        }
+    };
+
+    // ============================================
+    // EXPORT TO CSV (FIXED)
+    // ============================================
+    exportCSV = async (req, res, next) => {
+        try {
+            const ownerId = await this.getOwnerId(req);
+            const isAdmin = req.user?.role === 'admin';
+
+            const { period = 'daily', dateFrom = null, dateTo = null, search = '' } = req.query;
+
+            let startDate, endDate;
+            if (dateFrom && dateTo) {
+                startDate = new Date(dateFrom);
+                startDate.setHours(0, 0, 0, 0);
+                endDate = new Date(dateTo);
+                endDate.setHours(23, 59, 59, 999);
+            } else {
+                endDate = new Date();
+                startDate = new Date();
+                if (period === 'daily') startDate.setHours(0, 0, 0, 0);
+                else if (period === 'weekly') startDate.setDate(startDate.getDate() - 7);
+                else if (period === 'monthly') startDate.setMonth(startDate.getMonth() - 1);
+                else if (period === 'yearly') startDate.setFullYear(startDate.getFullYear() - 1);
+            }
+
+            let spaceIds = [];
+            if (isAdmin) {
+                const all = await Space.find({}).select('_id');
+                spaceIds = all.map(s => s._id);
+            } else {
+                const own = await Space.find({ user_id: ownerId }).select('_id');
+                spaceIds = own.map(s => s._id);
+            }
+
+            const query = {
+                space_id: { $in: spaceIds },
+                status: 'completed',
+                updated_at: { $gte: startDate, $lte: endDate }
+            };
+
+            if (search) {
+                query.$or = [
+                    { ticket_number: { $regex: search, $options: 'i' } },
+                    { guest_name: { $regex: search, $options: 'i' } }
+                ];
+            }
+
+            const transactions = await Booking.find(query)
+                .populate('space_id', 'name')
+                .sort({ updated_at: -1 });
+
+            // CSV Header
+            let csv = 'Reference,Guest,Space,Original Amount,Discount,Net Amount,Type,Date\n';
+
+            for (const t of transactions) {
+                const originalAmount = (t.total_amount || 0) + (t.voucher_discount || 0);
+                const spaceName = t.space_id?.name || 'N/A';
+                const guestName = t.guest_name || 'Guest';
+
+                // FIXED: Properly escaped quotes
+                csv += `"${t.ticket_number || 'N/A'}","${guestName}","${spaceName}","${originalAmount}","${t.voucher_discount || 0}","${t.total_amount || 0}","${t.booking_type || 'unknown'}","${new Date(t.updated_at).toLocaleString()}"\n`;
+            }
+
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename=earnings_${Date.now()}.csv`);
+            return res.status(HTTP_STATUS.OK).send(csv);
+
+        } catch (error) {
+            console.error('Export CSV error:', error);
             next(error);
         }
     };
