@@ -43,11 +43,22 @@ import SpaceReviewList from '@/pages/Space/Reviews/Index';
 import UserDashboard from '@/pages/User/Dashboard/Index';
 import UserSpace from '@/pages/User/Space/Index';
 import UserBookings from '@/pages/User/Bookings/Index';
-import UserRedeem from '../pages/User/Redeem/Index';
+import UserRedeem from '@/pages/User/Redeem/Index';
+
+
+import ReviewPage from '@/pages/Public/ReviewPage';
+import AlreadyReviewedPage from '@/pages/Public/AlreadyReviewedPage';
+import InvalidQrPage from '@/pages/Public/InvalidQrPage';
+import NotCompletedPage from '@/pages/Public/NotCompletedPage';
 
 export const AppRoutes = () => {
     return (
         <Routes>
+            <Route path="/review/booking/:bookingId" element={<ReviewPage />} />
+            <Route path="/review/already-reviewed" element={<AlreadyReviewedPage />} />
+            <Route path="/review/invalid" element={<InvalidQrPage />} />
+            <Route path="/review/not-completed" element={<NotCompletedPage />} />
+
             {/* 1. MAIN/USER ROUTES - Uses MainLayout */}
             <Route path="/" element={<MainLayout />}>
                 <Route index element={<LandingPage />} />

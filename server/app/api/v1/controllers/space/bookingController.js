@@ -1,4 +1,4 @@
-const { Booking, Space, Payment, User } = require('@/api/v1/models');
+const { Booking, Space, Payment, User, Review } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const rewardService = require('@/api/v1/services/rewardService');
@@ -20,67 +20,67 @@ class BookingController {
     };
 
     index = async (req, res, next) => {
-    try {
-        // Use the helper to get the parent ID if staff
-        const ownerId = await this.getOwnerId(req);
-        const { search = '', status = '', type = 'all', page = 1, limit = 10 } = req.query;
+        try {
+            // Use the helper to get the parent ID if staff
+            const ownerId = await this.getOwnerId(req);
+            const { search = '', status = '', type = 'all', page = 1, limit = 10 } = req.query;
 
-        // Find spaces belonging to the parent owner
-        const userSpaces = await Space.find({ user_id: ownerId }).select('_id');
-        const spaceIds = userSpaces.map(s => s._id);
+            // Find spaces belonging to the parent owner
+            const userSpaces = await Space.find({ user_id: ownerId }).select('_id');
+            const spaceIds = userSpaces.map(s => s._id);
 
-        let query = { space_id: { $in: spaceIds } };
-        if (status) query.status = status;
-        if (type !== 'all') query.booking_type = type;
-        if (search) {
-            query.$or = [
-                { ticket_number: { $regex: search, $options: 'i' } },
-                { guest_name: { $regex: search, $options: 'i' } }
-            ];
-        }
+            let query = { space_id: { $in: spaceIds } };
+            if (status) query.status = status;
+            if (type !== 'all') query.booking_type = type;
+            if (search) {
+                query.$or = [
+                    { ticket_number: { $regex: search, $options: 'i' } },
+                    { guest_name: { $regex: search, $options: 'i' } }
+                ];
+            }
 
-        const bookings = await Booking.find(query)
-            .populate({
-                path: 'space_id',
-                select: 'name rate_hour qr_payment_image user_id',
-                populate: {
-                    path: 'user_id',
-                    select: 'name email business_payment_qr payment_methods'  // This gets the QR from user
-                }
-            })
-            .populate('user_id', 'name email')
-            .sort({ created_at: -1 })
-            .limit(limit * 1).skip((page - 1) * limit);
-
-        const total = await Booking.countDocuments(query);
-
-        // Stats logic remains focused on the parent's spaces
-        const stats = {
-            total,
-            pending: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'pending' }),
-            active: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'active' }),
-            online: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'online' }),
-            walkin: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'walkin' }),
-            revenue: (await Booking.aggregate([
-                {
-                    $match: {
-                        space_id: { $in: spaceIds },
-                        status: 'completed',
-                        updated_at: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+            const bookings = await Booking.find(query)
+                .populate({
+                    path: 'space_id',
+                    select: 'name rate_hour qr_payment_image user_id',
+                    populate: {
+                        path: 'user_id',
+                        select: 'name email business_payment_qr payment_methods'  // This gets the QR from user
                     }
-                },
-                { $group: { _id: null, total: { $sum: "$total_amount" } } }
-            ]))[0]?.total || 0
-        };
+                })
+                .populate('user_id', 'name email')
+                .sort({ created_at: -1 })
+                .limit(limit * 1).skip((page - 1) * limit);
 
-        return res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: { bookings, total, stats }
-        });
-    } catch (error) { 
-        next(error); 
-    }
-};
+            const total = await Booking.countDocuments(query);
+
+            // Stats logic remains focused on the parent's spaces
+            const stats = {
+                total,
+                pending: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'pending' }),
+                active: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'active' }),
+                online: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'online' }),
+                walkin: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'walkin' }),
+                revenue: (await Booking.aggregate([
+                    {
+                        $match: {
+                            space_id: { $in: spaceIds },
+                            status: 'completed',
+                            updated_at: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+                        }
+                    },
+                    { $group: { _id: null, total: { $sum: "$total_amount" } } }
+                ]))[0]?.total || 0
+            };
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: { bookings, total, stats }
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 
     updateStatus = async (req, res, next) => {
         try {
@@ -433,44 +433,305 @@ class BookingController {
     };
 
     // Add this method to check if user has reviewed a booking
-getUserBookingWithReviewStatus = async (req, res, next) => {
+    getUserBookingWithReviewStatus = async (req, res, next) => {
+        try {
+            const userId = req.user?.sub || req.user?._id || req.user?.id;
+            const { status = '' } = req.query;
+
+            let query = { user_id: userId };
+            if (status) query.status = status;
+
+            const bookings = await Booking.find(query)
+                .populate('space_id', 'name image rate_hour')
+                .sort({ created_at: -1 });
+
+            // Check which bookings have reviews
+            const Review = require('@/api/v1/models/Review');
+            const reviewedBookings = await Review.find({
+                user_id: userId,
+                booking_id: { $in: bookings.map(b => b._id) }
+            }).select('booking_id');
+
+            const reviewedBookingIds = new Set(reviewedBookings.map(r => r.booking_id.toString()));
+
+            // Add has_reviewed flag to each booking
+            const bookingsWithReviewFlag = bookings.map(booking => ({
+                ...booking.toObject(),
+                has_reviewed: reviewedBookingIds.has(booking._id.toString())
+            }));
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: {
+                    bookings: bookingsWithReviewFlag,
+                    points: await rewardService.getUserPoints(userId)
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+
+    // ============================================
+    // PUBLIC QR CODE REDIRECT (No Auth)
+    // GET /api/v1/space/qr/:token
+    // ============================================
+   handleQRRedirect = async (req, res, next) => {
     try {
-        const userId = req.user?.sub || req.user?._id || req.user?.id;
-        const { status = '' } = req.query;
+        const { token } = req.params;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';  // ← FIXED: use 5173 not 3000
 
-        let query = { user_id: userId };
-        if (status) query.status = status;
+        console.log('QR Redirect - Token:', token);  // DEBUG
 
-        const bookings = await Booking.find(query)
-            .populate('space_id', 'name image rate_hour')
-            .sort({ created_at: -1 });
+        // Find booking by QR token
+        const booking = await Booking.findOne({ qr_code_token: token })
+            .populate('space_id', 'name address')
+            .populate('user_id', 'name email');
 
-        // Check which bookings have reviews
-        const Review = require('@/api/v1/models/Review');
-        const reviewedBookings = await Review.find({
-            user_id: userId,
-            booking_id: { $in: bookings.map(b => b._id) }
-        }).select('booking_id');
+        if (!booking) {
+            console.log('No booking found for token:', token);
+            return res.redirect(`${frontendUrl}/review/invalid?error=invalid_token`);
+        }
 
-        const reviewedBookingIds = new Set(reviewedBookings.map(r => r.booking_id.toString()));
+        console.log('Booking found:', booking._id, 'Status:', booking.status);
 
-        // Add has_reviewed flag to each booking
-        const bookingsWithReviewFlag = bookings.map(booking => ({
-            ...booking.toObject(),
-            has_reviewed: reviewedBookingIds.has(booking._id.toString())
-        }));
+        // Check if booking is completed (eligible for review)
+        if (booking.status !== 'completed') {
+            console.log('Booking not completed. Status:', booking.status);
+            return res.redirect(`${frontendUrl}/review/not-completed?booking_id=${booking._id}&status=${booking.status}`);
+        }
 
-        return res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: {
-                bookings: bookingsWithReviewFlag,
-                points: await rewardService.getUserPoints(userId)
-            }
-        });
+        // Check if review already exists
+        const existingReview = await Review.findOne({ booking_id: booking._id });
+        if (existingReview) {
+            console.log('Review already exists for booking:', booking._id);
+            return res.redirect(`${frontendUrl}/review/already-reviewed?booking_id=${booking._id}`);
+        }
+
+        // Redirect to review page
+        console.log('Redirecting to review page:', `${frontendUrl}/review/booking/${booking._id}`);
+        return res.redirect(`${frontendUrl}/review/booking/${booking._id}`);
+
     } catch (error) {
-        next(error);
+        console.error('QR Redirect Error:', error);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/review/invalid?error=server_error&message=${encodeURIComponent(error.message)}`);
     }
 };
+
+    // ============================================
+    // GET BOOKING FOR REVIEW (Public)
+    // GET /api/v1/space/booking/:id/review
+    // ============================================
+    getBookingForReview = async (req, res, next) => {
+        try {
+            const { id } = req.params;
+
+            const booking = await Booking.findById(id)
+                .populate('space_id', 'name address images rating review_count')
+                .populate('user_id', 'name email');
+
+            if (!booking) {
+                return res.status(HTTP_STATUS.NOT_FOUND).json({
+                    success: false,
+                    message: 'Booking not found'
+                });
+            }
+
+            // Only allow review for completed bookings
+            if (booking.status !== 'completed') {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: `Cannot review booking with status: ${booking.status}. Only completed bookings can be reviewed.`
+                });
+            }
+
+            // Check if review already exists
+            const existingReview = await Review.findOne({ booking_id: booking._id });
+            if (existingReview) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Review already submitted for this booking',
+                    existingReview: existingReview
+                });
+            }
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: {
+                    booking: {
+                        id: booking._id,
+                        ticket_number: booking.ticket_number,
+                        guest_name: booking.guest_name || booking.user_id?.name || 'Guest',
+                        date: booking.created_at,
+                        check_in_at: booking.check_in_at,
+                        check_out_at: booking.check_out_at,
+                        total_amount: booking.total_amount
+                    },
+                    space: {
+                        id: booking.space_id._id,
+                        name: booking.space_id.name,
+                        address: booking.space_id.address,
+                        images: booking.space_id.images,
+                        rating: booking.space_id.rating,
+                        review_count: booking.space_id.review_count
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('Get booking for review error:', error);
+            next(error);
+        }
+    };
+
+    // ============================================
+    // SUBMIT REVIEW FROM QR (Public)
+    // POST /api/v1/space/booking/:id/review
+    // ============================================
+    submitReviewFromQR = async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const { rating, title, comment, guest_name } = req.body;
+
+            // Validation
+            if (!rating || rating < 1 || rating > 5) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Rating must be between 1 and 5'
+                });
+            }
+
+            if (!comment || comment.trim().length < 10) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Review must be at least 10 characters'
+                });
+            }
+
+            if (comment.length > 1000) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Review cannot exceed 1000 characters'
+                });
+            }
+
+            if (title && title.length > 100) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Title cannot exceed 100 characters'
+                });
+            }
+
+            // Find booking
+            const booking = await Booking.findById(id).populate('space_id');
+
+            if (!booking) {
+                return res.status(HTTP_STATUS.NOT_FOUND).json({
+                    success: false,
+                    message: 'Booking not found'
+                });
+            }
+
+            // Only allow review for completed bookings
+            if (booking.status !== 'completed') {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: `Cannot review booking with status: ${booking.status}. Only completed bookings can be reviewed.`
+                });
+            }
+
+            // Check if review already exists
+            const existingReview = await Review.findOne({ booking_id: booking._id });
+            if (existingReview) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Review already submitted for this booking'
+                });
+            }
+
+            // Determine guest name (use provided or from booking)
+            const finalGuestName = guest_name || booking.guest_name || booking.user_id?.name || 'Anonymous';
+
+            // Create review
+            const review = await Review.create({
+                space_id: booking.space_id._id,
+                booking_id: booking._id,
+                user_id: booking.user_id || null, // If user is registered, link them
+                guest_name: !booking.user_id ? finalGuestName : null, // Only set guest_name if no user_id
+                rating: parseInt(rating),
+                title: title?.trim() || null,
+                comment: comment.trim(),
+                reviewer_type: booking.user_id ? 'registered' : 'guest',
+                is_verified_booking: true,
+                status: 'approved', // Guest reviews auto-approved or set to 'pending' for admin review
+                ip_address: req.ip || req.connection?.remoteAddress,
+                user_agent: req.headers['user-agent']
+            });
+
+            // Update space rating
+            await Review.updateSpaceRating(booking.space_id._id);
+
+            // Populate response
+            const populatedReview = await Review.findById(review._id)
+                .populate('space_id', 'name')
+                .lean();
+
+            return res.status(HTTP_STATUS.CREATED).json({
+                success: true,
+                message: 'Thank you for your review!',
+                data: populatedReview
+            });
+
+        } catch (error) {
+            console.error('Submit review from QR error:', error);
+            next(error);
+        }
+    };
+
+    // ============================================
+    // CHECK IF BOOKING CAN BE REVIEWED (Public)
+    // GET /api/v1/space/booking/:id/can-review
+    // ============================================
+    canReviewBooking = async (req, res, next) => {
+        try {
+            const { id } = req.params;
+
+            const booking = await Booking.findById(id);
+
+            if (!booking) {
+                return res.status(HTTP_STATUS.OK).json({
+                    success: true,
+                    data: { can_review: false, reason: 'Booking not found' }
+                });
+            }
+
+            if (booking.status !== 'completed') {
+                return res.status(HTTP_STATUS.OK).json({
+                    success: true,
+                    data: { can_review: false, reason: `Booking status is ${booking.status}` }
+                });
+            }
+
+            const existingReview = await Review.findOne({ booking_id: booking._id });
+            if (existingReview) {
+                return res.status(HTTP_STATUS.OK).json({
+                    success: true,
+                    data: { can_review: false, reason: 'Review already submitted' }
+                });
+            }
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: { can_review: true }
+            });
+
+        } catch (error) {
+            console.error('Can review check error:', error);
+            next(error);
+        }
+    };
 }
 
 module.exports = new BookingController();

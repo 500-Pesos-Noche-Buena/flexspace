@@ -22,6 +22,14 @@ class SpaceRoutes {
     initializeRoutes() {
         console.log('--- 🛡️ Initializing Space Routes ---');
 
+        // ============================================
+        // PUBLIC ROUTES (No Authentication Required)
+        // ============================================
+        this.router.get('/qr/:token', (req, res, next) => BookingController.handleQRRedirect(req, res, next));
+        this.router.get('/booking/:id/review', (req, res, next) => BookingController.getBookingForReview(req, res, next));
+        this.router.get('/booking/:id/can-review', (req, res, next) => BookingController.canReviewBooking(req, res, next));
+        this.router.post('/booking/:id/review', (req, res, next) => BookingController.submitReviewFromQR(req, res, next));
+
         const uploadArray = upload.array('images', 10);
         const uploadSingle = upload.single('image');
 

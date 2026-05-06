@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import {
     Clock, CheckCircle2, User, ReceiptText, LogIn, LogOut, Activity,
-    XCircle, QrCode, Banknote, Loader2, BadgeCheck, AlertCircle, Users, UserPlus
+    XCircle, QrCode, Banknote, Loader2, BadgeCheck, AlertCircle, Users, UserPlus, Star
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { DataTable } from '@/components/ui/DataTable';
@@ -117,7 +117,7 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
     const [currentTotal, setCurrentTotal] = useState(liveTotalAmount || 0);
 
     // Get QR code from multiple possible paths
-    const qrPaymentImage = 
+    const qrPaymentImage =
         booking?.space_id?.user_id?.business_payment_qr ||  // Space owner's QR
         booking?.space_id?.business_payment_qr ||           // Direct space QR
         booking?.business_payment_qr ||                     // Booking's own QR
@@ -444,72 +444,76 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
 };
 
 // ─── Receipt ──────────────────────────────────────────────────────────────────
-const ReceiptScreen = ({ booking, onClose }) => (
-    <div className="text-center py-2">
-        <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 size={28} className="text-emerald-400" />
+const ReceiptScreen = ({ booking, onClose }) => {
+    const [showReviewQR, setShowReviewQR] = useState(false);
+
+    return (
+        <div className="text-center py-2">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 size={28} className="text-emerald-400" />
+            </div>
+            <h3 className="text-white font-[1000] italic uppercase tracking-tight text-lg mb-1">Session Closed!</h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-5">
+                Payment recorded successfully
+            </p>
+
+            <div className="bg-white/5 rounded-2xl border border-white/10 divide-y divide-white/5 text-left mb-5">
+                <div className="flex justify-between px-4 py-3">
+                    <span className="text-[10px] text-slate-500 font-black uppercase">Ticket</span>
+                    <span className="text-[10px] text-white font-black italic">#{booking?.ticket_number}</span>
+                </div>
+                <div className="flex justify-between px-4 py-3">
+                    <span className="text-[10px] text-slate-500 font-black uppercase">Guest</span>
+                    <span className="text-[10px] text-white font-black">
+                        {booking?.user_id?.name || booking?.guest_name || 'Guest'}
+                    </span>
+                </div>
+                <div className="flex justify-between px-4 py-3">
+                    <span className="text-[10px] text-slate-500 font-black uppercase">Space</span>
+                    <span className="text-[10px] text-white font-black">{booking?.space_id?.name}</span>
+                </div>
+
+                {/* Show voucher discount if applied */}
+                {booking?.voucher_discount > 0 && (
+                    <>
+                        <div className="flex justify-between px-4 py-3">
+                            <span className="text-[10px] text-slate-500 font-black uppercase">Subtotal</span>
+                            <span className="text-[10px] text-slate-400 line-through">
+                                ₱{(booking.total_amount + booking.voucher_discount).toFixed(2)}
+                            </span>
+                        </div>
+                        <div className="flex justify-between px-4 py-3">
+                            <span className="text-[10px] text-emerald-400 font-black uppercase">Voucher Savings</span>
+                            <span className="text-[10px] text-emerald-400 font-bold">
+                                -₱{booking.voucher_discount.toFixed(2)}
+                            </span>
+                        </div>
+                        <div className="flex justify-between px-4 py-3 bg-emerald-500/5">
+                            <span className="text-[10px] text-slate-500 font-black uppercase">Voucher Code</span>
+                            <span className="text-[10px] font-mono text-emerald-400">
+                                {booking.voucher_applied}
+                            </span>
+                        </div>
+                    </>
+                )}
+
+                <div className="flex justify-between px-4 py-3 bg-white/5">
+                    <span className="text-[10px] font-black uppercase text-white">Total Paid</span>
+                    <span className="text-lg font-[1000] italic text-emerald-400">
+                        ₱{(booking?.total_amount || 0).toFixed(2)}
+                    </span>
+                </div>
+            </div>
+
+            <button
+                onClick={onClose}
+                className="w-full py-3 bg-white/5 border border-white/10 text-slate-400 rounded-2xl font-black uppercase text-xs hover:bg-white/10 transition-all"
+            >
+                Close
+            </button>
         </div>
-        <h3 className="text-white font-[1000] italic uppercase tracking-tight text-lg mb-1">Session Closed!</h3>
-        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-5">
-            Payment recorded successfully
-        </p>
-
-        <div className="bg-white/5 rounded-2xl border border-white/10 divide-y divide-white/5 text-left mb-5">
-            <div className="flex justify-between px-4 py-3">
-                <span className="text-[10px] text-slate-500 font-black uppercase">Ticket</span>
-                <span className="text-[10px] text-white font-black italic">#{booking?.ticket_number}</span>
-            </div>
-            <div className="flex justify-between px-4 py-3">
-                <span className="text-[10px] text-slate-500 font-black uppercase">Guest</span>
-                <span className="text-[10px] text-white font-black">
-                    {booking?.user_id?.name || booking?.guest_name || 'Guest'}
-                </span>
-            </div>
-            <div className="flex justify-between px-4 py-3">
-                <span className="text-[10px] text-slate-500 font-black uppercase">Space</span>
-                <span className="text-[10px] text-white font-black">{booking?.space_id?.name}</span>
-            </div>
-
-            {/* Show voucher discount if applied */}
-            {booking?.voucher_discount > 0 && (
-                <>
-                    <div className="flex justify-between px-4 py-3">
-                        <span className="text-[10px] text-slate-500 font-black uppercase">Subtotal</span>
-                        <span className="text-[10px] text-slate-400 line-through">
-                            ₱{(booking.total_amount + booking.voucher_discount).toFixed(2)}
-                        </span>
-                    </div>
-                    <div className="flex justify-between px-4 py-3">
-                        <span className="text-[10px] text-emerald-400 font-black uppercase">Voucher Savings</span>
-                        <span className="text-[10px] text-emerald-400 font-bold">
-                            -₱{booking.voucher_discount.toFixed(2)}
-                        </span>
-                    </div>
-                    <div className="flex justify-between px-4 py-3 bg-emerald-500/5">
-                        <span className="text-[10px] text-slate-500 font-black uppercase">Voucher Code</span>
-                        <span className="text-[10px] font-mono text-emerald-400">
-                            {booking.voucher_applied}
-                        </span>
-                    </div>
-                </>
-            )}
-
-            <div className="flex justify-between px-4 py-3 bg-white/5">
-                <span className="text-[10px] font-black uppercase text-white">Total Paid</span>
-                <span className="text-lg font-[1000] italic text-emerald-400">
-                    ₱{(booking?.total_amount || 0).toFixed(2)}
-                </span>
-            </div>
-        </div>
-
-        <button
-            onClick={onClose}
-            className="w-full py-3 bg-white/5 border border-white/10 text-slate-400 rounded-2xl font-black uppercase text-xs hover:bg-white/10 transition-all"
-        >
-            Close
-        </button>
-    </div>
-);
+    );
+};
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const BookingsIndex = () => {
@@ -520,6 +524,8 @@ const BookingsIndex = () => {
     const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
     const [bookingType, setBookingType] = useState('all');
 
+    const [reviewQrUrl, setReviewQrUrl] = useState(null);
+
     // Modal state
     const [selectedQR, setSelectedQR] = useState(null);
     const [liveAmount, setLiveAmount] = useState(0);
@@ -527,6 +533,23 @@ const BookingsIndex = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showReceipt, setShowReceipt] = useState(false);
     const [receiptData, setReceiptData] = useState(null);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [selectedReviewBooking, setSelectedReviewBooking] = useState(null);
+    const [showReviewQR, setShowReviewQR] = useState(false);
+
+    // Add function to open review modal
+    const openReviewModal = (booking) => {
+        setSelectedReviewBooking(booking);
+        setShowReviewQR(false);
+        setShowReviewModal(true);
+    };
+
+    // Add function to close review modal
+    const closeReviewModal = () => {
+        setShowReviewModal(false);
+        setSelectedReviewBooking(null);
+        setShowReviewQR(false);
+    };
 
     const [showWalkinModal, setShowWalkinModal] = useState(false);
     const [walkinForm, setWalkinForm] = useState({
@@ -656,7 +679,12 @@ const BookingsIndex = () => {
         if (!selectedQR) return;
         setIsCalculating(true);
         try {
-            const res = await apiPost(`/space/bookings/${selectedQR._id}/calculate`);
+            const isWalkin = selectedQR.booking_type === 'walkin';
+            const endpoint = isWalkin
+                ? `/space/walkins/${selectedQR._id}/calculate`
+                : `/space/bookings/${selectedQR._id}/calculate`;
+
+            const res = await apiPost(endpoint);
             const updatedBooking = res.data?.booking;
             if (updatedBooking) {
                 setSelectedQR(updatedBooking);
@@ -671,17 +699,27 @@ const BookingsIndex = () => {
         }
     };
 
-    // ADD THIS FUNCTION - Handle payment completion
-    const handlePaymentComplete = async ({ method, amount_received, voucher_code, total_amount }) => {
+    const handlePaymentComplete = async ({ method, amount_received }) => {
         if (!selectedQR) return;
         setIsSubmitting(true);
         try {
-            const res = await apiPost(`/space/bookings/${selectedQR._id}/checkout`, {
+            // Use walkin endpoint for walk-ins, booking endpoint for online bookings
+            const isWalkin = selectedQR.booking_type === 'walkin';
+            const endpoint = isWalkin
+                ? `/space/walkins/${selectedQR._id}/checkout`
+                : `/space/bookings/${selectedQR._id}/checkout`;
+
+            const res = await apiPost(endpoint, {
                 payment_method: method,
                 amount_received,
             });
 
-            setReceiptData(res.data?.booking || selectedQR);
+            const inner = res.data;
+            const bookingData = inner?.booking || selectedQR;
+            const qrUrl = inner?.review_qr_url || null;
+
+            setReceiptData(bookingData);
+            setReviewQrUrl(qrUrl);
             setShowReceipt(true);
             await fetchData(paramsRef.current, false);
             showToast({ icon: 'success', title: 'Payment completed successfully!' });
@@ -773,6 +811,7 @@ const BookingsIndex = () => {
             header: "Actions",
             cell: (row) => (
                 <div className="flex gap-2">
+                    {/* Pending actions */}
                     {row.status === 'pending' && (
                         <>
                             <button onClick={() => updateStatus(row._id, 'confirm')}
@@ -785,6 +824,8 @@ const BookingsIndex = () => {
                             </button>
                         </>
                     )}
+
+                    {/* View/Collect actions for active/pending payment */}
                     {['confirmed', 'active', 'pending_payment'].includes(row.status) && (
                         <button
                             onClick={() => openModal(row)}
@@ -802,6 +843,16 @@ const BookingsIndex = () => {
                             ) : (
                                 <><QrCode size={12} /> Show QR</>
                             )}
+                        </button>
+                    )}
+
+                    {/* ========== LEAVE A REVIEW BUTTON (for completed bookings) ========== */}
+                    {row.status === 'completed' && row.qr_code_token && (
+                        <button
+                            onClick={() => openReviewModal(row)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 text-purple-400 rounded-xl text-[10px] font-black uppercase transition-all hover:bg-purple-600 hover:text-white border border-purple-500/30"
+                        >
+                            <Star size={12} /> Review
                         </button>
                     )}
                 </div>
@@ -1037,21 +1088,52 @@ const BookingsIndex = () => {
                             )}
                         </div>
 
-                        <button
-                            onClick={() => openModal(booking)}
-                            className={cn(
-                                "w-full py-3 rounded-xl text-[10px] font-black uppercase transition-all",
-                                booking.status === 'pending_payment'
-                                    ? "bg-orange-600 hover:bg-orange-500 text-white"
-                                    : booking.status === 'active' || booking.status === 'confirmed'
-                                        ? "bg-indigo-600 hover:bg-indigo-500 text-white"
-                                        : "bg-white/5 text-slate-400"
+                        {/* Mobile Action Buttons */}
+                        <div className="flex gap-2">
+                            {/* Main action button (Collect/View/Show QR) */}
+                            {['confirmed', 'active', 'pending_payment'].includes(booking.status) && (
+                                <button
+                                    onClick={() => openModal(booking)}
+                                    className={cn(
+                                        "flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all",
+                                        booking.status === 'pending_payment'
+                                            ? "bg-orange-600 hover:bg-orange-500 text-white"
+                                            : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                                    )}
+                                >
+                                    {booking.status === 'pending_payment' ? 'Collect Payment' :
+                                        booking.status === 'active' ? 'View Session' : 'Show QR'}
+                                </button>
                             )}
-                        >
-                            {booking.status === 'pending_payment' ? 'Collect Payment' :
-                                booking.status === 'active' ? 'View Session' :
-                                    booking.status === 'confirmed' ? 'Show QR' : booking.status}
-                        </button>
+
+                            {/* Review button for completed bookings */}
+                            {booking.status === 'completed' && booking.qr_code_token && (
+                                <button
+                                    onClick={() => openReviewModal(booking)}
+                                    className="flex-1 py-3 bg-purple-600/20 text-purple-400 rounded-xl text-[10px] font-black uppercase transition-all hover:bg-purple-600 hover:text-white border border-purple-500/30 flex items-center justify-center gap-2"
+                                >
+                                    <Star size={12} /> Review
+                                </button>
+                            )}
+
+                            {/* Fallback for other statuses (pending, etc.) */}
+                            {booking.status === 'pending' && (
+                                <div className="flex-1 flex gap-2">
+                                    <button
+                                        onClick={() => updateStatus(booking._id, 'confirm')}
+                                        className="flex-1 py-3 bg-emerald-600/20 text-emerald-500 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all"
+                                    >
+                                        Confirm
+                                    </button>
+                                    <button
+                                        onClick={() => updateStatus(booking._id, 'reject')}
+                                        className="flex-1 py-3 bg-red-600/20 text-red-500 rounded-xl text-[10px] font-black uppercase hover:bg-red-600 hover:text-white transition-all"
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             />
@@ -1065,7 +1147,7 @@ const BookingsIndex = () => {
                 variant="dark"
             >
                 {showReceipt ? (
-                    <ReceiptScreen booking={receiptData} onClose={closeModal} />
+                    <ReceiptScreen booking={receiptData} onClose={closeModal} reviewQrUrl={reviewQrUrl} />
                 ) : (
                     <>
                         <div className="text-center">
@@ -1140,10 +1222,10 @@ const BookingsIndex = () => {
                                     checkInAt={booking.check_in_at}
                                     checkOutAt={booking.check_out_at}
                                     rateHour={booking.space_id?.rate_hour || 0}
-                                    onAmountUpdate={() => {}}
+                                    onAmountUpdate={() => { }}
                                     booking={booking}
                                 />
-                                <PaymentPanel 
+                                <PaymentPanel
                                     booking={booking}
                                     liveTotalAmount={liveAmount}
                                     onComplete={handlePaymentComplete}
@@ -1154,6 +1236,59 @@ const BookingsIndex = () => {
                         )}
                     </>
                 )}
+            </Modal>
+
+            {/* ── REVIEW QR MODAL ── */}
+            <Modal
+                open={showReviewModal}
+                onClose={closeReviewModal}
+                title="Leave a Review"
+                size="md"
+                variant="dark"
+            >
+                <div className="text-center py-4">
+                    {/* Space Info */}
+                    <div className="mb-4">
+                        <h3 className="text-lg font-black text-white">{selectedReviewBooking?.space_id?.name}</h3>
+                        <p className="text-[10px] text-slate-500">
+                            Booking #{selectedReviewBooking?.ticket_number}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                            Guest: {selectedReviewBooking?.guest_name || 'Guest'}
+                        </p>
+                    </div>
+
+                    {!showReviewQR ? (
+                        <button
+                            onClick={() => {
+                                const backendUrl = 'http://localhost:5000';  // Use BACKEND URL, not frontend
+                                const reviewUrl = `${backendUrl}/api/v1/space/qr/${selectedReviewBooking?.qr_code_token}`;
+                                setShowReviewQR(true);
+                                console.log('Review URL (should point to backend):', reviewUrl);
+                            }}
+                            className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black uppercase text-sm transition-all flex items-center justify-center gap-2"
+                        >
+                            <Star size={18} /> Generate Review QR
+                        </button>
+                    ) : (
+                        <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl p-6">
+                            <p className="text-[10px] text-purple-400 font-black uppercase tracking-wider mb-4">
+                                Customer scans to leave a review
+                            </p>
+                            <div className="bg-white p-4 rounded-xl flex justify-center mx-auto" style={{ width: 'fit-content' }}>
+                                <QRCodeSVG
+                                    value={`http://localhost:5000/api/v1/space/qr/${selectedReviewBooking?.qr_code_token}`}
+                                    size={180}
+                                    level="H"
+                                    includeMargin={false}
+                                />
+                            </div>
+                            <p className="text-[8px] text-slate-500 mt-4">
+                                Share this QR code with the customer to leave a review
+                            </p>
+                        </div>
+                    )}
+                </div>
             </Modal>
         </div>
     );
