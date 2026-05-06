@@ -1261,7 +1261,7 @@ const BookingsIndex = () => {
                     {!showReviewQR ? (
                         <button
                             onClick={() => {
-                                const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';  // Use env variable or fallback
+                                const backendUrl = import.meta.env.VITE_API_URL;
                                 const reviewUrl = `${backendUrl}/api/v1/space/qr/${selectedReviewBooking?.qr_code_token}`;
                                 setShowReviewQR(true);
                                 console.log('Review URL (should point to backend):', reviewUrl);
