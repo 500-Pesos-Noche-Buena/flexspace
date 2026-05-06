@@ -8,27 +8,36 @@ class DashboardController {
                 totalUsers,
                 totalSpaceHubs,
                 activeSpaces,
-                pendingRequestsCount
+                pendingRequestsCount,
+                revenueData
             ] = await Promise.all([
                 User.countDocuments({ role: 'user' }),
                 User.countDocuments({ role: 'space' }),
                 Space.countDocuments(),
-                SpaceRequest.countDocuments({ status: 'pending' })
+                SpaceRequest.countDocuments({ status: 'pending' }),
+                Booking.aggregate([
+                    {
+                        $match: {
+                            status: 'completed',
+                            check_in_at: {
+                                $gte: new Date(new Date().setDate(1))
+                            }
+                        }
+                    },
+                    { $group: { _id: null, total: { $sum: "$total_amount" } } }
+                ])
             ]);
 
-            const revenueData = await Space.aggregate([
-                { $group: { _id: null, total: { $sum: "$rate_hour" } } }
-            ]);
             const monthlyRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
 
+            // FIXED: Removed populate('user_id') since SpaceRequest doesn't have that field
             const recentRequests = await SpaceRequest.find({ status: 'pending' })
-                .select('name status created_at')
+                .select('name business_name status created_at')
                 .sort({ created_at: -1 })
                 .limit(5);
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
-                status: 'success',
                 data: {
                     totalUsers,
                     totalSpaceHubs,
@@ -36,7 +45,8 @@ class DashboardController {
                     pendingRequests: pendingRequestsCount,
                     monthlyRevenue: monthlyRevenue.toLocaleString(),
                     recentRequests: recentRequests.map(req => ({
-                        name: req.name,
+                        name: req.business_name || req.name,
+                        ownerName: 'Pending', // No owner available since no user relation
                         location: "Iloilo City",
                         status: req.status,
                         createdAt: req.created_at
@@ -49,21 +59,15 @@ class DashboardController {
         }
     };
 
-    // Add these methods to your Admin DashboardController
-
     // ============================================
     // 1. PLATFORM OCCUPANCY ANALYTICS
     // ============================================
     getPlatformOccupancy = async (req, res, next) => {
         try {
-            // Get all spaces with capacity
             const spaces = await Space.find().select('name capacity user_id');
             const totalCapacity = spaces.reduce((sum, s) => sum + (s.capacity || 0), 0);
-
-            // Current active bookings across ALL spaces
             const activeBookings = await Booking.countDocuments({ status: 'active' });
 
-            // Get occupancy per space
             const spacesWithOccupancy = await Promise.all(spaces.map(async (space) => {
                 const occupied = await Booking.countDocuments({
                     space_id: space._id,
@@ -78,11 +82,7 @@ class DashboardController {
             }));
 
             const occupancyRate = totalCapacity > 0 ? Math.round((activeBookings / totalCapacity) * 100) : 0;
-
-            // Find struggling spaces (<30% occupancy)
             const strugglingSpaces = spacesWithOccupancy.filter(s => s.occupancyRate < 30 && s.occupancyRate > 0);
-
-            // Find thriving spaces (>70% occupancy)
             const thrivingSpaces = spacesWithOccupancy.filter(s => s.occupancyRate >= 70);
 
             return res.status(HTTP_STATUS.OK).json({
@@ -106,12 +106,11 @@ class DashboardController {
     };
 
     // ============================================
-    // 2. PLATFORM REVENUE TREND (with actual booking data)
+    // 2. PLATFORM REVENUE TREND
     // ============================================
     getPlatformRevenueTrend = async (req, res, next) => {
         try {
             const { period = 'monthly' } = req.query;
-
             let startDate = new Date();
             let groupFormat;
 
@@ -147,7 +146,6 @@ class DashboardController {
                 { $sort: { "_id": 1 } }
             ]);
 
-            // Calculate month-over-month growth
             let growth = 0;
             if (revenueData.length >= 2) {
                 const current = revenueData[revenueData.length - 1];
@@ -174,16 +172,14 @@ class DashboardController {
     };
 
     // ============================================
-    // 3. TOP PERFORMING SPACES (Leaderboard)
+    // 3. TOP PERFORMING SPACES
     // ============================================
     getTopSpaces = async (req, res, next) => {
         try {
             const { limit = 10 } = req.query;
 
             const topSpaces = await Booking.aggregate([
-                {
-                    $match: { status: 'completed' }
-                },
+                { $match: { status: 'completed' } },
                 {
                     $group: {
                         _id: "$space_id",
@@ -241,7 +237,6 @@ class DashboardController {
     getUserGrowth = async (req, res, next) => {
         try {
             const { period = 'monthly' } = req.query;
-
             let startDate = new Date();
             let groupFormat;
 
@@ -290,67 +285,6 @@ class DashboardController {
             });
         } catch (error) {
             console.error('getUserGrowth error:', error);
-            next(error);
-        }
-    };
-
-    // ============================================
-    // 5. FIXED: Main Dashboard with REAL revenue
-    // ============================================
-    index = async (req, res, next) => {
-        try {
-            const [
-                totalUsers,
-                totalSpaceHubs,
-                activeSpaces,
-                pendingRequestsCount,
-                revenueData
-            ] = await Promise.all([
-                User.countDocuments({ role: 'user' }),
-                User.countDocuments({ role: 'space' }),
-                Space.countDocuments(),
-                SpaceRequest.countDocuments({ status: 'pending' }),
-                Booking.aggregate([
-                    {
-                        $match: {
-                            status: 'completed',
-                            check_in_at: {
-                                $gte: new Date(new Date().setDate(1)) // First day of current month
-                            }
-                        }
-                    },
-                    { $group: { _id: null, total: { $sum: "$total_amount" } } }
-                ])
-            ]);
-
-            const monthlyRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
-
-            // Get recent requests with more details
-            const recentRequests = await SpaceRequest.find({ status: 'pending' })
-                .select('name business_name status created_at user_id')
-                .populate('user_id', 'name email')
-                .sort({ created_at: -1 })
-                .limit(5);
-
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: {
-                    totalUsers,
-                    totalSpaceHubs,
-                    activeSpaces,
-                    pendingRequests: pendingRequestsCount,
-                    monthlyRevenue: monthlyRevenue.toLocaleString(),
-                    recentRequests: recentRequests.map(req => ({
-                        name: req.business_name || req.name,
-                        ownerName: req.user_id?.name || 'N/A',
-                        location: "Iloilo City",
-                        status: req.status,
-                        createdAt: req.created_at
-                    }))
-                }
-            });
-        } catch (error) {
-            console.error("Admin Dashboard Sync Error:", error.message);
             next(error);
         }
     };
