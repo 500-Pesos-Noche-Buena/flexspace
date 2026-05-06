@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { apiPost } from '@/utils/Api'; // Using your utility
-import { showToast } from '@/components/ui/SweetAlert2'; // Using your utility
+import { apiPost } from '@/utils/Api';
+import { showToast } from '@/components/ui/SweetAlert2';
 
 const Register = () => {
     const navigate = useNavigate();
     const [role, setRole] = useState('user');
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // State for inputs
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
+        confirmPassword: ''
     });
 
     // State for files
@@ -23,12 +26,34 @@ const Register = () => {
         dti_sec_reg: null
     });
 
+    // Password validation
+    const validatePassword = (password) => {
+        const errors = [];
+        if (password.length < 8) errors.push('At least 8 characters');
+        if (!/[A-Z]/.test(password)) errors.push('One uppercase letter');
+        if (!/[a-z]/.test(password)) errors.push('One lowercase letter');
+        if (!/[0-9]/.test(password)) errors.push('One number');
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) errors.push('One special character');
+        return errors;
+    };
+
+    const passwordErrors = validatePassword(formData.password);
+    const isPasswordValid = passwordErrors.length === 0 && formData.password.length > 0;
+    const doPasswordsMatch = formData.password === formData.confirmPassword && formData.confirmPassword.length > 0;
+    const isFormValid = formData.name && formData.email && isPasswordValid && doPasswordsMatch;
+
     const handleFileChange = (e, field) => {
         setFiles({ ...files, [field]: e.target.files[0] });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (!isFormValid) {
+            showToast({ icon: 'error', title: 'Please fix the errors before submitting' });
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -45,7 +70,6 @@ const Register = () => {
 
                 data.append('business_permit', files.business_permit);
                 data.append('dti_sec_reg', files.dti_sec_reg);
-
             }
 
             const response = await apiPost('/auth/register', data);
@@ -140,18 +164,104 @@ const Register = () => {
                     />
                 </div>
 
-                {/* Password Input */}
+                {/* Password Input with validation */}
                 <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         placeholder="Create Password"
                         required
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3.5 md:py-4 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none transition font-bold text-sm"
+                        className={`w-full pl-12 pr-12 py-3.5 md:py-4 rounded-2xl border transition-all font-bold text-sm
+                            ${formData.password && !isPasswordValid ? 'border-red-500 bg-red-50 focus:border-red-500' : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-400'}`}
                     />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                 </div>
+
+                {/* Password requirements */}
+                {formData.password && (
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-2">Password must contain:</p>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                            <div className={`text-[8px] flex items-center gap-1 ${formData.password.length >= 8 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {formData.password.length >= 8 ? <CheckCircle size={10} /> : <XCircle size={10} />} 8+ characters
+                            </div>
+                            <div className={`text-[8px] flex items-center gap-1 ${/[A-Z]/.test(formData.password) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {/[A-Z]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Uppercase letter
+                            </div>
+                            <div className={`text-[8px] flex items-center gap-1 ${/[a-z]/.test(formData.password) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {/[a-z]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Lowercase letter
+                            </div>
+                            <div className={`text-[8px] flex items-center gap-1 ${/[0-9]/.test(formData.password) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {/[0-9]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Number
+                            </div>
+                            <div className={`text-[8px] flex items-center gap-1 col-span-2 ${/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Special character (!@#$%^&*)
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Confirm Password Input */}
+                <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm Password"
+                        required
+                        value={formData.confirmPassword}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                        className={`w-full pl-12 pr-12 py-3.5 md:py-4 rounded-2xl border transition-all font-bold text-sm
+                            ${formData.confirmPassword && !doPasswordsMatch ? 'border-red-500 bg-red-50' : 
+                              formData.confirmPassword && doPasswordsMatch ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                </div>
+
+                {/* Confirm password feedback */}
+                {formData.confirmPassword && (
+                    <p className={`text-[8px] font-bold -mt-2 ${doPasswordsMatch ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {doPasswordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
+                    </p>
+                )}
+
+                {/* Password strength meter */}
+                {formData.password && (
+                    <div className="mt-1">
+                        <div className="flex gap-1 h-1">
+                            {[1, 2, 3, 4, 5].map((level) => {
+                                let isActive = false;
+                                if (level === 1 && formData.password.length >= 8) isActive = true;
+                                if (level === 2 && /[A-Z]/.test(formData.password) && /[a-z]/.test(formData.password)) isActive = true;
+                                if (level === 3 && /[0-9]/.test(formData.password)) isActive = true;
+                                if (level === 4 && /[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) isActive = true;
+                                if (level === 5 && formData.password.length >= 12) isActive = true;
+                                return (
+                                    <div 
+                                        key={level}
+                                        className={`flex-1 h-full rounded-full transition-all ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                                    />
+                                );
+                            })}
+                        </div>
+                        <p className="text-[7px] text-slate-400 mt-1 text-right">
+                            {isPasswordValid ? '✓ Strong password' : 'Weak password - meet all requirements'}
+                        </p>
+                    </div>
+                )}
 
                 {/* Space Owner File Uploads */}
                 {role === 'space' && (
@@ -183,8 +293,8 @@ const Register = () => {
 
                 <Button
                     type="submit"
-                    disabled={isLoading}
-                    className="w-full h-12 md:h-14 rounded-2xl bg-slate-900 text-white hover:bg-indigo-600 font-black text-base md:text-lg flex gap-2 shadow-lg shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-70"
+                    disabled={isLoading || !isFormValid}
+                    className="w-full h-12 md:h-14 rounded-2xl bg-slate-900 text-white hover:bg-indigo-600 font-black text-base md:text-lg flex gap-2 shadow-lg shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isLoading ? (
                         <Loader2 className="animate-spin" size={20} />

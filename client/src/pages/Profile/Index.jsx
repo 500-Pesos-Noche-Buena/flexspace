@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { apiGet, apiPost, apiPut } from '@/utils/Api';
-import { User, Shield, BadgeCheck, Save, Loader2, Lock, QrCode, CreditCard, Plus, Trash2, Upload, Wallet, Building2, Landmark, Smartphone, CheckCircle2 } from 'lucide-react';
+import { User, Shield, BadgeCheck, Save, Loader2, Lock, QrCode, CreditCard, Plus, Trash2, Upload, Wallet, Building2, Landmark, Smartphone, CheckCircle2, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import {
     Select,
@@ -22,10 +22,14 @@ const ProfileIndex = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [qrUploading, setQrUploading] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
 
     // Form States
     const [formData, setFormData] = useState({ name: '', email: '' });
     const [passwordData, setPasswordData] = useState({ current_password: '', new_password: '' });
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [touched, setTouched] = useState({ newPassword: false, confirmPassword: false });
 
     // Payment States
     const [paymentMethods, setPaymentMethods] = useState([]);
@@ -35,10 +39,25 @@ const ProfileIndex = () => {
     // Available payment options
     const availablePaymentMethods = ['gcash', 'maya', 'cash', 'bank_transfer', 'credit_card', 'paypal'];
 
+    // Password validation rules
+    const validatePassword = (password) => {
+        const errors = [];
+        if (password.length < 8) errors.push('At least 8 characters');
+        if (!/[A-Z]/.test(password)) errors.push('One uppercase letter');
+        if (!/[a-z]/.test(password)) errors.push('One lowercase letter');
+        if (!/[0-9]/.test(password)) errors.push('One number');
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) errors.push('One special character');
+        return errors;
+    };
+
+    const passwordErrors = validatePassword(passwordData.new_password);
+    const isPasswordValid = passwordErrors.length === 0 && passwordData.new_password.length > 0;
+    const doPasswordsMatch = passwordData.new_password === confirmPassword && confirmPassword.length > 0;
+    const isFormValid = passwordData.current_password.length > 0 && isPasswordValid && doPasswordsMatch;
+
     // ✅ Redirect regular users away from this page
     useEffect(() => {
         if (isAuthenticated && authUser) {
-            // Regular users should go to /account instead
             if (authUser.role === 'user') {
                 navigate('/account', { replace: true });
                 return;
@@ -55,7 +74,6 @@ const ProfileIndex = () => {
                     name: res.data.name || '',
                     email: res.data.email || ''
                 });
-                // Set payment data
                 setPaymentMethods(res.data.payment_methods || []);
                 setPaymentQR(res.data.business_payment_qr || null);
             }
@@ -103,15 +121,28 @@ const ProfileIndex = () => {
 
     const handleUpdatePassword = async (e) => {
         e.preventDefault();
-        if (!passwordData.current_password || !passwordData.new_password) {
-            showToast({ icon: 'error', title: 'Please fill all password fields' });
+        
+        if (!isFormValid) {
+            if (!isPasswordValid) {
+                showToast({ icon: 'error', title: 'Password requirements not met' });
+            } else if (!doPasswordsMatch) {
+                showToast({ icon: 'error', title: 'Passwords do not match' });
+            } else if (!passwordData.current_password) {
+                showToast({ icon: 'error', title: 'Current password is required' });
+            }
             return;
         }
+
         setSaving(true);
         try {
-            await apiPost('/auth/profile/update-password', passwordData);
+            await apiPost('/auth/profile/update-password', {
+                current_password: passwordData.current_password,
+                new_password: passwordData.new_password
+            });
             showToast({ icon: 'success', title: 'Password Updated' });
             setPasswordData({ current_password: '', new_password: '' });
+            setConfirmPassword('');
+            setTouched({ newPassword: false, confirmPassword: false });
         } catch {
             showToast({ icon: 'error', title: 'Password update failed' });
         } finally {
@@ -197,14 +228,12 @@ const ProfileIndex = () => {
         }
     };
 
-    // Show loading while checking auth
     if (loading) return (
         <div className="p-10 text-white italic opacity-50 uppercase text-[10px] tracking-widest animate-pulse">
             Loading Identity...
         </div>
     );
 
-    // Don't render if user is regular (will redirect)
     if (authUser?.role === 'user') {
         return null;
     }
@@ -229,7 +258,6 @@ const ProfileIndex = () => {
                 </div>
             </div>
 
-            {/* Rest of your component remains the same */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* General Information */}
                 <div className="bg-[#111114] border border-white/5 p-8 rounded-[2.5rem] space-y-6">
@@ -269,7 +297,7 @@ const ProfileIndex = () => {
                     </form>
                 </div>
 
-                {/* Security Section */}
+                {/* Security Section with Password Validation */}
                 <div className="bg-[#111114] border border-white/5 p-8 rounded-[2.5rem] space-y-6">
                     <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                         <Lock size={16} className="text-rose-400" />
@@ -279,32 +307,124 @@ const ProfileIndex = () => {
                     <form onSubmit={handleUpdatePassword} className="space-y-4">
                         <p className="text-[10px] text-slate-500 font-medium italic uppercase tracking-wider">Secure your workstation identity.</p>
 
+                        {/* Current Password */}
                         <div className="space-y-2">
                             <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">Current Password</label>
-                            <input
-                                type="password"
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:outline-none focus:border-rose-500 transition-all font-bold"
-                                placeholder="••••••••"
-                                value={passwordData.current_password}
-                                onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showCurrentPassword ? "text" : "password"}
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:outline-none focus:border-rose-500 transition-all font-bold pr-12"
+                                    placeholder="••••••••"
+                                    value={passwordData.current_password}
+                                    onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
                         </div>
 
+                        {/* New Password */}
                         <div className="space-y-2">
                             <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">New Password</label>
+                            <div className="relative">
+                                <input
+                                    type={showNewPassword ? "text" : "password"}
+                                    className={`w-full bg-white/5 border rounded-2xl p-4 text-white text-sm focus:outline-none focus:border-rose-500 transition-all font-bold pr-12
+                                        ${touched.newPassword && passwordData.new_password && !isPasswordValid ? 'border-red-500' : 'border-white/10'}`}
+                                    placeholder="••••••••"
+                                    value={passwordData.new_password}
+                                    onChange={(e) => {
+                                        setPasswordData({ ...passwordData, new_password: e.target.value });
+                                        setTouched(prev => ({ ...prev, newPassword: true }));
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                            
+                            {/* Password requirements */}
+                            {touched.newPassword && passwordData.new_password && (
+                                <div className="mt-2 p-3 bg-rose-500/5 rounded-xl border border-rose-500/10">
+                                    <p className="text-[8px] font-black text-rose-400 uppercase tracking-wider mb-2">Password must contain:</p>
+                                    <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                                        <div className={`text-[7px] flex items-center gap-1 ${passwordData.new_password.length >= 8 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                            {passwordData.new_password.length >= 8 ? <CheckCircle size={10} /> : <XCircle size={10} />} 8+ characters
+                                        </div>
+                                        <div className={`text-[7px] flex items-center gap-1 ${/[A-Z]/.test(passwordData.new_password) ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                            {/[A-Z]/.test(passwordData.new_password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Uppercase
+                                        </div>
+                                        <div className={`text-[7px] flex items-center gap-1 ${/[a-z]/.test(passwordData.new_password) ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                            {/[a-z]/.test(passwordData.new_password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Lowercase
+                                        </div>
+                                        <div className={`text-[7px] flex items-center gap-1 ${/[0-9]/.test(passwordData.new_password) ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                            {/[0-9]/.test(passwordData.new_password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Number
+                                        </div>
+                                        <div className={`text-[7px] flex items-center gap-1 col-span-2 ${/[!@#$%^&*(),.?":{}|<>]/.test(passwordData.new_password) ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                            {/[!@#$%^&*(),.?":{}|<>]/.test(passwordData.new_password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Special character
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Confirm Password */}
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">Confirm New Password</label>
                             <input
                                 type="password"
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:outline-none focus:border-rose-500 transition-all font-bold"
+                                className={`w-full bg-white/5 border rounded-2xl p-4 text-white text-sm focus:outline-none focus:border-rose-500 transition-all font-bold
+                                    ${touched.confirmPassword && confirmPassword && !doPasswordsMatch ? 'border-red-500' : 'border-white/10'}
+                                    ${touched.confirmPassword && doPasswordsMatch && confirmPassword ? 'border-emerald-500' : ''}`}
                                 placeholder="••••••••"
-                                value={passwordData.new_password}
-                                onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                                value={confirmPassword}
+                                onChange={(e) => {
+                                    setConfirmPassword(e.target.value);
+                                    setTouched(prev => ({ ...prev, confirmPassword: true }));
+                                }}
                             />
+                            {touched.confirmPassword && confirmPassword && (
+                                <p className={`text-[8px] mt-1 font-bold ${doPasswordsMatch ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {doPasswordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
+                                </p>
+                            )}
                         </div>
+
+                        {/* Password strength meter */}
+                        {passwordData.new_password && (
+                            <div className="mt-1">
+                                <div className="flex gap-1 h-1">
+                                    {[1, 2, 3, 4, 5].map((level) => {
+                                        let isActive = false;
+                                        if (level === 1 && passwordData.new_password.length >= 8) isActive = true;
+                                        if (level === 2 && /[A-Z]/.test(passwordData.new_password) && /[a-z]/.test(passwordData.new_password)) isActive = true;
+                                        if (level === 3 && /[0-9]/.test(passwordData.new_password)) isActive = true;
+                                        if (level === 4 && /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.new_password)) isActive = true;
+                                        if (level === 5 && passwordData.new_password.length >= 12) isActive = true;
+                                        return (
+                                            <div key={level} className={`flex-1 h-full rounded-full transition-all ${isActive ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-[7px] text-slate-500 mt-1 text-right">
+                                    {isPasswordValid ? '✓ Strong password' : 'Meet all requirements for strong password'}
+                                </p>
+                            </div>
+                        )}
 
                         <button
                             type="submit"
-                            disabled={saving}
-                            className="w-full py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            disabled={saving || !isFormValid}
+                            className="w-full py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {saving ? <Loader2 className="animate-spin" size={14} /> : <Lock size={14} />}
                             Update Password
@@ -316,7 +436,7 @@ const ProfileIndex = () => {
             {/* Payment Settings Section - Only show for business owners */}
             {(user?.role === 'space' || user?.role === 'admin' || user?.role === 'staff') && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* QR Code Upload Section */}
+                    {/* QR Code Upload Section - Keep as is */}
                     <Card className="bg-linear-to-br from-[#0a0a0f] to-[#0d0d12] border-gray-800/50 shadow-xl overflow-hidden">
                         <CardHeader className="pb-3 border-b border-gray-800/50">
                             <div className="flex items-center gap-3">
@@ -404,7 +524,7 @@ const ProfileIndex = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Payment Methods Section */}
+                    {/* Payment Methods Section - Keep as is */}
                     <Card className="bg-linear-to-br from-[#0a0a0f] to-[#0d0d12] border-gray-800/50 shadow-xl overflow-hidden">
                         <CardHeader className="pb-3 border-b border-gray-800/50">
                             <div className="flex items-center justify-between">

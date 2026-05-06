@@ -4,10 +4,10 @@ import { MapPin, Coffee, Laptop, Zap } from 'lucide-react';
 
 const AuthLayout = () => {
     return (
-        <div className="grid h-dvh lg:grid-cols-2 bg-white dark:bg-slate-950 font-sans antialiased overflow-hidden">
-
-            <main className="flex flex-col items-center lg:justify-center p-6 md:p-8 overflow-y-auto custom-scrollbar">
-                <div className="w-full max-w-md py-4 md:py-0">
+        <div className="flex flex-col lg:grid lg:grid-cols-2 min-h-screen bg-white dark:bg-slate-950 font-sans antialiased">
+            {/* LEFT SIDE: Form Section - Scrollable */}
+            <main className="flex flex-col items-center justify-start lg:justify-center p-6 md:p-8 overflow-y-auto custom-scrollbar min-h-screen lg:min-h-0">
+                <div className="w-full max-w-md py-4 md:py-8">
                     <div className="lg:hidden flex items-center gap-2 mb-6 md:mb-8 justify-center">
                         <div className="bg-slate-900 p-2 rounded-xl shadow-lg shadow-slate-200">
                             <MapPin className="text-white" size={20} />
@@ -20,7 +20,7 @@ const AuthLayout = () => {
             </main>
 
             {/* RIGHT SIDE: Branding Panel (Hidden on Mobile) */}
-            <section className="hidden lg:flex relative bg-slate-900 items-center justify-center p-12 overflow-hidden h-full">
+            <section className="hidden lg:flex relative bg-slate-900 items-center justify-center p-12 overflow-hidden min-h-screen">
                 <div className="absolute inset-0 z-0 opacity-20">
                     <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
                         <defs>
