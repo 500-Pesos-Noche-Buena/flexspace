@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,10 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState(null);
+    const [turnstileError, setTurnstileError] = useState(false);
+    const turnstileContainerRef = useRef(null);
+    const widgetIdRef = useRef(null);
 
     const { login } = useAuth();
     
@@ -20,12 +24,69 @@ const Login = () => {
         password: ''
     });
 
+    // Load Turnstile script and initialize widget
+    useEffect(() => {
+        // Load the Turnstile script
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+        script.async = true;
+        script.defer = true;
+        script.onload = initTurnstile;
+        document.body.appendChild(script);
+
+        return () => {
+            // Cleanup widget on unmount
+            if (widgetIdRef.current && window.turnstile) {
+                window.turnstile.remove(widgetIdRef.current);
+            }
+        };
+    }, []);
+
+    const initTurnstile = () => {
+        if (window.turnstile && turnstileContainerRef.current && !widgetIdRef.current) {
+            const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADKRTC20ldH2jxH_';
+            
+            widgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+                sitekey: siteKey,
+                callback: (token) => {
+                    console.log('Turnstile verified successfully');
+                    setTurnstileToken(token);
+                    setTurnstileError(false);
+                },
+                'expired-callback': () => {
+                    console.log('Turnstile token expired');
+                    setTurnstileToken(null);
+                    setTurnstileError(true);
+                },
+                'error-callback': () => {
+                    console.log('Turnstile error occurred');
+                    setTurnstileToken(null);
+                    setTurnstileError(true);
+                },
+            });
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Check Turnstile verification
+        if (!turnstileToken) {
+            showToast({ 
+                icon: 'error', 
+                title: 'Security Check Required', 
+                message: 'Please complete the security verification.' 
+            });
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            const response = await apiPost('/auth/login', formData);
+            const response = await apiPost('/auth/login', {
+                ...formData,
+                'cf-turnstile-response': turnstileToken
+            });
 
             if (response.status === 'success') {
                 login(response.user, response.token); 
@@ -56,6 +117,11 @@ const Login = () => {
             } else {
                 showToast({ icon: 'error', title: error.message || 'Login failed' });
             }
+            // Reset Turnstile on failed login
+            if (widgetIdRef.current && window.turnstile) {
+                window.turnstile.reset(widgetIdRef.current);
+            }
+            setTurnstileToken(null);
         } finally {
             setIsLoading(false);
         }
@@ -149,10 +215,20 @@ const Login = () => {
                     </div>
                 </div>
 
+                {/* Cloudflare Turnstile Widget */}
+                <div className="flex justify-center py-2">
+                    <div ref={turnstileContainerRef} />
+                </div>
+                {turnstileError && (
+                    <p className="text-[8px] text-red-500 text-center -mt-2">
+                        Security verification failed. Please refresh and try again.
+                    </p>
+                )}
+
                 <Button 
                     type="submit"
-                    disabled={isLoading}
-                    className="w-full h-12 md:h-14 rounded-2xl bg-slate-900 text-white font-black hover:bg-indigo-600 transition flex gap-2 text-base md:text-lg shadow-xl shadow-slate-200 active:scale-[0.98] disabled:opacity-70 mt-2"
+                    disabled={isLoading || !turnstileToken}
+                    className="w-full h-12 md:h-14 rounded-2xl bg-slate-900 text-white font-black hover:bg-indigo-600 transition flex gap-2 text-base md:text-lg shadow-xl shadow-slate-200 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-2"
                 >
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : <>Sign in <ArrowRight size={20} /></>}
                 </Button>

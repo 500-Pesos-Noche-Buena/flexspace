@@ -4,11 +4,35 @@ const { generateAuthTokens } = require('@/api/v1/utils/jwt');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const emailService = require('@/api/v1/services/emailService');
 
+const verifyTurnstileToken = async (token) => {
+    const secretKey = process.env.TURNSTILE_SECRET_KEY;
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `secret=${secretKey}&response=${token}`,
+    });
+    const data = await response.json();
+    return data.success;
+};
+
 class AuthController {
+
+
     login = async (req, res, next) => {
         try {
-            const { email, password } = req.body;
+            const { email, password, 'cf-turnstile-response': turnstileToken } = req.body;
 
+            // 1. Verify Turnstile
+            if (!turnstileToken) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Security verification required");
+            }
+
+            const isTurnstileValid = await verifyTurnstileToken(turnstileToken);
+            if (!isTurnstileValid) {
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, "Security verification failed. Please try again.");
+            }
+
+            // 2. Continue with existing login logic...
             if (!email || !password) {
                 throw new ApiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "Email and password are required");
             }
