@@ -75,7 +75,7 @@ const GoogleCallback = () => {
                     name: userName,
                     email: payload.email,
                     role: payload.role || 'user',
-                    avatar: user.avatar || null,  // ← Make sure this is included
+                    avatar: payload.avatar || null,
                 };
                 
                 localStorage.setItem('authToken', token);

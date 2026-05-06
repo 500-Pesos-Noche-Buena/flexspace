@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { apiPost } from '@/utils/Api'; 
+import { apiPost, apiGet } from '@/utils/Api'; 
 import { showToast } from '@/components/ui/SweetAlert2';
 import { useAuth } from '@/context/AuthContext';
 import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal';
@@ -68,64 +68,83 @@ const Login = () => {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+    e.preventDefault();
 
-        // Check Turnstile verification
-        if (!turnstileToken) {
-            showToast({ 
-                icon: 'error', 
-                title: 'Security Check Required', 
-                message: 'Please complete the security verification.' 
-            });
-            return;
-        }
+    // Check Turnstile verification
+    if (!turnstileToken) {
+        showToast({ 
+            icon: 'error', 
+            title: 'Security Check Required', 
+            message: 'Please complete the security verification.' 
+        });
+        return;
+    }
 
-        setIsLoading(true);
+    setIsLoading(true);
 
-        try {
-            const response = await apiPost('/auth/login', {
-                ...formData,
-                'cf-turnstile-response': turnstileToken
-            });
+    try {
+        // First, check maintenance status
+        const maintenanceRes = await apiGet('/maintenance/status');
+        
+        const response = await apiPost('/auth/login', {
+            ...formData,
+            'cf-turnstile-response': turnstileToken
+        });
 
-            if (response.status === 'success') {
-                login(response.user, response.token); 
-                
-                showToast({ icon: 'success', title: `Welcome back, ${response.user.name}!` });
-                
-                const roleRedirects = {
-                    admin: '/admin/dashboard',
-                    space: '/space/dashboard',
-                    staff: '/space/dashboard',
-                    user: '/dashboard'
-                };
-                
-                navigate(roleRedirects[response.user.role] || '/dashboard');
-            } 
-            else if (response.status === 'pending') {
-                localStorage.setItem('pending_name', response.name);
-                navigate('/registration-status');
-            }
-        } catch (error) {
-            // Check if error is from Google-only account
-            if (error.message?.includes('Google') || error.requiresGoogle) {
+        if (response.status === 'success') {
+            // If maintenance mode is ON, only allow admin to login
+            if (maintenanceRes.maintenance && response.user.role !== 'admin') {
                 showToast({ 
-                    icon: 'info', 
-                    title: 'Google Account Detected', 
-                    message: 'Please sign in with Google for this account.' 
+                    icon: 'error', 
+                    title: 'System Under Maintenance', 
+                    message: 'Only administrators can access the system during maintenance.' 
                 });
-            } else {
-                showToast({ icon: 'error', title: error.message || 'Login failed' });
+                // Reset Turnstile
+                if (widgetIdRef.current && window.turnstile) {
+                    window.turnstile.reset(widgetIdRef.current);
+                }
+                setTurnstileToken(null);
+                setIsLoading(false);
+                return;
             }
-            // Reset Turnstile on failed login
-            if (widgetIdRef.current && window.turnstile) {
-                window.turnstile.reset(widgetIdRef.current);
-            }
-            setTurnstileToken(null);
-        } finally {
-            setIsLoading(false);
+            
+            login(response.user, response.token); 
+            
+            showToast({ icon: 'success', title: `Welcome back, ${response.user.name}!` });
+            
+            const roleRedirects = {
+                admin: '/admin/dashboard',
+                space: '/space/dashboard',
+                staff: '/space/dashboard',
+                user: '/dashboard'
+            };
+            
+            navigate(roleRedirects[response.user.role] || '/dashboard');
+        } 
+        else if (response.status === 'pending') {
+            localStorage.setItem('pending_name', response.name);
+            navigate('/registration-status');
         }
-    };
+    } catch (error) {
+        // Check if error is from Google-only account
+        if (error.message?.includes('Google') || error.requiresGoogle) {
+            showToast({ 
+                icon: 'info', 
+                title: 'Google Account Detected', 
+                message: 'Please sign in with Google for this account.' 
+            });
+        } else {
+            showToast({ icon: 'error', title: error.message || 'Login failed' });
+        }
+        // Reset Turnstile on failed login
+        if (widgetIdRef.current && window.turnstile) {
+            window.turnstile.reset(widgetIdRef.current);
+        }
+        setTurnstileToken(null);
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     const handleGoogleLogin = () => {
         // Redirect to backend Google OAuth endpoint

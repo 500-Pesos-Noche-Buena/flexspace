@@ -65,6 +65,22 @@ app.use(
     })
 );
 
+app.get('/api/v1/maintenance/status', async (req, res) => {
+    try {
+        const { Settings } = require('@/api/v1/models');
+        const maintenanceMode = await Settings.findOne({ key: 'maintenance_mode' });
+        const maintenanceMessage = await Settings.findOne({ key: 'maintenance_message' });
+        
+        res.json({
+            success: true,
+            maintenance: maintenanceMode?.value === true, 
+            message: maintenanceMessage?.value || 'System is under maintenance. Please check back later.'
+        });
+    } catch (error) {
+        console.error('Maintenance status error:', error);
+        res.json({ success: true, maintenance: false });
+    }
+});
 
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 app.get('/api/v1/health/antiddos-status', (req, res) => {
