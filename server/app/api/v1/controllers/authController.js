@@ -3,6 +3,8 @@ const ApiError = require('@/api/v1/utils/ApiError');
 const { generateAuthTokens } = require('@/api/v1/utils/jwt');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const emailService = require('@/api/v1/services/emailService');
+const { cloudinaryQueue, emailQueue } = require('@/api/v1/queues/worker');
+const { SpaceRequest } = require('@/api/v1/models');
 
 const verifyTurnstileToken = async (token) => {
     const secretKey = process.env.TURNSTILE_SECRET_KEY;
@@ -103,28 +105,51 @@ class AuthController {
 
             // Handle Space Owner Registration (Requires Files)
             if (role === 'space') {
-                // Get Cloudinary URLs from middleware (already uploaded)
-                const permitUrl = req.cloudinaryUrls?.business_permit?.[0];
-                const dtiUrl = req.cloudinaryUrls?.dti_sec_reg?.[0];
+                // Get queued Cloudinary job references
+                const permitJobs = req.cloudinaryUrls?.business_permit || [];
+                const dtiJobs = req.cloudinaryUrls?.dti_sec_reg || [];
 
-                if (!permitUrl || !dtiUrl) {
-                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Business Permit and DTI documents are required.");
-                }
-
-                // Create space request with Cloudinary URLs (NO user created yet)
+                // Create space request with placeholder URLs
                 const spaceRequest = await userService.createSpaceRequest({
                     name,
                     email,
                     password,
-                    business_permit: permitUrl,
-                    dti_sec_reg: dtiUrl,
+                    business_permit: 'processing...',
+                    dti_sec_reg: 'processing...',
                     status: 'pending'
                 });
 
                 console.log('✅ Space request created with ID:', spaceRequest._id);
-                console.log('   Permit URL:', permitUrl);
-                console.log('   DTI URL:', dtiUrl);
-                console.log('   Status: pending - waiting for admin approval');
+                console.log('   Permit upload queued:', permitJobs.length);
+                console.log('   DTI upload queued:', dtiJobs.length);
+
+                // Wait for uploads to complete (in background, don't block)
+                Promise.all([
+                    ...permitJobs.map(async (jobRef) => {
+                        const job = await cloudinaryQueue.getJob(jobRef.jobId);
+                        if (job) {
+                            const result = await job.finished();
+                            await SpaceRequest.findByIdAndUpdate(spaceRequest._id, {
+                                business_permit: result.url
+                            });
+                        }
+                    }),
+                    ...dtiJobs.map(async (jobRef) => {
+                        const job = await cloudinaryQueue.getJob(jobRef.jobId);
+                        if (job) {
+                            const result = await job.finished();
+                            await SpaceRequest.findByIdAndUpdate(spaceRequest._id, {
+                                dti_sec_reg: result.url
+                            });
+                        }
+                    })
+                ]).catch(err => console.error('Background upload error:', err));
+
+                // Queue welcome email
+                await emailQueue.add('welcome-email', {
+                    type: 'welcome',
+                    data: { email, name, password, role: 'space' }
+                });
 
                 return res.status(HTTP_STATUS.CREATED).json({
                     success: true,
@@ -134,34 +159,20 @@ class AuthController {
                 });
             }
 
-            // Standard User Registration (ONLY for regular users)
+            // Standard User Registration
             const newUser = await userService.createUser({
-                name,
-                email,
-                password,
+                name, email, password,
                 role: 'user',
                 status: 'approved',
                 isActive: true,
                 authProvider: 'local'
             });
 
-            console.log(`✅ User registered: ${newUser.email}, ID: ${newUser._id}`);
-
-            // Send Welcome Email
-            if (newUser && newUser.email) {
-                try {
-                    await emailService.sendWelcomeEmail(
-                        newUser.email,
-                        newUser.name,
-                        newUser.email,
-                        password,
-                        newUser.role || 'user'
-                    );
-                    console.log(`✅ Welcome email sent to ${newUser.email}`);
-                } catch (emailError) {
-                    console.error('❌ Failed to send welcome email:', emailError.message);
-                }
-            }
+            // Queue welcome email
+            await emailQueue.add('welcome-email', {
+                type: 'welcome',
+                data: { email: newUser.email, name: newUser.name, password, role: newUser.role }
+            });
 
             return res.status(HTTP_STATUS.CREATED).json({
                 success: true,

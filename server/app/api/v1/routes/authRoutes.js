@@ -16,6 +16,7 @@ class AuthRoutes {
     initializeRoutes = () => {
         console.log('--- 🛡️ Initializing Auth Routes (Google OAuth + JWT) ---');
         
+        
         // --- PUBLIC ROUTES ---
         this.router.post('/login', 
             antiDdos.strictLimiter,  // 10 attempts per 15 minutes
@@ -25,13 +26,13 @@ class AuthRoutes {
         
         this.router.post('/logout', authController.logout);
         this.router.post('/register', 
-            antiDdos.strictLimiter,  // 10 attempts per 15 minutes
-            antiDdos.gatekeeper,      // Check banned IPs
             upload.fields([
                 { name: 'business_permit', maxCount: 1 },
                 { name: 'dti_sec_reg', maxCount: 1 }
             ]),
-            processUploadedFiles, 
+            processUploadedFiles,
+            antiDdos.strictLimiter,
+            antiDdos.gatekeeper,
             authController.register
         );
 

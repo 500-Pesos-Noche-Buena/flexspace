@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "client": "npm run dev --prefix client -- --host",
-    "start": "concurrently -n \"BACKEND,FRONTEND,WORKER\" -c \"bgBlue,bgMagenta,bgGreen\" \"nodemon server/index.js\" \"npm run client\" \"nodemon server/worker.js\""
+      "client": "npm run dev --prefix client -- --host",
+      "start": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue,bgMagenta\" \"nodemon server/index.js\" \"npm run client\"",
+      "server": "nodemon server/index.js",
+      "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue,bgMagenta\" \"nodemon server/index.js\" \"npm run client\""
   },
   "keywords": [],
   "author": "",

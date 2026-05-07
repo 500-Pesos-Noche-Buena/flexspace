@@ -10,6 +10,105 @@ const app = express();
 const os = require('os');
 const antiDdos = require('@/api/v1/middleware/antiDdos');
 
+// ============ QUEUE INITIALIZATION ==========
+let workersStarted = false;
+let emailQueueReady = false;
+let cloudinaryQueueReady = false;
+let emailQueue = null;
+let cloudinaryQueue = null;
+
+const initQueues = async () => {
+    try {
+        const { emailQueue: eq, cloudinaryQueue: cq } = require('@/api/v1/queues/worker');
+        emailQueue = eq;
+        cloudinaryQueue = cq;
+        
+        // Track connection status
+        let emailConnected = false;
+        let cloudinaryConnected = false;
+        
+        // Set up event listeners first
+        emailQueue.client.on('ready', () => {
+            emailConnected = true;
+            emailQueueReady = true;
+            console.log('✅ Email queue connected to Redis');
+        });
+        
+        cloudinaryQueue.client.on('ready', () => {
+            cloudinaryConnected = true;
+            cloudinaryQueueReady = true;
+            console.log('✅ Cloudinary queue connected to Redis');
+        });
+        
+        emailQueue.client.on('error', (err) => {
+            console.error('❌ Email queue Redis error:', err.message);
+        });
+        
+        cloudinaryQueue.client.on('error', (err) => {
+            console.error('❌ Cloudinary queue Redis error:', err.message);
+        });
+        
+        // Wait for connections (or timeout after 15 seconds)
+        await new Promise((resolve) => {
+            const checkInterval = setInterval(() => {
+                if (emailConnected && cloudinaryConnected) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 500);
+            
+            // Timeout after 15 seconds
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                console.log('⚠️ Queue connection timeout (15s), continuing with available connections...');
+                resolve();
+            }, 15000);
+        });
+        
+        workersStarted = emailQueueReady || cloudinaryQueueReady;
+        
+        console.log('\n🚀 ========== QUEUE WORKERS ==========');
+        console.log(`📧 Email Queue: ${emailQueueReady ? '✅ READY' : '❌ OFFLINE'}`);
+        console.log(`☁️ Cloudinary Queue: ${cloudinaryQueueReady ? '✅ READY' : '❌ OFFLINE'}`);
+        console.log('====================================\n');
+        
+        // Log queue stats after connections are established
+        if (emailQueueReady || cloudinaryQueueReady) {
+            setTimeout(async () => {
+                try {
+                    const emailCounts = emailQueueReady ? await emailQueue.getJobCounts() : null;
+                    const cloudinaryCounts = cloudinaryQueueReady ? await cloudinaryQueue.getJobCounts() : null;
+                    
+                    console.log('📊 ========== QUEUE STATUS ==========');
+                    if (emailCounts) {
+                        console.log(`📧 Email: waiting:${emailCounts.waiting || 0} active:${emailCounts.active || 0} completed:${emailCounts.completed || 0} failed:${emailCounts.failed || 0}`);
+                    }
+                    if (cloudinaryCounts) {
+                        console.log(`☁️ Cloudinary: waiting:${cloudinaryCounts.waiting || 0} active:${cloudinaryCounts.active || 0} completed:${cloudinaryCounts.completed || 0} failed:${cloudinaryCounts.failed || 0}`);
+                    }
+                    console.log('====================================\n');
+                } catch (err) {
+                    // Silent fail for stats
+                }
+            }, 2000);
+        }
+        
+    } catch (error) {
+        if (error.code === 'MODULE_NOT_FOUND') {
+            console.log('\n⚠️ Bull queue not installed. Email and uploads will run synchronously.');
+            console.log('   To enable queues: npm install bull ioredis\n');
+        } else if (error.message?.includes('Redis')) {
+            console.log('\n⚠️ Redis not available. Queue workers disabled.');
+            console.log('   To enable queues: docker run -d --name redis -p 6379:6379 redis\n');
+        } else {
+            console.warn('\n⚠️ Queue workers not started:', error.message);
+        }
+    }
+};
+
+// Initialize queues (don't block server startup)
+initQueues();
+
 const getLocalIp = () => {
     const interfaces = os.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
