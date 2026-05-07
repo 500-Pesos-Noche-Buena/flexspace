@@ -1,9 +1,3 @@
-
----
-
-## 📄 Client README (`/client-new/README.md`)
-
-```markdown
 # FlexSpace Frontend
 
 React + Vite + Tailwind CSS frontend for FlexSpace coworking platform.
@@ -17,7 +11,7 @@ React + Vite + Tailwind CSS frontend for FlexSpace coworking platform.
 - **SPA Architecture** – Smooth client-side routing
 - **Real-time Updates** – Socket.io for live notifications
 - **PWA Support** – Installable as native app
-- **QR Integration** – HTML5 QR code scanning for check-in/out
+- **QR Integration** – HTML5 QR code scanning for check-in/out and reviews
 
 ---
 
@@ -29,11 +23,12 @@ React + Vite + Tailwind CSS frontend for FlexSpace coworking platform.
 - **Online/Offline Detection** – Real-time connection status
 - **Auto-scroll** – Always shows latest message
 - **Responsive Design** – Mobile-friendly chat interface
+- **Multi-language** – Hiligaynon, Tagalog, English
 
 ### Supported Queries
 | Query Type | Example | AI Response |
 |------------|---------|-------------|
-| **Greeting** | "hi", "hello", "halo" | Friendly greeting |
+| **Greeting** | "hi", "hello", "halo" | Friendly greeting in detected language |
 | **Spaces by District** | "molo?", "jaro?" | Lists spaces in that district |
 | **All Spaces** | "available space?" | Lists all spaces by district |
 | **Location** | "diin location", "address" | Google Maps link |
