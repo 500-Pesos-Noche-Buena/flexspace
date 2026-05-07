@@ -210,12 +210,30 @@ app.get('/health', (req, res) => {
         message: 'FlexSpace API - System Online',
         timestamp: `${dateString} | ${timeString}`,
         uptime: process.uptime(),
-        memory: process.memoryUsage().rss / 1024 / 1024 // MB
+        memory: process.memoryUsage().rss / 1024 / 1024, // MB
+        workersStarted,
+        emailQueueReady,
+        cloudinaryQueueReady,
+        queues: {
+            email: emailQueueReady ? 'ready' : 'offline',
+            cloudinary: cloudinaryQueueReady ? 'ready' : 'offline'
+        }
     });
 });
 
 app.get('/ping', (req, res) => {
     res.status(200).send('pong');
+});
+
+// Root route
+app.get('/', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'FlexSpace API is running',
+        version: 'v1',
+        status: 'online',
+        timestamp: new Date().toISOString(),
+    });
 });
 
 app.use('/api/v1', routes);
