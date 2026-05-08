@@ -10,10 +10,8 @@ export const AppLayout = ({ children, logoSrc = "/logo.png" }) => {
     const [status, setStatus] = useState('idle');
     const [progress, setProgress] = useState(0);
     const [maintenance, setMaintenance] = useState(null);
-    const [checkingMaintenance, setCheckingMaintenance] = useState(true);
     const [userRole, setUserRole] = useState(null);
     const [isAuthPage, setIsAuthPage] = useState(false);
-    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
     // Check if current page is auth page (login/register)
     useEffect(() => {
@@ -21,7 +19,7 @@ export const AppLayout = ({ children, logoSrc = "/logo.png" }) => {
         setIsAuthPage(path === '/login' || path === '/register' || path === '/auth/google-callback');
     }, []);
 
-    // Get current user role from localStorage
+    // Get current user role from localStorage (synchronous, no loading)
     useEffect(() => {
         try {
             const storedUser = localStorage.getItem('user');
@@ -31,12 +29,10 @@ export const AppLayout = ({ children, logoSrc = "/logo.png" }) => {
             }
         } catch (e) {
             console.error('Failed to get user role');
-        } finally {
-            setIsCheckingAuth(false);
         }
     }, []);
 
-    // Check maintenance status from backend
+    // Check maintenance status once on mount (no loading screen)
     useEffect(() => {
         const checkMaintenance = async () => {
             try {
@@ -52,19 +48,13 @@ export const AppLayout = ({ children, logoSrc = "/logo.png" }) => {
             } catch (err) {
                 console.error('Failed to check maintenance status:', err);
                 setMaintenance({ active: false });
-            } finally {
-                setCheckingMaintenance(false);
             }
         };
         
         checkMaintenance();
-        
-        // Poll every 30 seconds for status changes
-        const interval = setInterval(checkMaintenance, 5000);
-        return () => clearInterval(interval);
-    }, []);
+    }, []); // Only runs once on mount
 
-    // Initial mount logic
+    // Initial mount logic (splash screen)
     useEffect(() => {
         const hasBooted = sessionStorage.getItem('app_initialized');
         
@@ -103,30 +93,33 @@ export const AppLayout = ({ children, logoSrc = "/logo.png" }) => {
         };
     }, []);
 
-    // Determine if maintenance screen should show:
+    // Show maintenance screen if:
     // 1. Maintenance is active
-    // 2. User is NOT an admin (or not logged in)
+    // 2. User is NOT an admin
     // 3. User is NOT on auth page (login/register)
-    // 4. Not still checking maintenance
     const showMaintenanceScreen = maintenance?.active && 
-                                   !checkingMaintenance &&
                                    userRole !== 'admin' && 
                                    !isAuthPage;
 
-    // If still checking maintenance or auth, show loading
-    if (checkingMaintenance || isCheckingAuth) {
+    // Only show splash screen on first visit
+    if (isBooting) {
         return (
-            <div className="fixed inset-0 flex flex-col items-center justify-center bg-background">
-                <img src={logoSrc} alt="Logo" className="w-32 h-32 mb-6 animate-pulse" />
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground mt-4">
-                    Checking system status...
-                </p>
+            <div className="fixed inset-0 z-9999 flex flex-col items-center justify-center bg-background">
+                <img src={logoSrc} alt="Logo" className="w-40 h-40 mb-6 animate-pulse" />
+                <div className="flex items-center gap-3 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary animate-pulse">
+                        Establishing Session
+                    </span>
+                </div>
+                <span className="mt-2 text-[8px] text-muted-foreground/50 uppercase tracking-widest">
+                    Please wait...
+                </span>
             </div>
         );
     }
 
-    // Show maintenance screen
+    // Show maintenance screen (no loading state before it)
     if (showMaintenanceScreen) {
         return (
             <div className="fixed inset-0 flex flex-col items-center justify-center bg-linear-to-b from-slate-900 to-slate-800 z-10000">
@@ -163,23 +156,8 @@ export const AppLayout = ({ children, logoSrc = "/logo.png" }) => {
         <ProgressContext.Provider value={manager}>
             <div className="relative min-h-screen bg-background">
                 <ProgressBar value={progress} status={status} logo={logoSrc} />
-
-                {isBooting && (
-                    <div className="fixed inset-0 z-9999 flex flex-col items-center justify-center bg-background">
-                        <img src={logoSrc} alt="Logo" className="w-40 h-40 mb-6 animate-pulse" />
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary animate-pulse">
-                                Establishing Session
-                            </span>
-                        </div>
-                        <span className="mt-2 text-[8px] text-muted-foreground/50 uppercase tracking-widest">
-                            Please wait...
-                        </span>
-                    </div>
-                )}
                 
-                <main className={`min-h-screen ${isBooting ? 'hidden' : 'block animate-in fade-in duration-500'}`}>
+                <main className="min-h-screen block animate-in fade-in duration-500">
                     {children}
                 </main>
             </div>
