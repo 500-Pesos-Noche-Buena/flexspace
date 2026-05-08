@@ -166,7 +166,7 @@ const CustomerReviews = () => {
     }
 
     return (
-        <div className="bg-gradient-to-br from-slate-50 to-white py-8 sm:py-12 md:py-20">
+        <div className="bg-linear-to-br from-slate-50 to-white py-8 sm:py-12 md:py-20">
             <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
                 {/* Header Section */}
                 <div className="text-center mb-6 sm:mb-8 md:mb-12">
@@ -246,7 +246,7 @@ const CustomerReviews = () => {
                                 style={{ transform: `translateX(-${currentSlide * 100}%)` }}
                             >
                                 {Array.from({ length: totalSlides }).map((_, slideIndex) => (
-                                    <div key={slideIndex} className="w-full flex-shrink-0">
+                                    <div key={slideIndex} className="w-full shrink-0">
                                         <div className={`
                                             grid gap-3 sm:gap-4 md:gap-6
                                             ${itemsPerView === 1 ? 'grid-cols-1' : ''}
@@ -273,7 +273,7 @@ const CustomerReviews = () => {
 
                                                         {/* Review Content with Read More/Show Less */}
                                                         <div className="mb-2 sm:mb-3">
-                                                            <p className="text-xs sm:text-sm md:text-base text-slate-600 leading-relaxed break-words">
+                                                            <p className="text-xs sm:text-sm md:text-base text-slate-600 leading-relaxed wrap-break-word">
                                                                 "{displayText}"
                                                             </p>
                                                             {shouldTruncate && (
@@ -293,7 +293,7 @@ const CustomerReviews = () => {
 
                                                         {/* Reviewer Info - Responsive */}
                                                         <div className="flex items-center gap-2 sm:gap-3 pt-2 sm:pt-3 border-t border-slate-100">
-                                                            <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
+                                                            <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full bg-linear-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm shrink-0">
                                                                 {review.reviewer_name.charAt(0).toUpperCase()}
                                                             </div>
                                                             <div className="flex-1 min-w-0">
@@ -301,11 +301,11 @@ const CustomerReviews = () => {
                                                                     {review.reviewer_name}
                                                                 </p>
                                                                 <div className="flex items-center gap-1 text-[8px] sm:text-[9px] md:text-xs text-slate-400 flex-wrap">
-                                                                    <span className="truncate max-w-[100px] sm:max-w-[120px]">{review.space_name}</span>
+                                                                    <span className="truncate max-w-25 sm:max-w-30">{review.space_name}</span>
                                                                     {review.is_verified && (
                                                                         <>
-                                                                            <span className="w-0.5 h-0.5 rounded-full bg-emerald-400 flex-shrink-0" />
-                                                                            <span className="text-emerald-600 font-bold text-[7px] sm:text-[8px] md:text-[10px] flex-shrink-0">Verified</span>
+                                                                            <span className="w-0.5 h-0.5 rounded-full bg-emerald-400 shrink-0" />
+                                                                            <span className="text-emerald-600 font-bold text-[7px] sm:text-[8px] md:text-[10px] shrink-0">Verified</span>
                                                                         </>
                                                                     )}
                                                                 </div>
@@ -313,7 +313,7 @@ const CustomerReviews = () => {
                                                             <button
                                                                 id={`like-btn-${review._id}`}
                                                                 onClick={() => handleLike(review._id)}
-                                                                className="flex items-center gap-1 text-[9px] sm:text-[10px] md:text-xs text-slate-400 hover:text-amber-500 cursor-pointer transition-all flex-shrink-0"
+                                                                className="flex items-center gap-1 text-[9px] sm:text-[10px] md:text-xs text-slate-400 hover:text-amber-500 cursor-pointer transition-all shrink-0"
                                                             >
                                                                 <ThumbsUp size={10} />
                                                                 <span>{review.helpful_count || 0}</span>
@@ -326,7 +326,7 @@ const CustomerReviews = () => {
                                                                 <p className="text-[7px] sm:text-[8px] md:text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-0.5 sm:mb-1">
                                                                     Space Owner Response
                                                                 </p>
-                                                                <p className="text-[9px] sm:text-[10px] md:text-xs text-slate-600 italic break-words">
+                                                                <p className="text-[9px] sm:text-[10px] md:text-xs text-slate-600 italic wrap-break-word">
                                                                     "{review.reply.text}"
                                                                 </p>
                                                             </div>

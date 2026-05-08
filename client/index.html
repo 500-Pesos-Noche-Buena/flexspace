@@ -10,10 +10,9 @@
       "alternateName": ["FlexSpace", "Flex Space Iloilo"],
       "url": "https://flexspace-iloilo.vercel.app/"
     }
-    </script>
-  <meta charset="UTF-8" />
-  <script async custom-element="amp-auto-ads" src="https://cdn.ampproject.org/v0/amp-auto-ads-0.1.js">
   </script>
+  
+  <meta charset="UTF-8" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -23,7 +22,6 @@
   <meta name="google-adsense-account" content="ca-pub-5613688387404299">
   <link rel="shortcut icon" href="https://flexspace-iloilo.vercel.app/logo.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="https://flexspace-iloilo.vercel.app/logo.png" />
-  <meta name="apple-mobile-web-app-title" content="FlexSpace Iloilo">
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="https://flexspace-iloilo.vercel.app/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="https://flexspace-iloilo.vercel.app/favicon-16x16.png" />
@@ -126,8 +124,9 @@
         }
       ]
     }
-    </script>
+  </script>
 
+  <!-- Google Tag Manager (optional - remove if not using) -->
   <script>
     (function (w, d, s, l, i) {
       w[l] = w[l] || []; w[l].push({
@@ -139,6 +138,7 @@
     })(window, document, 'script', 'dataLayer', 'GTM-XXXXXXX');
   </script>
 
+  <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-9QDPCS4LV5"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -147,25 +147,17 @@
     gtag('config', 'G-9QDPCS4LV5');
   </script>
 
+  <!-- Google AdSense (KEEP ONLY ONE) -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5613688387404299"
+    crossorigin="anonymous"></script>
+
   <script>
     window.__DEFINES__ = window.__DEFINES__ || {};
     window.process = window.process || { env: { NODE_ENV: 'production' } };
   </script>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5613688387404299"
-    crossorigin="anonymous"></script>
-  <!-- 
-    <script type="module">
-      import { injectIntoGlobalHook } from "/@react-refresh";
-      injectIntoGlobalHook(window);
-      window.$RefreshReg$ = () => {};
-      window.$RefreshSig$ = () => (type) => type;
-    </script>
-    <script type="module" src="/@vite/client"></script> -->
 </head>
 
 <body>
-  <amp-auto-ads type="adsense" data-ad-client="ca-pub-5613688387404299">
-  </amp-auto-ads>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>

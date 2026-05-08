@@ -22,6 +22,7 @@ class UserRoutes {
         // Dashboard & Spaces
         this.router.get('/dashboard', auth, (req, res, next) => dashboardController.getUserDashboard(req, res, next));
         this.router.get('/spaces', auth, (req, res, next) => spaceController.getAllSpaces(req, res, next));
+        this.router.get('/districts', auth, (req, res, next) => spaceController.getDistricts(req, res, next));
         
         // Bookings
         this.router.get('/bookings', auth, (req, res, next) => bookingController.getMyBookings(req, res, next));
@@ -40,28 +41,13 @@ class UserRoutes {
         this.router.post('/vouchers/redeem', auth, (req, res, next) => redeemController.redeem(req, res, next));
 
         // ========== REVIEW ROUTES ==========
-        // Submit a review
         this.router.post('/reviews', auth, (req, res, next) => reviewController.submitReview(req, res, next));
-        
-        // Get user's reviews
         this.router.get('/reviews', auth, (req, res, next) => reviewController.getMyReviews(req, res, next));
-        
-        // Check if booking has been reviewed
         this.router.get('/reviews/check/:bookingId', auth, (req, res, next) => reviewController.checkBookingReviewed(req, res, next));
-        
-        // Get single review
         this.router.get('/reviews/:id', auth, (req, res, next) => reviewController.getReviewById(req, res, next));
-        
-        // Update review
         this.router.put('/reviews/:id', auth, (req, res, next) => reviewController.updateReview(req, res, next));
-        
-        // Delete review
         this.router.delete('/reviews/:id', auth, (req, res, next) => reviewController.deleteReview(req, res, next));
-        
-        // Mark review as helpful
         this.router.post('/reviews/:id/helpful', auth, (req, res, next) => reviewController.markHelpful(req, res, next));
-        
-        // Remove helpful mark
         this.router.delete('/reviews/:id/helpful', auth, (req, res, next) => reviewController.removeHelpful(req, res, next));
     }   
 

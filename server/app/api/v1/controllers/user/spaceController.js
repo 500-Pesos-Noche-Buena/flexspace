@@ -19,13 +19,21 @@ class SpaceController {
                 throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Session missing or expired.');
             }
 
-            const { search, district } = req.query;
+            const {
+                search,
+                district,
+                page = 1,
+                limit = 12,
+                sort = 'rating',
+                minPrice,
+                maxPrice
+            } = req.query;
 
             let query = { status: { $in: ['active', 'Open Now'] } };
 
+            // District filter
             if (district && district !== 'All') {
                 const districtDoc = await District.findOne({ name: district });
-
                 if (districtDoc) {
                     query.district_id = districtDoc._id;
                 } else {
@@ -33,6 +41,7 @@ class SpaceController {
                 }
             }
 
+            // Search filter
             if (search && search.trim() !== "") {
                 const searchRegex = { $regex: search, $options: 'i' };
                 query.$or = [
@@ -41,13 +50,33 @@ class SpaceController {
                 ];
             }
 
+            // Price range filter
+            if (minPrice !== undefined || maxPrice !== undefined) {
+                query.rate_hour = {};
+                if (minPrice) query.rate_hour.$gte = parseFloat(minPrice);
+                if (maxPrice) query.rate_hour.$lte = parseFloat(maxPrice);
+            }
+
+            // Sorting
+            let sortQuery = { rating: -1, created_at: -1 };
+            if (sort === 'price_low') sortQuery = { rate_hour: 1 };
+            if (sort === 'price_high') sortQuery = { rate_hour: -1 };
+            if (sort === 'newest') sortQuery = { created_at: -1 };
+            if (sort === 'rating') sortQuery = { rating: -1, created_at: -1 };
+
+            const skip = (parseInt(page) - 1) * parseInt(limit);
+            const total = await Space.countDocuments(query);
             const spaces = await Space.find(query)
                 .populate('district_id', 'name')
-                .sort({ rating: -1, created_at: -1 });
+                .sort(sortQuery)
+                .skip(skip)
+                .limit(parseInt(limit));
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
-                count: spaces.length,
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
                 data: spaces.map(space => ({
                     _id: space._id,
                     name: space.name,
@@ -62,10 +91,7 @@ class SpaceController {
                     rating: space.rating || 5.0,
                     review_count: space.review_count || 0,
                     capacity: space.capacity,
-                    available_rooms: space.available_rooms,
-                    amenities: space.amenities?.length > 0
-                        ? space.amenities
-                        : ["Fiber WiFi", "Aircon", "Power Outlets"],
+                    amenities: space.amenities?.length > 0 ? space.amenities : ["WiFi", "Aircon", "Power Outlets"],
                     location: space.district_id?.name || space.area || 'Iloilo City',
                     status: space.status
                 }))
@@ -97,6 +123,15 @@ class SpaceController {
                 success: true,
                 data: space
             });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getDistricts = async (req, res, next) => {
+        try {
+            const districts = await District.find({ active: true }).select('name slug');
+            return res.status(HTTP_STATUS.OK).json({ success: true, data: districts });
         } catch (error) {
             next(error);
         }

@@ -218,7 +218,7 @@ const SpaceCard = ({ spaceId, name, location, price, rating, image, userId, tags
 
 /** --- STICKY CHECK-IN BUTTON (Mobile Optimized) --- **/
 const StickyCheckIn = ({ show, onClick }) => (
-    <div className={`fixed bottom-20 sm:bottom-20 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] sm:w-[90%] max-w-md z-50 transition-all duration-500 ease-in-out ${show ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'}`}>
+    <div className={`fixed bottom-20 sm:bottom-20 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] sm:w-[90%] max-w-md z-9999 transition-all duration-500 ease-in-out ${show ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'}`}>
         <div className="bg-white rounded-2xl sm:rounded-[2.5rem] p-3 sm:p-4 flex items-center justify-between shadow-2xl border border-slate-100">
             <div className="flex items-center gap-3 sm:gap-4 ml-1 sm:ml-2">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-indigo-600 flex items-center justify-center text-white shrink-0">
