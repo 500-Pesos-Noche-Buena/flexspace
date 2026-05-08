@@ -147,7 +147,7 @@ const FAQ = () => {
                 </div>
 
                 {/* Still Need Help Section */}
-                <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-3xl p-8 text-center shadow-xl">
+                <div className="bg-linear-to-r from-indigo-600 to-indigo-500 rounded-3xl p-8 text-center shadow-xl">
                     <h3 className="font-black text-xl text-white mb-2">Still have questions?</h3>
                     <p className="text-indigo-100 text-sm mb-6 max-w-md mx-auto">
                         Can't find what you're looking for? Our support team is here to help!

@@ -33,20 +33,13 @@ const errorHandler = (err, req, res, next) => {
         });
     }
 
-    if (process.env.NODE_ENV === 'production') {
-        if (!err.isOperational) {
-            statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
-            message = 'Internal Server Error';
-        }
-    }
-
     const response = {
-        code: statusCode,
+        success: false,
         message: message,
         ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
     };
 
-    res.status(statusCode).send(response);
+    res.status(statusCode).json(response);
 };
 
 module.exports = {

@@ -19,28 +19,27 @@ const verifyTurnstileToken = async (token) => {
 
 class AuthController {
 
-
     login = async (req, res, next) => {
         try {
             const { email, password, 'cf-turnstile-response': turnstileToken } = req.body;
 
             if (!turnstileToken) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Security verification required");
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Security verification required", true);
             }
 
             const isTurnstileValid = await verifyTurnstileToken(turnstileToken);
             if (!isTurnstileValid) {
-                throw new ApiError(HTTP_STATUS.FORBIDDEN, "Security verification failed. Please try again.");
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, "Security verification failed. Please try again.", true);
             }
 
             if (!email || !password) {
-                throw new ApiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "Email and password are required");
+                throw new ApiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "Email and password are required", true);
             }
 
             const result = await userService.verifyUserCredentials(email, password);
 
             if (!result) {
-                throw new ApiError(HTTP_STATUS.UNAUTHORIZED, "Invalid email or password");
+                throw new ApiError(HTTP_STATUS.UNAUTHORIZED, "Invalid email or password", true);
             }
 
             if (result.type === 'pending') {
@@ -61,7 +60,7 @@ class AuthController {
             }
 
             if (result.user.isActive === false) {
-                throw new ApiError(HTTP_STATUS.FORBIDDEN, "Your account is not yet activated.");
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, "Your account is not yet activated.", true);
             }
 
             const { access } = generateAuthTokens(result.user);
@@ -93,16 +92,21 @@ class AuthController {
             console.log(`📝 Registration attempt: ${email}, role: ${role || 'user'}`);
 
             if (!name || !email || !password) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "All fields are required.");
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "All fields are required.", true);
             }
 
             if (await userService.isEmailTaken(email)) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Email is already registered.");
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Email is already registered.", true);
             }
 
             if (role === 'space') {
+                // Check if files were uploaded (for space owners)
                 const permitJobs = req.cloudinaryUrls?.business_permit || [];
                 const dtiJobs = req.cloudinaryUrls?.dti_sec_reg || [];
+
+                if (permitJobs.length === 0 || dtiJobs.length === 0) {
+                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Business Permit and DTI documents are required.", true);
+                }
 
                 const spaceRequest = await userService.createSpaceRequest({
                     name,
@@ -117,6 +121,7 @@ class AuthController {
                 console.log('   Permit upload queued:', permitJobs.length);
                 console.log('   DTI upload queued:', dtiJobs.length);
 
+                // Process uploads in background (don't await)
                 Promise.all([
                     ...permitJobs.map(async (jobRef) => {
                         const job = await cloudinaryQueue.getJob(jobRef.jobId);
@@ -138,11 +143,11 @@ class AuthController {
                     })
                 ]).catch(err => console.error('Background upload error:', err));
 
-                // Queue welcome email
-                await emailQueue.add('welcome-email', {
+                // Queue welcome email (don't await)
+                emailQueue.add('welcome-email', {
                     type: 'welcome',
                     data: { email, name, password, role: 'space' }
-                });
+                }).catch(err => console.error('Email queue error:', err));
 
                 return res.status(HTTP_STATUS.CREATED).json({
                     success: true,
@@ -152,6 +157,7 @@ class AuthController {
                 });
             }
 
+            // Regular user registration
             const newUser = await userService.createUser({
                 name, email, password,
                 role: 'user',
@@ -160,10 +166,13 @@ class AuthController {
                 authProvider: 'local'
             });
 
-            await emailQueue.add('welcome-email', {
+            console.log(`✅ User registered: ${newUser.email}, ID: ${newUser._id}`);
+
+            // Queue welcome email (don't await)
+            emailQueue.add('welcome-email', {
                 type: 'welcome',
                 data: { email: newUser.email, name: newUser.name, password, role: newUser.role }
-            });
+            }).catch(err => console.error('Email queue error:', err));
 
             return res.status(HTTP_STATUS.CREATED).json({
                 success: true,
@@ -206,10 +215,8 @@ class AuthController {
                 return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=google_auth_failed`);
             }
 
-            // Generate JWT token
             const { access } = generateAuthTokens(user);
 
-            // Prepare user data as JSON string then base64 encode for URL safety
             const userData = {
                 id: user._id,
                 name: user.name,

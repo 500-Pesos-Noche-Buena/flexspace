@@ -58,21 +58,22 @@ class UserService {
             business_permit: data.business_permit,
             dti_sec_reg: data.dti_sec_reg,
             status: 'pending',
-            business_payment_qr: data.business_payment_qr || null,  // ✅ Added for pending requests
-            payment_methods: data.payment_methods || ['cash']       // ✅ Added for pending requests
+            business_payment_qr: data.business_payment_qr || null, 
+            payment_methods: data.payment_methods || ['cash']
         });
 
         return spaceRequest;
     }
 
     async isEmailTaken(email) {
+        // Use lean() + select() for minimum data transfer
         const [user, pending] = await Promise.all([
-            User.findOne({ email }),
-            SpaceRequest.findOne({ email })
+            User.findOne({ email }).select('_id').lean(),
+            SpaceRequest.findOne({ email }).select('_id').lean()
         ]);
         return !!(user || pending);
     }
-
+    
     async createStaff(data) {
         if (!data.password) throw new Error("Password missing for hashing");
 
