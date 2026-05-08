@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wifi, Coffee, Building2, Users, Zap, Shield, ThumbsUp } from 'lucide-react';
+import { Wifi, Building2, Users, Zap, Clock, Shield, ThumbsUp, Monitor, Coffee } from 'lucide-react';
 
 const Features = () => {
     const items = [
@@ -11,11 +11,11 @@ const Features = () => {
             details: 'Perfect for video calls and large file transfers'
         },
         {
-            icon: <Coffee className="w-6 h-6 md:w-8 md:h-8" />,
-            title: 'Free Coffee & Snacks',
-            desc: 'Stay caffeinated with unlimited local brews and light snacks.',
-            color: 'bg-amber-50 text-amber-600',
-            details: 'Included with every booking'
+            icon: <Monitor className="w-6 h-6 md:w-8 md:h-8" />,
+            title: 'Comfortable Workstations',
+            desc: 'Ergonomic chairs and spacious desks for all-day productivity.',
+            color: 'bg-teal-50 text-teal-600',
+            details: 'Designed for maximum comfort'
         },
         {
             icon: <Building2 className="w-6 h-6 md:w-8 md:h-8" />,
@@ -37,6 +37,13 @@ const Features = () => {
             desc: 'Convenient charging stations at every desk.',
             color: 'bg-yellow-50 text-yellow-600',
             details: 'Never run out of battery'
+        },
+        {
+            icon: <Clock className="w-6 h-6 md:w-8 md:h-8" />,
+            title: 'Flexible Hours',
+            desc: 'Extended operating hours to match your work schedule.',
+            color: 'bg-rose-50 text-rose-600',
+            details: 'Work when it suits you'
         }
     ];
 
@@ -46,7 +53,7 @@ const Features = () => {
                 {/* SEO Header Text */}
                 <div className="text-center mb-12 md:mb-16">
                     <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-4 tracking-tight">
-                        Why Thousands Choose FlexSpace
+                        Why Professionals Choose FlexSpace
                     </h2>
                     <p className="text-slate-500 text-sm md:text-base max-w-2xl mx-auto">
                         Iloilo City's most trusted coworking platform connecting professionals with premium workspaces.
@@ -54,7 +61,7 @@ const Features = () => {
                     </p>
                 </div>
 
-                {/* Features Grid - 5 items, centered */}
+                {/* Features Grid - 6 items (3x2 layout) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                     {items.map((item, idx) => (
                         <div key={idx} className="group bg-slate-50 rounded-3xl p-6 hover:shadow-xl transition-all duration-300 hover:bg-white">

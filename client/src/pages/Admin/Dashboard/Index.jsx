@@ -13,6 +13,35 @@ import { cn } from '@/utils/cn';
 
 let globalDashboardPollingInstance = null;
 
+// Format number with commas
+const formatNumber = (num) => {
+    if (num === undefined || num === null) return '0';
+    const number = typeof num === 'number' ? num : parseFloat(num);
+    if (isNaN(number)) return '0';
+    return number.toLocaleString('en-US');
+};
+
+const StatCard = ({ title, value, icon, trend }) => {
+    // If value already has ₱, keep it as string, otherwise format number
+    const displayValue = typeof value === 'string' && value.includes('₱') 
+        ? value 
+        : formatNumber(value);
+    
+    return (
+        <div className="bg-[#111114] p-5 rounded-4xl border border-white/5 group hover:border-indigo-500/30 transition-all duration-500 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+                <div className="p-2.5 bg-white/5 rounded-xl group-hover:bg-indigo-500/10 transition-all duration-500 border border-white/5">{icon}</div>
+            </div>
+            <h4 className="text-xl font-black text-white mb-0.5 truncate italic tracking-tighter">{displayValue}</h4>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">{title}</p>
+            <div className="text-[8px] font-black text-indigo-500 flex items-center gap-1.5 uppercase tracking-tighter">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                {trend}
+            </div>
+        </div>
+    );
+};
+
 const AdminDashboard = () => {
     const { logout } = useContext(AuthContext);
     const navigate = useNavigate();
@@ -138,7 +167,7 @@ const AdminDashboard = () => {
                 <StatCard title="Space Owners" value={stats.totalSpaceHubs} icon={<Building2 size={16} className="text-purple-500" />} trend="Registered" />
                 <StatCard title="Active Spaces" value={stats.activeSpaces} icon={<MapPin size={16} className="text-emerald-500" />} trend="Live Now" />
                 <StatCard title="Pending" value={stats.pendingRequests} icon={<Clock size={16} className="text-yellow-500" />} trend="Applications" />
-                <StatCard title="Monthly Revenue" value={`₱${stats.monthlyRevenue}`} icon={<Banknote size={16} className="text-pink-500" />} trend="This Month" />
+                <StatCard title="Monthly Revenue" value={`₱${formatNumber(stats.monthlyRevenue)}`} icon={<Banknote size={16} className="text-pink-500" />} trend="This Month" />
             </div>
 
             {/* Platform Analytics Section */}
@@ -236,7 +265,7 @@ const AdminDashboard = () => {
                             <div className="flex justify-between items-center pt-2 border-t border-white/5">
                                 <div>
                                     <p className="text-[7px] text-slate-500">Total Revenue</p>
-                                    <p className="text-sm font-black text-emerald-400">₱{(revenueTrend.totalRevenue || 0).toLocaleString()}</p>
+                                    <p className="text-sm font-black text-emerald-400">₱{formatNumber(revenueTrend.totalRevenue || 0)}</p>
                                 </div>
                                 {revenueTrend.growth !== 0 && (
                                     <div className={cn("flex items-center gap-1 text-[8px] font-black", revenueTrend.growth > 0 ? "text-emerald-400" : "text-red-400")}>
@@ -269,8 +298,8 @@ const AdminDashboard = () => {
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[10px] font-black text-emerald-400">₱{space.totalRevenue.toLocaleString()}</p>
-                                            <p className="text-[7px] text-slate-500">{space.totalBookings} bookings</p>
+                                            <p className="text-[10px] font-black text-emerald-400">₱{formatNumber(space.totalRevenue)}</p>
+                                            <p className="text-[7px] text-slate-500">{formatNumber(space.totalBookings)} bookings</p>
                                         </div>
                                     </div>
                                 ))}
@@ -290,15 +319,15 @@ const AdminDashboard = () => {
                             </div>
                             <div className="grid grid-cols-3 gap-2 mb-4">
                                 <div className="text-center p-2 bg-blue-500/5 rounded-xl">
-                                    <p className="text-lg font-black text-blue-400">{userGrowth.totals?.all || 0}</p>
+                                    <p className="text-lg font-black text-blue-400">{formatNumber(userGrowth.totals?.all || 0)}</p>
                                     <p className="text-[6px] text-slate-500 uppercase">Total</p>
                                 </div>
                                 <div className="text-center p-2 bg-purple-500/5 rounded-xl">
-                                    <p className="text-lg font-black text-purple-400">{userGrowth.totals?.spaceOwners || 0}</p>
+                                    <p className="text-lg font-black text-purple-400">{formatNumber(userGrowth.totals?.spaceOwners || 0)}</p>
                                     <p className="text-[6px] text-slate-500 uppercase">Owners</p>
                                 </div>
                                 <div className="text-center p-2 bg-emerald-500/5 rounded-xl">
-                                    <p className="text-lg font-black text-emerald-400">{userGrowth.totals?.regularUsers || 0}</p>
+                                    <p className="text-lg font-black text-emerald-400">{formatNumber(userGrowth.totals?.regularUsers || 0)}</p>
                                     <p className="text-[6px] text-slate-500 uppercase">Users</p>
                                 </div>
                             </div>
@@ -365,19 +394,5 @@ const AdminDashboard = () => {
         </div>
     );
 };
-
-const StatCard = ({ title, value, icon, trend }) => (
-    <div className="bg-[#111114] p-5 rounded-4xl border border-white/5 group hover:border-indigo-500/30 transition-all duration-500 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-            <div className="p-2.5 bg-white/5 rounded-xl group-hover:bg-indigo-500/10 transition-all duration-500 border border-white/5">{icon}</div>
-        </div>
-        <h4 className="text-xl font-black text-white mb-0.5 truncate italic tracking-tighter">{value}</h4>
-        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">{title}</p>
-        <div className="text-[8px] font-black text-indigo-500 flex items-center gap-1.5 uppercase tracking-tighter">
-            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-            {trend}
-        </div>
-    </div>
-);
 
 export default AdminDashboard;

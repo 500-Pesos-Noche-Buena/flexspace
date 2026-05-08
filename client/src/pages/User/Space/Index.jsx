@@ -179,11 +179,11 @@ const SpaceIndex = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-24 selection:bg-indigo-100">
+        <div className="min-h-screen bg-linear-to-b from-slate-50 to-white pb-24 selection:bg-indigo-100">
             {/* Hero Header */}
             <header className="relative bg-white border-b border-slate-100 pt-10 sm:pt-16 pb-12 sm:pb-16 px-5 sm:px-8 overflow-hidden">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50 rounded-full blur-3xl opacity-50 -z-0" />
-                <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-50 rounded-full blur-3xl opacity-30 -z-0" />
+                <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50 rounded-full blur-3xl opacity-50 z-0" />
+                <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-50 rounded-full blur-3xl opacity-30 z-0" />
                 
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
@@ -196,7 +196,7 @@ const SpaceIndex = () => {
                             </div>
                             <h1 className="text-[2.5rem] sm:text-5xl lg:text-6xl font-[1000] italic tracking-tighter uppercase text-slate-900 leading-[0.9] mb-4">
                                 Find Your <br /> 
-                                <span className="text-indigo-600 bg-gradient-to-r from-indigo-600 to-indigo-500 bg-clip-text text-transparent">
+                                <span className="text-indigo-600 bg-linear-to-r from-indigo-600 to-indigo-500 bg-clip-text">
                                     Perfect Workspace.
                                 </span>
                             </h1>
@@ -206,7 +206,7 @@ const SpaceIndex = () => {
                         </div>
 
                         {/* Points Card */}
-                        <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-4 shadow-xl shadow-amber-500/20 min-w-[180px]">
+                        <div className="bg-linear-to-r from-amber-500 to-amber-600 rounded-2xl p-4 shadow-xl shadow-amber-500/20 min-w-45">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                                     <Coins size={20} className="text-white" />

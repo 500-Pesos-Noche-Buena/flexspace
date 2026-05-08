@@ -196,7 +196,7 @@ const ExplorerView = () => {
         <div className="relative h-[85vh] w-full bg-slate-50 overflow-hidden flex flex-col md:rounded-[2.5rem] border border-slate-100 shadow-sm">
             
             {/* SEARCH & FILTERS TOP BAR - Increased z-index */}
-            <div className="bg-white p-4 border-b border-slate-100 flex items-center gap-2 z-[9999] relative">
+            <div className="bg-white p-4 border-b border-slate-100 flex items-center gap-2 z-9999 relative">
                 <div className="relative flex-1">
                     <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input 
@@ -234,7 +234,7 @@ const ExplorerView = () => {
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="absolute top-20 left-4 right-4 bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-[10000]"
+                        className="absolute top-20 left-4 right-4 bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-10000"
                     >
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-black uppercase italic text-[10px] tracking-widest">Filter Hubs</h3>
@@ -337,7 +337,7 @@ const ExplorerView = () => {
 
             {/* Results Count */}
             {!loading && (
-                <div className="px-4 py-2 bg-white/80 backdrop-blur-sm border-b border-slate-100 text-[9px] font-black text-slate-500 z-[9998] relative">
+                <div className="px-4 py-2 bg-white/80 backdrop-blur-sm border-b border-slate-100 text-[9px] font-black text-slate-500 z-9998 relative">
                     <span className="text-indigo-600">{filteredAndSortedSpaces.length}</span> spaces found
                     {userLatLng && <span className="ml-2 text-[8px]">· Sorted by distance</span>}
                 </div>
@@ -445,7 +445,7 @@ const ExplorerView = () => {
             <motion.button 
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
-                className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[10001] flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl"
+                className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-10001 flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl"
             >
                 {viewMode === 'list' ? <><MapIcon size={14} /> View Map</> : <><List size={14} /> View Grid</>}
             </motion.button>
