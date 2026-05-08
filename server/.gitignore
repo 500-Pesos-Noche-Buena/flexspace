@@ -8,12 +8,15 @@ pnpm-debug.log*
 logs/
 *.log
 
-# Environment Variables (CRITICAL for security)
+# Environment Variables
 .env
 .env.local
 .env.development
 .env.production
 .env.staging
+
+# Explicitly allow the example file
+!.env.example
 
 # Build artifacts
 dist/
