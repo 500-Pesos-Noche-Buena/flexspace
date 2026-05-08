@@ -10,16 +10,9 @@ import {
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/utils/cn';
+import { formatNumber } from '@/utils/formatNumber';
 
 let globalDashboardPollingInstance = null;
-
-// Format number with commas
-const formatNumber = (num) => {
-    if (num === undefined || num === null) return '0';
-    const number = typeof num === 'number' ? num : parseFloat(num);
-    if (isNaN(number)) return '0';
-    return number.toLocaleString('en-US');
-};
 
 const StatCard = ({ title, value, icon, trend }) => {
     // If value already has ₱, keep it as string, otherwise format number

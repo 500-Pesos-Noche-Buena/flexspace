@@ -7,14 +7,7 @@ import { DataTable } from '@/components/ui/DataTable';
 import MapExplorer from '@/pages/Landing/MapExplorer';
 import { cn } from "@/lib/utils";
 import { getSpaceImage } from '@/utils/imageHelper';
-
-// Format number with commas
-const formatNumber = (num) => {
-    if (num === undefined || num === null) return '0';
-    const number = typeof num === 'number' ? num : parseFloat(num);
-    if (isNaN(number)) return '0';
-    return number.toLocaleString('en-US');
-};
+import { formatNumber } from '@/utils/formatNumber';
 
 const SpaceManagement = () => {
     const [spaces, setSpaces] = useState([]);

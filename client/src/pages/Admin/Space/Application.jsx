@@ -6,14 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
 import { getImageUrl } from '@/utils/imageHelper';
-
-// Format number with commas
-const formatNumber = (num) => {
-    if (num === undefined || num === null) return '0';
-    const number = typeof num === 'number' ? num : parseFloat(num);
-    if (isNaN(number)) return '0';
-    return number.toLocaleString('en-US');
-};
+import { formatNumber } from '@/utils/formatNumber';
 
 // Maintained global polling instance as requested
 let globalAppPollingInstance = null;
