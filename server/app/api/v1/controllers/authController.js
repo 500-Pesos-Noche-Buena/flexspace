@@ -24,7 +24,6 @@ class AuthController {
         try {
             const { email, password, 'cf-turnstile-response': turnstileToken } = req.body;
 
-            // 1. Verify Turnstile
             if (!turnstileToken) {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Security verification required");
             }
@@ -34,7 +33,6 @@ class AuthController {
                 throw new ApiError(HTTP_STATUS.FORBIDDEN, "Security verification failed. Please try again.");
             }
 
-            // 2. Continue with existing login logic...
             if (!email || !password) {
                 throw new ApiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "Email and password are required");
             }
@@ -54,7 +52,6 @@ class AuthController {
                 });
             }
 
-            // Check if user is a Google OAuth user (has no password)
             if (result.user.authProvider === 'google' && !result.user.password) {
                 return res.status(HTTP_STATUS.UNAUTHORIZED).json({
                     success: false,
@@ -103,13 +100,10 @@ class AuthController {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Email is already registered.");
             }
 
-            // Handle Space Owner Registration (Requires Files)
             if (role === 'space') {
-                // Get queued Cloudinary job references
                 const permitJobs = req.cloudinaryUrls?.business_permit || [];
                 const dtiJobs = req.cloudinaryUrls?.dti_sec_reg || [];
 
-                // Create space request with placeholder URLs
                 const spaceRequest = await userService.createSpaceRequest({
                     name,
                     email,
@@ -123,7 +117,6 @@ class AuthController {
                 console.log('   Permit upload queued:', permitJobs.length);
                 console.log('   DTI upload queued:', dtiJobs.length);
 
-                // Wait for uploads to complete (in background, don't block)
                 Promise.all([
                     ...permitJobs.map(async (jobRef) => {
                         const job = await cloudinaryQueue.getJob(jobRef.jobId);
@@ -159,7 +152,6 @@ class AuthController {
                 });
             }
 
-            // Standard User Registration
             const newUser = await userService.createUser({
                 name, email, password,
                 role: 'user',
@@ -168,7 +160,6 @@ class AuthController {
                 authProvider: 'local'
             });
 
-            // Queue welcome email
             await emailQueue.add('welcome-email', {
                 type: 'welcome',
                 data: { email: newUser.email, name: newUser.name, password, role: newUser.role }

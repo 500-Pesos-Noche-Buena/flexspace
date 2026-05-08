@@ -48,7 +48,7 @@ const Register = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!isFormValid) {
             showToast({ icon: 'error', title: 'Please fix the errors before submitting' });
             return;
@@ -94,11 +94,43 @@ const Register = () => {
 
         } catch (error) {
             console.error('Registration error:', error);
-            showToast({
-                icon: 'error',
-                title: 'Registration Failed',
-                text: error.message || 'Something went wrong'
-            });
+
+            // Check for duplicate email error
+            const errorMessage = error.message || '';
+
+            if (errorMessage.includes('Email is already registered') ||
+                errorMessage.includes('duplicate') ||
+                errorMessage.includes('already exists')) {
+                showToast({
+                    icon: 'error',
+                    title: 'Email Already Exists',
+                    text: 'This email is already registered. Please login or use a different email.'
+                });
+            }
+            // Check for missing files error
+            else if (errorMessage.includes('Please upload all required documents')) {
+                showToast({
+                    icon: 'error',
+                    title: 'Missing Documents',
+                    text: errorMessage
+                });
+            }
+            // Check for validation errors
+            else if (errorMessage.includes('All fields are required')) {
+                showToast({
+                    icon: 'error',
+                    title: 'Missing Information',
+                    text: 'Please fill in all required fields.'
+                });
+            }
+            // Default error
+            else {
+                showToast({
+                    icon: 'error',
+                    title: 'Registration Failed',
+                    text: errorMessage || 'Something went wrong. Please try again.'
+                });
+            }
         } finally {
             setIsLoading(false);
         }
@@ -219,8 +251,8 @@ const Register = () => {
                         value={formData.confirmPassword}
                         onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                         className={`w-full pl-12 pr-12 py-3.5 md:py-4 rounded-2xl border transition-all font-bold text-sm
-                            ${formData.confirmPassword && !doPasswordsMatch ? 'border-red-500 bg-red-50' : 
-                              formData.confirmPassword && doPasswordsMatch ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}
+                            ${formData.confirmPassword && !doPasswordsMatch ? 'border-red-500 bg-red-50' :
+                                formData.confirmPassword && doPasswordsMatch ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}
                     />
                     <button
                         type="button"
@@ -250,7 +282,7 @@ const Register = () => {
                                 if (level === 4 && /[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) isActive = true;
                                 if (level === 5 && formData.password.length >= 12) isActive = true;
                                 return (
-                                    <div 
+                                    <div
                                         key={level}
                                         className={`flex-1 h-full rounded-full transition-all ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}
                                     />

@@ -229,12 +229,12 @@ const MainLayout = () => {
                             </p>
                         </div>
 
-                        {/* Navigation Links */}
+                        {/* Navigation Links - REMOVED non-existent pages */}
                         <div className="flex flex-wrap gap-x-12 gap-y-6">
                             <div className="flex flex-col gap-3">
                                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Explore</p>
                                 <Link to="/spaces" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Find Workspace</Link>
-                                <Link to="/how-it-works" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">How It Works</Link>
+                                {/* REMOVED: /how-it-works - doesn't exist */}
                             </div>
                             <div className="flex flex-col gap-3">
                                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Legal</p>
@@ -245,12 +245,12 @@ const MainLayout = () => {
                                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Support</p>
                                 <Link to="/contact" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Contact Us</Link>
                                 <Link to="/faq" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">FAQs</Link>
-                                <Link to="/help" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Help Center</Link>
+                                {/* REMOVED: /help - doesn't exist */}
                             </div>
                         </div>
                     </div>
 
-                    {/* FAQ Preview Section - Quick answers */}
+                    {/* FAQ Preview Section - Quick answers (keep this - it links to FAQ) */}
                     <div className="mt-12 pt-8 border-t border-slate-100">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>

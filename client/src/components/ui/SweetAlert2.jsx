@@ -16,8 +16,15 @@ export const toast = Swal.mixin({
     },
 })
 
-export const showToast = ({ icon = 'success', title = '' }) => {
-    toast.fire({ icon, title })
+export const showToast = ({ icon = 'success', title = '', text = '', message = '' }) => {
+    // Use text or message parameter
+    const messageText = text || message || '';
+    
+    toast.fire({ 
+        icon, 
+        title,
+        text: messageText
+    })
 }
 
 /**
@@ -30,11 +37,11 @@ export const showConfirm = async (title = 'Are you sure?', text = "You won't be 
         text: text,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#6366f1', // Indigo-600 (Primary)
-        cancelButtonColor: '#1e293b',  // Slate-800 (Secondary)
+        confirmButtonColor: '#6366f1',
+        cancelButtonColor: '#1e293b',
         confirmButtonText: 'CONFIRM ACTION',
         cancelButtonText: 'CANCEL',
-        background: '#111114',        // Deep Charcoal
+        background: '#111114',
         color: '#ffffff',
         customClass: {
             title: 'font-black italic tracking-tight',
@@ -49,7 +56,5 @@ export const showConfirm = async (title = 'Are you sure?', text = "You won't be 
 // How to use:
 // import { showToast, showConfirm } from '@/components/ui/sweetalert2'
 // 
-// const handleDelete = async () => {
-//    const confirmed = await showConfirm("Delete Space?", "This will remove the listing forever.");
-//    if (confirmed) { ... }
-// }
+// showToast({ icon: 'error', title: 'Email Already Exists', text: 'This email is already registered.' })
+// showToast({ icon: 'success', title: 'Success!', text: 'Registration successful!' })
