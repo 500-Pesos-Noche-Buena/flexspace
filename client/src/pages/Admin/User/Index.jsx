@@ -129,17 +129,37 @@ const UserManagement = () => {
         }
     };
 
-    const handleSave = async () => {
-        if (!selectedOwner?._id) return;
-        try {
-            await apiPut(`/admin/users/${selectedOwner._id}`, { name: selectedOwner.name, email: selectedOwner.email });
-            showToast({ icon: 'success', title: 'Owner updated' });
-            setOpenModal(false);
-            fetchData({ ...paramsRef.current, role: userRole });
-        } catch {
-            showToast({ icon: 'error', title: 'Update failed' });
+  const handleSave = async () => {
+    if (!selectedOwner?._id) return;
+    try {
+        await apiPut(`/admin/users/${selectedOwner._id}`, { 
+            name: selectedOwner.name, 
+            email: selectedOwner.email 
+        });
+        showToast({ icon: 'success', title: 'User updated successfully' });
+        setOpenModal(false);
+        fetchData({ ...paramsRef.current, role: userRole });
+    } catch (error) {
+        console.error('Update error:', error);
+        
+        // Extract the error message from the response
+        const errorMessage = error.message || 'Update failed';
+        
+        if (errorMessage.includes('Email is already registered')) {
+            showToast({ 
+                icon: 'error', 
+                title: 'Email Already Exists', 
+                text: 'This email is already used by another account. Please use a different email.'
+            });
+        } else {
+            showToast({ 
+                icon: 'error', 
+                title: 'Update Failed', 
+                text: errorMessage
+            });
         }
-    };
+    }
+};
 
     const viewDocument = (docUrl, docName) => {
         setPreviewDoc({ url: docUrl, name: docName });

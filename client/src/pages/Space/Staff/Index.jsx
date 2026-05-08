@@ -111,22 +111,29 @@ const StaffManagement = () => {
         }
     };
 
-    const handleSave = async () => {
-        if (!selectedMember.name || !selectedMember.email) return;
-        try {
-            if (isEditMode) {
-                await apiPut(`/space/staff/${selectedMember._id}`, selectedMember);
-                showToast({ icon: 'success', title: 'Staff updated' });
-            } else {
-                await apiPost(`/space/staff`, selectedMember);
-                showToast({ icon: 'success', title: 'Staff member added' });
-            }
-            setOpenModal(false);
-            fetchData();
-        } catch {
-            showToast({ icon: 'error', title: isEditMode ? 'Update failed' : 'Failed to add staff' });
+   const handleSave = async () => {
+    if (!selectedMember.name || !selectedMember.email) return;
+    try {
+        if (isEditMode) {
+            await apiPut(`/space/staff/${selectedMember._id}`, selectedMember);
+            showToast({ icon: 'success', title: 'Staff updated' });
+        } else {
+            await apiPost(`/space/staff`, {
+                name: selectedMember.name,
+                email: selectedMember.email,
+                password: selectedMember.password || "password123",
+                role: "staff"
+            });
+            showToast({ icon: 'success', title: 'Staff member added' });
         }
-    };
+        setOpenModal(false);
+        fetchData();
+    } catch (error) {
+        console.error('Staff save error:', error);
+        const errorMessage = error.message || (isEditMode ? 'Update failed' : 'Failed to add staff');
+        showToast({ icon: 'error', title: isEditMode ? 'Update Failed' : 'Add Failed', text: errorMessage });
+    }
+};
 
     const columns = [
         {

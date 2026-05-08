@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { User, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { apiPost } from '@/utils/Api';
@@ -7,10 +7,17 @@ import { showToast } from '@/components/ui/SweetAlert2';
 
 const Register = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [role, setRole] = useState('user');
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    
+    // Cloudflare Turnstile states
+    const [turnstileToken, setTurnstileToken] = useState(null);
+    const [turnstileError, setTurnstileError] = useState(false);
+    const turnstileContainerRef = useRef(null);
+    const widgetIdRef = useRef(null);
 
     // State for inputs
     const [formData, setFormData] = useState({
@@ -26,6 +33,59 @@ const Register = () => {
         dti_sec_reg: null
     });
 
+    // Check URL hash for role detection (e.g., /register#space or /register#user)
+    useEffect(() => {
+        const hash = window.location.hash.replace('#', '');
+        if (hash === 'space') {
+            setRole('space');
+        } else if (hash === 'user') {
+            setRole('user');
+        }
+    }, [location]);
+
+    // Load Turnstile script and initialize widget
+    useEffect(() => {
+        // Load the Turnstile script
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+        script.async = true;
+        script.defer = true;
+        script.onload = initTurnstile;
+        document.body.appendChild(script);
+
+        return () => {
+            // Cleanup widget on unmount
+            if (widgetIdRef.current && window.turnstile) {
+                window.turnstile.remove(widgetIdRef.current);
+            }
+        };
+    }, []);
+
+    const initTurnstile = () => {
+        if (window.turnstile && turnstileContainerRef.current && !widgetIdRef.current) {
+            const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADKRTC20ldH2jxH_';
+            
+            widgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+                sitekey: siteKey,
+                callback: (token) => {
+                    console.log('Turnstile verified successfully');
+                    setTurnstileToken(token);
+                    setTurnstileError(false);
+                },
+                'expired-callback': () => {
+                    console.log('Turnstile token expired');
+                    setTurnstileToken(null);
+                    setTurnstileError(true);
+                },
+                'error-callback': () => {
+                    console.log('Turnstile error occurred');
+                    setTurnstileToken(null);
+                    setTurnstileError(true);
+                },
+            });
+        }
+    };
+
     // Password validation
     const validatePassword = (password) => {
         const errors = [];
@@ -40,7 +100,7 @@ const Register = () => {
     const passwordErrors = validatePassword(formData.password);
     const isPasswordValid = passwordErrors.length === 0 && formData.password.length > 0;
     const doPasswordsMatch = formData.password === formData.confirmPassword && formData.confirmPassword.length > 0;
-    const isFormValid = formData.name && formData.email && isPasswordValid && doPasswordsMatch;
+    const isFormValid = formData.name && formData.email && isPasswordValid && doPasswordsMatch && turnstileToken;
 
     const handleFileChange = (e, field) => {
         setFiles({ ...files, [field]: e.target.files[0] });
@@ -48,6 +108,16 @@ const Register = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Check Turnstile verification
+        if (!turnstileToken) {
+            showToast({ 
+                icon: 'error', 
+                title: 'Security Check Required', 
+                text: 'Please complete the security verification.' 
+            });
+            return;
+        }
 
         if (!isFormValid) {
             showToast({ icon: 'error', title: 'Please fix the errors before submitting' });
@@ -62,6 +132,7 @@ const Register = () => {
             data.append('email', formData.email);
             data.append('password', formData.password);
             data.append('role', role);
+            data.append('cf-turnstile-response', turnstileToken);
 
             if (role === 'space') {
                 if (!files.business_permit || !files.dti_sec_reg) {
@@ -94,6 +165,12 @@ const Register = () => {
 
         } catch (error) {
             console.error('Registration error:', error);
+
+            // Reset Turnstile on failed registration
+            if (widgetIdRef.current && window.turnstile) {
+                window.turnstile.reset(widgetIdRef.current);
+            }
+            setTurnstileToken(null);
 
             // Check for duplicate email error
             const errorMessage = error.message || '';
@@ -235,7 +312,7 @@ const Register = () => {
                                 {/[0-9]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Number
                             </div>
                             <div className={`text-[8px] flex items-center gap-1 col-span-2 ${/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                {/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Special character (!@#$%^&*)
+                                {/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Special character
                             </div>
                         </div>
                     </div>
@@ -295,6 +372,16 @@ const Register = () => {
                     </div>
                 )}
 
+                {/* Cloudflare Turnstile Widget */}
+                <div className="flex justify-center py-2">
+                    <div ref={turnstileContainerRef} />
+                </div>
+                {turnstileError && (
+                    <p className="text-[8px] text-red-500 text-center -mt-2">
+                        Security verification failed. Please refresh and try again.
+                    </p>
+                )}
+
                 {/* Space Owner File Uploads */}
                 {role === 'space' && (
                     <div className="space-y-3 pt-3 border-t border-slate-100 animate-in slide-in-from-top-2 duration-300">
@@ -325,7 +412,7 @@ const Register = () => {
 
                 <Button
                     type="submit"
-                    disabled={isLoading || !isFormValid}
+                    disabled={isLoading || !isFormValid || !turnstileToken}
                     className="w-full h-12 md:h-14 rounded-2xl bg-slate-900 text-white hover:bg-indigo-600 font-black text-base md:text-lg flex gap-2 shadow-lg shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isLoading ? (

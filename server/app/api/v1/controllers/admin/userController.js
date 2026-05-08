@@ -87,31 +87,51 @@ class UserController {
     }
 
     async update(req, res, next) {
-        try {
-            const { id } = req.params;
-            const { name, email } = req.body;
+    try {
+        const { id } = req.params;
+        const { name, email } = req.body;
 
-            const user = await User.findById(id);
+        const user = await User.findById(id);
 
-            if (!user) {
-                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found.', true);
-            }
-
-            user.name = name || user.name;
-            user.email = email || user.email;
-
-            await user.save();
-
-            return res.status(200).json({
-                success: true,
-                message: 'User updated successfully.',
-                data: user
-            });
-
-        } catch (error) {
-            next(error);
+        if (!user) {
+            throw new ApiError(HTTP_STATUS.NOT_FOUND, 'User not found.', true);
         }
+
+        if (email && email !== user.email) {
+            const existingUser = await User.findOne({ 
+                email: email, 
+                _id: { $ne: id }
+            });
+            
+            if (existingUser) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Email is already registered to another account.', true);
+            }
+            user.email = email;
+        }
+
+        if (name) {
+            user.name = name;
+        }
+
+        await user.save();
+
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            message: 'User updated successfully.',
+            data: user
+        });
+
+    } catch (error) {
+        // Handle MongoDB duplicate key error
+        if (error.code === 11000) {
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                success: false,
+                message: 'Email is already registered to another account.'
+            });
+        }
+        next(error);
     }
+}
 }
 
 module.exports = new UserController();
