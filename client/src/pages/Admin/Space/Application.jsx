@@ -7,6 +7,14 @@ import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
 import { getImageUrl } from '@/utils/imageHelper';
 
+// Format number with commas
+const formatNumber = (num) => {
+    if (num === undefined || num === null) return '0';
+    const number = typeof num === 'number' ? num : parseFloat(num);
+    if (isNaN(number)) return '0';
+    return number.toLocaleString('en-US');
+};
+
 // Maintained global polling instance as requested
 let globalAppPollingInstance = null;
 
@@ -171,20 +179,20 @@ const SpaceApplications = () => {
                 <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Verify and audit new space owner registrations.</p>
             </div>
 
-            {/* STATS GRID */}
+            {/* STATS GRID - FORMATTED NUMBERS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-5 relative overflow-hidden group">
                     <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 group-hover:bg-amber-500 group-hover:text-black transition-all"><Inbox size={24} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pending Review</p>
-                        <p className="text-3xl font-black text-white italic">{stats.pending}</p>
+                        <p className="text-3xl font-black text-white italic">{formatNumber(stats.pending)}</p>
                     </div>
                 </div>
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-5 relative overflow-hidden group">
                     <div className="w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 group-hover:bg-rose-500 group-hover:text-black transition-all"><Ban size={24} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Rejected Apps</p>
-                        <p className="text-3xl font-black text-white italic">{stats.rejected}</p>
+                        <p className="text-3xl font-black text-white italic">{formatNumber(stats.rejected)}</p>
                     </div>
                 </div>
             </div>
@@ -197,7 +205,7 @@ const SpaceApplications = () => {
                 </div>
                 <div className="hidden md:flex bg-white/5 px-5 py-3 rounded-2xl border border-white/10 items-center gap-3">
                     <ShieldCheck size={16} className="text-indigo-500" />
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Queue: {totalCount}</span>
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Queue: {formatNumber(totalCount)}</span>
                 </div>
             </div>
 

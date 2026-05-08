@@ -9,6 +9,14 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from "@/lib/utils";
 import { getImageUrl } from '@/utils/imageHelper';
 
+// Format number with commas
+const formatNumber = (num) => {
+    if (num === undefined || num === null) return '0';
+    const number = typeof num === 'number' ? num : parseFloat(num);
+    if (isNaN(number)) return '0';
+    return number.toLocaleString('en-US');
+};
+
 // Maintained global polling instance as requested
 let globalPollingInstance = null;
 
@@ -247,27 +255,27 @@ const UserManagement = () => {
                 </Tabs>
             </div>
 
-            {/* STATISTICS GRID */}
+            {/* STATISTICS GRID - FORMATTED NUMBERS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20"><Users size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total {userRole === 'user' ? 'Users' : 'Providers'}</p>
-                        <p className="text-2xl font-black text-white italic">{stats.total}</p>
+                        <p className="text-2xl font-black text-white italic">{formatNumber(stats.total)}</p>
                     </div>
                 </div>
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20"><CheckCircle size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Active Accounts</p>
-                        <p className="text-2xl font-black text-white italic">{stats.active}</p>
+                        <p className="text-2xl font-black text-white italic">{formatNumber(stats.active)}</p>
                     </div>
                 </div>
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20"><XCircle size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Inactive</p>
-                        <p className="text-2xl font-black text-white italic">{stats.inactive}</p>
+                        <p className="text-2xl font-black text-white italic">{formatNumber(stats.inactive)}</p>
                     </div>
                 </div>
             </div>

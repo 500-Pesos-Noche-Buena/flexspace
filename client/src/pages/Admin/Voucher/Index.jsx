@@ -456,7 +456,7 @@ const AdminVouchers = () => {
                     </div>
 
                     {/* Preview Card */}
-                    <div className="mt-4 p-4 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-2xl border border-indigo-500/20">
+                    <div className="mt-4 p-4 bg-linear-to-r from-indigo-500/10 to-purple-500/10 rounded-2xl border border-indigo-500/20">
                         <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-2 text-center">
                             Global Voucher Preview
                         </p>

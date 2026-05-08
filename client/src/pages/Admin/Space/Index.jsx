@@ -8,6 +8,14 @@ import MapExplorer from '@/pages/Landing/MapExplorer';
 import { cn } from "@/lib/utils";
 import { getSpaceImage } from '@/utils/imageHelper';
 
+// Format number with commas
+const formatNumber = (num) => {
+    if (num === undefined || num === null) return '0';
+    const number = typeof num === 'number' ? num : parseFloat(num);
+    if (isNaN(number)) return '0';
+    return number.toLocaleString('en-US');
+};
+
 const SpaceManagement = () => {
     const [spaces, setSpaces] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -92,7 +100,7 @@ const SpaceManagement = () => {
         {
             header: "Pricing",
             cell: (space) => (
-                <span className="text-xs font-black text-white italic">₱{space.rate_hour}<span className="text-[9px] text-slate-500 not-italic">/hr</span></span>
+                <span className="text-xs font-black text-white italic">₱{formatNumber(space.rate_hour)}<span className="text-[9px] text-slate-500 not-italic">/hr</span></span>
             )
         },
         {
@@ -122,27 +130,27 @@ const SpaceManagement = () => {
                 <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Global hub monitoring system</p>
             </div>
 
-            {/* STATISTICS GRID */}
+            {/* STATISTICS GRID - FORMATTED NUMBERS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-indigo-500/20 transition-all">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20"><Building2 size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total Registered</p>
-                        <p className="text-2xl font-black text-white italic">{stats.total}</p>
+                        <p className="text-2xl font-black text-white italic">{formatNumber(stats.total)}</p>
                     </div>
                 </div>
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-emerald-500/20 transition-all">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20"><ShieldCheck size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Currently Active</p>
-                        <p className="text-2xl font-black text-white italic">{stats.active}</p>
+                        <p className="text-2xl font-black text-white italic">{formatNumber(stats.active)}</p>
                     </div>
                 </div>
                 <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-rose-500/20 transition-all">
                     <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20"><ShieldAlert size={20} /></div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Inactive / Closed</p>
-                        <p className="text-2xl font-black text-white italic">{stats.inactive}</p>
+                        <p className="text-2xl font-black text-white italic">{formatNumber(stats.inactive)}</p>
                     </div>
                 </div>
             </div>
@@ -165,7 +173,7 @@ const SpaceManagement = () => {
                                     onError={(e) => { e.target.src = '/placeholders/space.jpg'; }}
                                 />
                                 <div className="absolute top-0 right-0 bg-indigo-600 px-1.5 py-0.5 rounded-bl-lg text-[7px] font-black text-white">
-                                    ₱{space.rate_hour}
+                                    ₱{formatNumber(space.rate_hour)}
                                 </div>
                             </div>
                             <div className="min-w-0 flex-1">
@@ -180,7 +188,7 @@ const SpaceManagement = () => {
                                         {space.status}
                                     </span>
                                     <span className="text-[7px] font-black text-slate-600 uppercase">
-                                        Seats: {space.capacity}
+                                        Seats: {formatNumber(space.capacity)}
                                     </span>
                                 </div>
                             </div>
@@ -225,7 +233,7 @@ const SpaceManagement = () => {
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="text-lg font-black text-white italic tracking-tighter">₱{selectedSpace.rate_hour}<span className="text-[10px] text-slate-500 not-italic">/hr</span></p>
+                                <p className="text-lg font-black text-white italic tracking-tighter">₱{formatNumber(selectedSpace.rate_hour)}<span className="text-[10px] text-slate-500 not-italic">/hr</span></p>
                             </div>
                         </div>
 
@@ -250,11 +258,11 @@ const SpaceManagement = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
                                 <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Seats</p>
-                                <p className="text-sm font-black text-white italic">{selectedSpace.capacity}</p>
+                                <p className="text-sm font-black text-white italic">{formatNumber(selectedSpace.capacity)}</p>
                             </div>
                             <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
                                 <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Rooms</p>
-                                <p className="text-sm font-black text-white italic">{selectedSpace.available_rooms}</p>
+                                <p className="text-sm font-black text-white italic">{formatNumber(selectedSpace.available_rooms)}</p>
                             </div>
                             <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
                                 <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Status</p>
