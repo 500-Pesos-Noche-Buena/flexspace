@@ -1,19 +1,7 @@
 {
     "rewrites": [
         {
-            "source": "/ads.txt",
-            "destination": "/ads.txt"
-        },
-        {
-            "source": "/robots.txt",
-            "destination": "/robots.txt"
-        },
-        {
-            "source": "/sitemap.xml",
-            "destination": "/sitemap.xml"
-        },
-        {
-            "source": "/(.*)",
+            "source": "/((?!ads\\.txt|robots\\.txt|sitemap\\.xml|sw\\.js|workbox-.*\\.js|manifest\\.webmanifest).*)",
             "destination": "/index.html"
         }
     ],
