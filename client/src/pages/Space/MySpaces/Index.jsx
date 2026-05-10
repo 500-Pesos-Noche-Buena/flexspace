@@ -31,6 +31,7 @@ const MySpaces = () => {
         image: null,
         lat: '', lng: '', district_id: '', available_rooms: '',
         description: '',
+        amenities: [], // Add this for amenities
         hours_json: {
             monday: { active: true, open: '08:00', close: '20:00' },
             tuesday: { active: true, open: '08:00', close: '20:00' },
@@ -209,27 +210,34 @@ const MySpaces = () => {
             const url = isEditing ? `/space/spaces/${selectedSpace._id}/update` : '/space/spaces';
             const data = new FormData();
 
-            Object.keys(formData).forEach(key => {
-                if (key === 'images' && formData.images && formData.images.length > 0) {
-                    for (let i = 0; i < formData.images.length; i++) {
-                        if (formData.images[i] instanceof File) {
-                            data.append('images', formData.images[i]);
-                        }
+           Object.keys(formData).forEach(key => {
+            if (key === 'images' && formData.images && formData.images.length > 0) {
+                for (let i = 0; i < formData.images.length; i++) {
+                    if (formData.images[i] instanceof File) {
+                        data.append('images', formData.images[i]);
                     }
-                } else if (key === 'image') {
-                    if (formData.image instanceof File) {
-                        data.append('image', formData.image);
-                    }
-                } else if (key === 'hours_json') {
-                    data.append('hours_json', JSON.stringify(formData.hours_json));
-                } else if (key === 'description') {
-                    if (formData.description) {
-                        data.append('description', formData.description);
-                    }
-                } else if (key !== 'images' && formData[key] !== undefined && formData[key] !== null) {
-                    data.append(key, formData[key].toString());
                 }
-            });
+            } else if (key === 'image') {
+                if (formData.image instanceof File) {
+                    data.append('image', formData.image);
+                }
+            } else if (key === 'hours_json') {
+                // Make sure this is actually the schedule, not amenities!
+                data.append('hours_json', JSON.stringify(formData.hours_json));
+            } else if (key === 'amenities') {
+                // Add amenities if you have it
+                if (formData.amenities) {
+                    data.append('amenities', JSON.stringify(formData.amenities));
+                }
+            } else if (key === 'description') {
+                if (formData.description) {
+                    data.append('description', formData.description);
+                }
+            } else if (key !== 'images' && formData[key] !== undefined && formData[key] !== null) {
+                data.append(key, formData[key].toString());
+            }
+        });
+
 
             const res = await apiPost(url, data);
             if (res.success) {

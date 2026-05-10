@@ -101,15 +101,39 @@ class SpaceController {
             delete updates.created_at;
             delete updates.updated_at;
 
-            // Handle amenities
-            if (updates.amenities && typeof updates.amenities === 'string') {
-                updates.amenities = JSON.parse(updates.amenities);
+           // Handle amenities
+        if (updates.amenities) {
+            try {
+                updates.amenities = typeof updates.amenities === 'string' 
+                    ? JSON.parse(updates.amenities) 
+                    : updates.amenities;
+            } catch (e) {
+                console.error('Failed to parse amenities:', e);
+                updates.amenities = [];
             }
+        }
 
-            // Handle hours_json
-            if (updates.hours_json && typeof updates.hours_json === 'string') {
-                updates.hours_json = JSON.parse(updates.hours_json);
+              // Handle hours_json - with error handling
+        if (updates.hours_json) {
+            try {
+                // Check if it's a valid JSON object
+                if (typeof updates.hours_json === 'string') {
+                    // If it's a string like "WiFi,Airco", that's NOT hours_json!
+                    // That's probably amenities. Skip it.
+                    if (updates.hours_json.includes(',') && !updates.hours_json.includes('{')) {
+                        console.warn('hours_json appears to be amenities string, skipping:', updates.hours_json);
+                        delete updates.hours_json;
+                    } else {
+                        updates.hours_json = JSON.parse(updates.hours_json);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to parse hours_json:', e, 'Value:', updates.hours_json);
+                // Keep existing hours_json instead of breaking
+                delete updates.hours_json;
             }
+        }
+
 
             // Handle district_id
             if (updates.district_id) {

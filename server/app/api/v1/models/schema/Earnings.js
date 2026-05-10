@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { logsActivity } = require('@/api/v1/utils/logsActivity');
 
 const earningsSchema = new mongoose.Schema({
     owner_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -15,5 +16,7 @@ const earningsSchema = new mongoose.Schema({
 
     last_collected_at: { type: Date, default: null }
 }, { timestamps: true });
+
+earningsSchema.plugin(logsActivity, { modelName: 'Earnings' });
 
 module.exports = mongoose.model('Earnings', earningsSchema);

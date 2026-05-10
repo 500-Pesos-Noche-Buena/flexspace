@@ -24,7 +24,8 @@ class AuthRoutes {
             authController.login
         );
         
-        this.router.post('/logout', authController.logout);
+        this.router.post('/logout', auth, authController.logout);
+        
         this.router.post('/register', 
             upload.fields([
                 { name: 'business_permit', maxCount: 1 },

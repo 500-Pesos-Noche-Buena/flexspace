@@ -5,6 +5,7 @@ const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const emailService = require('@/api/v1/services/emailService');
 const { cloudinaryQueue, emailQueue } = require('@/api/v1/queues/worker');
 const { SpaceRequest } = require('@/api/v1/models');
+const { ActivityLog } = require('@/api/v1/models'); // ✅ ADD THIS
 
 const verifyTurnstileToken = async (token) => {
     const secretKey = process.env.TURNSTILE_SECRET_KEY;
@@ -64,6 +65,19 @@ class AuthController {
             }
 
             const { access } = generateAuthTokens(result.user);
+
+            // ✅ ADD LOGGING FOR SUCCESSFUL LOGIN
+            await ActivityLog.create({
+                type: 'user_login',
+                description: `${result.user.name} logged in`,
+                status: 'success',
+                userId: result.user._id,
+                userName: result.user.name,
+                userEmail: result.user.email,
+                ipAddress: req.ip || req.connection?.remoteAddress,
+                userAgent: req.headers['user-agent'],
+                details: { method: 'email_password' }
+            }).catch(err => console.error('Login log error:', err));
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
@@ -188,6 +202,8 @@ class AuthController {
 
     logout = async (req, res, next) => {
         try {
+            // ✅ Logout is already handled by autoLogger middleware
+            // No need to log here again
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 status: 'success',
@@ -214,6 +230,19 @@ class AuthController {
             if (!user) {
                 return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=google_auth_failed`);
             }
+
+            // ✅ ADD LOGGING FOR GOOGLE LOGIN
+            await ActivityLog.create({
+                type: 'user_login',
+                description: `${user.name} logged in via Google`,
+                status: 'success',
+                userId: user._id,
+                userName: user.name,
+                userEmail: user.email,
+                ipAddress: req.ip || req.connection?.remoteAddress,
+                userAgent: req.headers['user-agent'],
+                details: { provider: 'google' }
+            }).catch(err => console.error('Google login log error:', err));
 
             const { access } = generateAuthTokens(user);
 

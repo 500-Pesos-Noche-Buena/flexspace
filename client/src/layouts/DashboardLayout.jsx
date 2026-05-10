@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutGrid, Users, FileText, Calendar, Box, Fence,
     ShoppingCart, Receipt, ChevronLeft, LogOut, User,
-    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity, Star
+    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity, Star, Database
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
 import { useAuth } from '@/context/AuthContext';
@@ -14,17 +14,14 @@ export default function DashboardLayout() {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // ✅ ALL HOOKS MUST BE HERE - BEFORE ANY CONDITIONAL RETURN
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [parentName, setParentName] = useState(null);
     const dropdownRef = useRef(null);
 
-    // ✅ Get user avatar from authUser (for Google users)
     const userAvatar = authUser?.avatar || null;
 
-    // ✅ Redirect effect - after hooks
     useEffect(() => {
         if (!isAuthenticated) {
             navigate('/login', { replace: true });
@@ -94,18 +91,15 @@ export default function DashboardLayout() {
         }
     };
 
-    // ✅ Compute these values AFTER hooks
     const isAdmin = authUser?.role === "admin";
     const hasSpaceAccess = ["space", "staff"].includes(authUser?.role);
     const isActualOwner = authUser?.role === "space";
     const isStaff = authUser?.role === "staff";
 
-    // ✅ Get avatar URL
     const getAvatarUrl = () => {
         if (userAvatar) {
             return userAvatar;
         }
-        // Fallback to UI Avatars
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=059669&color=fff&bold=true`;
     };
 
@@ -114,18 +108,24 @@ export default function DashboardLayout() {
 
         if (isAdmin) {
             sections.push({
-                title: "Management",
+                title: "Dashboard",
                 items: [
                     { href: "/admin/dashboard", active: isRouteActive("/admin/dashboard"), icon: <LayoutGrid />, label: "Dashboard" },
-                    { href: "/admin/users", active: isRouteActive("/admin/users"), icon: <Users />, label: "Users" },
                 ],
             });
 
             sections.push({
+                title: "Management",
+                items: [
+                    { href: "/admin/users", active: isRouteActive("/admin/users"), icon: <Users />, label: "Users" },
+                    { href: "/admin/space/applications", active: isRouteActive("/admin/space/applications"), icon: <ShieldCheck />, label: "Space Applications" },
+                    { href: "/admin/locations", active: isRouteActive("/admin/locations"), icon: <MapPin />, label: "Locations" },
+                ],
+            });
+            sections.push({
                 title: "Core Business",
                 items: [
                     { href: "/admin/spaces", active: isRouteActive("/admin/spaces"), icon: <MapPin />, label: "Co-Working Hubs" },
-                    { href: "/admin/space/applications", active: isRouteActive("/admin/space/applications"), icon: <ShieldCheck />, label: "Space Applications" },
                     { href: "/admin/vouchers", active: isRouteActive("/admin/vouchers"), icon: <Ticket />, label: "Vouchers" },
                     { href: "/admin/insights", active: isRouteActive("/admin/insights"), icon: <Activity />, label: "Insights" },
                 ],
@@ -142,6 +142,7 @@ export default function DashboardLayout() {
                 title: "System",
                 items: [
                     { href: "/admin/logs", active: isRouteActive("/admin/logs"), icon: <History />, label: "Activity Logs" },
+                    { href: "/admin/queues", active: isRouteActive("/admin/queue"), icon: <Database />, label: "Queue Monitor" },
                 ],
             });
         }
@@ -178,8 +179,6 @@ export default function DashboardLayout() {
 
         return sections.filter(section => section.items.length > 0);
     }, [isAdmin, hasSpaceAccess, isActualOwner, isRouteActive]);
-
-    // ✅ Show loading or null AFTER all hooks
     if (!isAuthenticated) {
         return null;
     }

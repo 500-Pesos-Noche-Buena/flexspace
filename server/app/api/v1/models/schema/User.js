@@ -1,5 +1,6 @@
 // app/api/v1/models/schema/User.js
 const mongoose = require('mongoose');
+const { logsActivity } = require('@/api/v1/utils/logsActivity');
 
 const userSchema = new mongoose.Schema({
     space_request_id: { 
@@ -66,5 +67,7 @@ const userSchema = new mongoose.Schema({
     timestamps: true,
     collection: 'users' 
 });
+
+userSchema.plugin(logsActivity, { modelName: 'User' });
 
 module.exports = mongoose.model('User', userSchema);

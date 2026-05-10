@@ -10,6 +10,7 @@ const Voucher = require('./schema/Voucher');
 const Analytics = require('./schema/Analytics');
 const Blocklist = require('./schema/Blocklist');
 const Review = require('./schema/Review');
+const ActivityLog = require('./schema/ActivityLog');
 
 module.exports = {
     User,
@@ -23,5 +24,6 @@ module.exports = {
     Voucher,
     Analytics,
     Blocklist,
-    Review
+    Review,
+    ActivityLog
 };

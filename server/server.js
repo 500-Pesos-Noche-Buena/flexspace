@@ -9,6 +9,8 @@ const path = require('path');
 const app = express();
 const os = require('os');
 const antiDdos = require('@/api/v1/middleware/antiDdos');
+const { captureRequest } = require('@/api/v1/utils/logsActivity');
+const autoLogger = require('@/api/v1/middleware/autoLogger');
 
 // ============ QUEUE INITIALIZATION ==========
 let workersStarted = false;
@@ -235,7 +237,8 @@ app.get('/', (req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
-
+app.use(captureRequest);
+app.use(autoLogger);
 app.use('/api/v1', routes);
 
 app.use((req, res, next) => {

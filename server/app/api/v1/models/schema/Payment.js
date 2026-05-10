@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { logsActivity } = require('@/api/v1/utils/logsActivity');
 
 const paymentSchema = new mongoose.Schema({
     booking_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true },
@@ -13,5 +14,7 @@ const paymentSchema = new mongoose.Schema({
     // Optional: track who processed the payment
     processed_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
 }, { timestamps: true });
+
+paymentSchema.plugin(logsActivity, { modelName: 'Payment' });
 
 module.exports = mongoose.model('Payment', paymentSchema);

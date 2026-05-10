@@ -38,12 +38,12 @@ const triggerLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
     sessionStorage.clear();
-    
+
     // Call the AuthContext logout if available
     if (globalLogoutCallback) {
         globalLogoutCallback();
     }
-    
+
     // Only redirect if not already redirecting
     if (!isRedirecting && !window.location.pathname.includes('/login')) {
         isRedirecting = true;
@@ -59,7 +59,7 @@ async function apiRequest(method, endpoint, data = null) {
         method: method,
         headers: {
             'Accept': 'application/json',
-            'x-app-fingerprint': INTERNAL_SECRET 
+            'x-app-fingerprint': INTERNAL_SECRET
         },
     };
 
@@ -76,14 +76,14 @@ async function apiRequest(method, endpoint, data = null) {
 
     try {
         const response = await fetch(url, config);
-        
+
         // 🔥 Handle 401 Unauthorized - Token expired
         if (response.status === 401 && endpoint !== '/auth/login') {
             console.log('🔐 Token expired - logging out');
             triggerLogout();
             throw new Error('Session expired. Please login again.');
         }
-        
+
         const responseText = await response.text();
         const responseData = responseText ? JSON.parse(responseText) : {};
 
@@ -117,9 +117,9 @@ export const downloadFile = async (url, filename) => {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!response.ok) throw new Error('Download failed');
-        
+
         const blob = await response.blob();
         const link = document.createElement('a');
         const objectUrl = window.URL.createObjectURL(blob);
@@ -129,7 +129,7 @@ export const downloadFile = async (url, filename) => {
         link.click();
         link.remove();
         window.URL.revokeObjectURL(objectUrl);
-        
+
         return true;
     } catch (error) {
         console.error('Download error:', error);

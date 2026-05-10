@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { logsActivity } = require('@/api/v1/utils/logsActivity');
 
 const bookingSchema = new mongoose.Schema({
     booking_type: { 
@@ -87,5 +88,7 @@ const bookingSchema = new mongoose.Schema({
         updatedAt: 'updated_at' 
     } 
 });
+
+bookingSchema.plugin(logsActivity, { modelName: 'Booking' });
 
 module.exports = mongoose.model('Booking', bookingSchema);

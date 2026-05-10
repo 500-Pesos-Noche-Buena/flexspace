@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { logsActivity } = require('@/api/v1/utils/logsActivity');
 
 const spaceSchema = new mongoose.Schema({
     user_id: { 
@@ -87,5 +88,7 @@ const spaceSchema = new mongoose.Schema({
         updatedAt: 'updated_at' 
     } 
 });
+
+spaceSchema.plugin(logsActivity, { modelName: 'Space' });
 
 module.exports = mongoose.model('Space', spaceSchema);

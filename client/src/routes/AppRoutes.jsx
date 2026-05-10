@@ -30,6 +30,9 @@ import AdminSettings from '@/pages/Admin/Settings/Index';
 import AdminEarnings from '@/pages/Admin/Earnings/Index';
 import AdminVoucher from '@/pages/Admin/Voucher/Index'; 
 import Insights from '@/pages/Admin/Insights/Index';
+import QueueDashboard from '@/pages/Admin/Queue/Index';
+import Logs from '@/pages/Admin/Logs/Index';
+import Location from '@/pages/Admin/Locations/Index';
 
 import SpaceDashboard from '@/pages/Space/Dashboard/Index';
 import MySpaces from '@/pages/Space/MySpaces/Index';
@@ -51,6 +54,7 @@ import ReviewPage from '@/pages/Public/ReviewPage';
 import AlreadyReviewedPage from '@/pages/Public/AlreadyReviewedPage';
 import InvalidQrPage from '@/pages/Public/InvalidQrPage';
 import NotCompletedPage from '@/pages/Public/NotCompletedPage';
+import { i } from 'framer-motion/client';
 
 export const AppRoutes = () => {
     return (
@@ -75,7 +79,6 @@ export const AppRoutes = () => {
                 <Route path="user/space" element={<UserSpace />} />
                 <Route path="user/bookings" element={<UserBookings />} />
                 <Route path="user/redeem" element={<UserRedeem />} />
-                {/* --- NEW SEPARATED ROUTE FOR USERS --- */}
                 <Route path="account" element={<UserProfile />} />
             </Route>
 
@@ -96,6 +99,9 @@ export const AppRoutes = () => {
                     <Route path="earnings" element={<AdminEarnings />} />
                     <Route path="vouchers" element={<AdminVoucher />} />
                     <Route path="insights" element={<Insights />} />
+                    <Route path="queues" element={<QueueDashboard />} />
+                    <Route path="logs" element={<Logs />} />
+                    <Route path="locations" element={<Location />} />
                 </Route>
 
                 {/* Space Owner Section */}

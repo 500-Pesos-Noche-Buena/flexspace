@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { logsActivity } = require('@/api/v1/utils/logsActivity');
 
 const reviewSchema = new mongoose.Schema({
     // Either user_id OR guest_name must be present
@@ -146,5 +147,8 @@ reviewSchema.statics.updateSpaceRating = async function(spaceId) {
         });
     }
 };
+
+reviewSchema.plugin(logsActivity, { modelName: 'Review' });
+
 
 module.exports = mongoose.model('Review', reviewSchema);

@@ -20,6 +20,8 @@
     "@root": "."
   },
   "dependencies": {
+    "@bull-board/api": "^7.0.0",
+    "@bull-board/express": "^7.0.0",
     "@google/genai": "^1.51.0",
     "@huggingface/transformers": "^4.2.0",
     "@react-email/components": "^1.0.12",

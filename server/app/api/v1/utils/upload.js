@@ -28,7 +28,6 @@ const upload = multer({
     }
 });
 
-// Process uploaded files - QUEUE VERSION
 const processUploadedFiles = async (req, res, next) => {
     try {
         if (!req.files || Object.keys(req.files).length === 0) {
@@ -47,11 +46,11 @@ const processUploadedFiles = async (req, res, next) => {
                 
                 console.log(`📤 Queueing ${fieldName}: ${file.originalname}, buffer size: ${fileBuffer.length}`);
                 
-                // Add to queue - make sure buffer is passed correctly
+                // ✅ FIXED: Match the structure expected by cloudinaryProcessor
                 const job = await cloudinaryQueue.add('upload', {
                     action: 'upload',
-                    data: {
-                        fileBuffer: fileBuffer, // This should be a Buffer
+                    data: {  // <-- ADD THIS NESTED DATA OBJECT
+                        fileBuffer: fileBuffer,
                         folder: `coworking/${fieldName}`,
                         filename: file.filename,
                         originalname: file.originalname,
@@ -64,7 +63,8 @@ const processUploadedFiles = async (req, res, next) => {
                 
                 cloudinaryUrls[fieldName].push({
                     jobId: job.id,
-                    status: 'queued'
+                    status: 'queued',
+                    filename: file.originalname
                 });
                 
                 // Clean up temp file
