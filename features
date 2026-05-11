@@ -1,0 +1,198 @@
+================================================================================
+                        FLEXSPACE SYSTEM FEATURES
+                          Complete Feature List
+================================================================================
+
+This document lists all features of the FlexSpace platform.
+
+================================================================================
+PART 1: WHAT USERS SEE AND USE (Frontend)
+================================================================================
+
+1. FINDING A SPACE
+   - See coworking spaces on a map (Google Maps)
+   - Get driving directions to any space
+   - Find spaces near your current location
+   - Filter spaces by price, amenities, rating, and location
+
+2. MAKING A BOOKING
+   - Book a desk or room in real time
+   - See if a space is available instantly
+   - Get live updates when availability changes
+   - Walk-in booking (no reservation needed)
+   - Works on desktop, tablet, or phone (PWA = installs like an app)
+
+3. USER DASHBOARD
+   - See your upcoming and past bookings
+   - Track loyalty points you've earned
+   - View your activity history
+
+4. REVIEWS & RATINGS
+   - Rate spaces you've visited
+   - Leave written feedback
+   - Upload photos with your review
+
+5. LOYALTY POINTS & VOUCHERS
+   - Earn points every time you book (₱20 = 1 point)
+   - Redeem points for discount vouchers (20 points = ₱1)
+   - Use vouchers on future bookings
+   - Space owners can create their own promo vouchers
+   - Admins can create platform-wide vouchers
+
+6. AI CHAT SUPPORT (Flex Support)
+   - Ask questions in Hiligaynon, Tagalog, or English
+   - Get space recommendations by district (e.g., "Molo?", "Jaro?")
+   - Ask for prices, booking help, or directions
+   - Ask who developed the platform or who the team is
+   - See when the chatbot is online/offline
+   - Messages auto-scroll and support bold text & bullet points
+   - Chat can understand follow-up questions
+
+7. USER ACCOUNTS
+   - Sign up with email and password
+   - Or log in with your Google account
+   - Reset password via email OTP (one-time code)
+   - Change your password anytime
+   - Edit your profile information
+
+8. SPACE OWNER FEATURES
+   - Add and manage your own spaces
+   - Upload images of your space
+   - List amenities (WiFi, parking, etc.)
+   - Create staff accounts to help manage bookings
+   - Upload GCash or Maya QR codes for payments
+   - See real-time occupancy and revenue
+   - Track payouts and transaction history
+   - Create promo vouchers for your space
+   - Assign spaces to districts (Molo, Jaro, etc.)
+   - Manage reviews left by users
+
+9. ADMIN FEATURES
+   - See platform-wide analytics (users, revenue, top spaces)
+   - Approve or reject new space owner applications
+   - Approve or block users and space owners
+   - Create global vouchers for everyone
+   - Turn on maintenance mode
+   - Track platform commission earnings
+   - View system logs (who did what, when)
+   - Monitor the queue system (emails, image uploads)
+   - Manage locations and districts
+   - Change system settings
+
+10. LANDING PAGE (public, no login required)
+    - See featured spaces
+    - Learn how FlexSpace works
+    - View platform information before signing up
+
+================================================================================
+PART 2: SYSTEM BACKGROUND SERVICES (Behind the Scenes)
+================================================================================
+
+11. ACTIVITY TRACKING
+    - Every user action is automatically recorded
+    - Admins can see who did what and when
+    - IP addresses are tracked for security
+    - Helps resolve disputes and catch problems
+
+12. SECURITY & PROTECTION
+    - Passwords are securely encrypted (not stored as plain text)
+    - Bot protection on login/register screens
+    - Automatic temporary bans for too many requests
+    - IP blocking for suspicious activity
+    - Different access levels: User, Staff, Space Owner, Admin
+    - Automatic attack detection (protection kicks in during traffic spikes)
+    - Error tracking (too many errors = temporary ban)
+
+13. REAL-TIME NOTIFICATIONS
+    - Live updates without refreshing the page
+
+14. EMAIL NOTIFICATIONS (automatic)
+    - Welcome email when you sign up
+    - Booking confirmation email
+    - Booking completion email (after check out)
+    - Password reset email
+    - Password reset confirmation email
+    - OTP verification email (one-time code)
+    - Space approval email (for space owners)
+    - Space rejection email (with reason)
+    - Voucher redemption email
+
+15. IMAGE UPLOADS
+    - Space photos are uploaded to cloud storage
+    - Business permits and registration documents are also uploaded here
+    - Payment QR codes are stored here
+
+16. QUEUE SYSTEM (keeps things fast)
+    - Emails and image uploads happen in the background
+    - You don't have to wait for them to finish
+    - If something fails, the system tries again up to 3 times
+    - If the queue system fails, things still work (just slower)
+
+17. LOCATION FEATURES
+    - Spaces are stored with latitude/longitude coordinates
+    - The system can find spaces near you
+    - Districts help organize spaces by area (Molo, Jaro, etc.)
+
+18. AUTOMATIC BAN SYSTEM
+    - Automatic IP blocking after too many violations
+    - Temporary bans last 5 minutes by default
+    - Permanent bans for repeat offenders
+    - Admins can manually block or unblock anyone
+
+19. API VERSIONING
+    - The system supports multiple API versions (v1 and v2)
+    - Allows new features to be added without breaking old ones
+
+20. MULTI-ENVIRONMENT SUPPORT
+    - The system can run in different modes: Local (testing), Staging (preview), Production (live)
+    - Each environment has its own settings
+
+================================================================================
+PART 3: AI CHATBOT CAPABILITIES (Flex Support)
+================================================================================
+
+Flex Support can:
+
+- Detect if you're speaking Hiligaynon, Tagalog, or English automatically
+- Greet you in your own language
+- List all spaces in a specific district (Molo, Jaro, Mandurriao, etc.)
+- Show all spaces grouped by district
+- Explain how to book a space (5-step guide)
+- Give Google Maps links for any space location
+- Tell you the names and roles of all team members
+- Tell you who the lead programmer is
+- Respond to "help" or "menu" with available options
+- Understand and answer follow-up questions
+
+================================================================================
+PART 4: SECURITY FEATURES SUMMARY
+================================================================================
+
+- JWT tokens (secure session management)
+- Bcrypt password hashing (strong encryption)
+- Cloudflare Turnstile (bot protection on login/register)
+- Rate limiting per IP (300 requests per minute normally, 30 during attacks)
+- Request monitoring (800+ total requests per minute triggers strict mode)
+- Error tracking (10+ errors = automatic temporary ban)
+- IP blocklist with permanent and temporary options
+- Role-based access (User, Staff, Space Owner, Admin)
+- Auto-logger for audit trails (everything is recorded)
+
+================================================================================
+PART 5: TECHNOLOGY STACK (For Reference)
+================================================================================
+
+Frontend: React, Vite, Tailwind CSS, Leaflet maps
+Backend: Node.js, Express, MongoDB
+AI: Google Gemini API
+Real-time: Socket.io
+Security: JWT, Bcrypt, Cloudflare Turnstile
+Queue: Bull, Redis
+Storage: Cloudinary (images), MongoDB (data)
+Email: Nodemailer, Gmail SMTP
+Container: Docker
+Deployment: Vercel (frontend), Render (backend)
+
+================================================================================
+                            END OF FEATURES LIST
+================================================================================

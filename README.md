@@ -4,6 +4,17 @@
 
 ---
 
+## 📋 Table of Contents
+
+- [✨ Key Features](#-key-features)
+- [🏗️ Tech Stack](#️-tech-stack)
+- [📁 Project Structure](#-project-structure)
+- [🚀 Quick Start](#-quick-start)
+- [📚 Documentation](#-documentation)
+- [👥 Contributors](#-contributors)
+
+---
+
 ## ✨ Key Features
 
 ### Core Features
@@ -26,7 +37,7 @@
 - 🏠 **User Dashboard** – Track bookings, points, and activity
 - ⭐ **Review System** – Rate spaces, leave feedback with images
 - 🎫 **Voucher System** – Redeem points for discounts
-- 💰 **Loyalty Points** – Earn points per booking
+- 💰 **Loyalty Points** – Earn points per booking (₱20 = 1 point)
 - 📍 **Nearby Spaces** – Find spaces by geolocation
 - 🔍 **Advanced Filters** – Price, amenities, rating, location
 
@@ -46,13 +57,17 @@
 - ⚙️ **System Settings** – Configure fees, maintenance mode
 - 💰 **Platform Earnings** – Track commission revenue
 - 📈 **Insights Dashboard** – User growth, revenue trends, top spaces
+- 📋 **Activity Logs** – View all user actions and system events
+- 🔍 **Queue Monitoring** – Track email and image upload jobs
 
 ### Security & Infrastructure
 - 🔄 **Queue System** – Redis Bull for email & Cloudinary (async)
 - ☁️ **Cloudinary CDN** – Image uploads and optimization
-- 📧 **Email Service** – Nodemailer with Gmail SMTP
+- 📧 **Email Service** – Nodemailer with Gmail SMTP (10+ email types)
 - 🐳 **Docker Support** – Containerized deployment with Redis
 - 🌐 **Multi-Environment** – Local, staging, production ready
+- 📝 **Auto-Logging** – Every user action automatically recorded
+- 🚫 **Blocklist System** – Automatic temp/permanent IP bans
 
 ---
 
