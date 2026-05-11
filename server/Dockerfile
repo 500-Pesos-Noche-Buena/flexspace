@@ -27,7 +27,7 @@ ENV USE_QUEUES=true
 RUN echo '#!/bin/bash\n\
 redis-server --daemonize yes\n\
 sleep 2\n\
-node index.js' > /app/start.sh && chmod +x /app/start.sh
+node server.js' > /app/start.sh && chmod +x /app/start.sh
 
 # 7. Expose ports
 EXPOSE 5000 6379

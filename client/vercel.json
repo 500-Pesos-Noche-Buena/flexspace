@@ -1,11 +1,74 @@
 {
-    "rewrites": [
+    "routes": [
         {
-            "source": "/((?!ads\\.txt|robots\\.txt|sitemap\\.xml|sw\\.js|workbox-.*\\.js|manifest\\.webmanifest).*)",
-            "destination": "/index.html"
+            "src": "/ads.txt",
+            "dest": "/ads.txt"
+        },
+        {
+            "src": "/robots.txt",
+            "dest": "/robots.txt"
+        },
+        {
+            "src": "/sitemap.xml",
+            "dest": "/sitemap.xml"
+        },
+        {
+            "src": "/sw.js",
+            "dest": "/sw.js"
+        },
+        {
+            "src": "/workbox-(.*).js",
+            "dest": "/workbox-$1.js"
+        },
+        {
+            "src": "/manifest.webmanifest",
+            "dest": "/manifest.webmanifest"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/index.html"
         }
     ],
     "headers": [
+        {
+            "source": "/ads.txt",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=0, must-revalidate"
+                },
+                {
+                    "key": "Content-Type",
+                    "value": "text/plain"
+                }
+            ]
+        },
+        {
+            "source": "/robots.txt",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=3600, must-revalidate"
+                },
+                {
+                    "key": "Content-Type",
+                    "value": "text/plain"
+                }
+            ]
+        },
+        {
+            "source": "/sitemap.xml",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=3600, must-revalidate"
+                },
+                {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                }
+            ]
+        },
         {
             "source": "/sw.js",
             "headers": [
