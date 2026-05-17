@@ -12,6 +12,7 @@ const EarningsController = require('@/api/v1/controllers/space/earningController
 const StaffController = require('@/api/v1/controllers/space/staffController');
 const VoucherController = require('@/api/v1/controllers/space/voucherController');
 const ReviewController = require('@/api/v1/controllers/space/reviewController');
+const RoomController = require('@/api/v1/controllers/space/roomController');
 
 class SpaceRoutes {
     constructor() {
@@ -43,7 +44,9 @@ class SpaceRoutes {
         // Districts
         this.router.get('/districts/active', auth, (req, res, next) => DistrictController.getActive(req, res, next));
 
-        // Space Management
+        // ============================================
+        // SPACE MANAGEMENT ROUTES
+        // ============================================
         this.router.get('/spaces', auth, (req, res, next) => SpaceController.index(req, res, next));
         
         this.router.post('/spaces', 
@@ -72,7 +75,27 @@ class SpaceRoutes {
         this.router.post('/spaces/:id/remove-image', auth, (req, res, next) => SpaceController.removeImage(req, res, next));
         this.router.post('/spaces/:id/set-primary', auth, (req, res, next) => SpaceController.setPrimaryImage(req, res, next));
 
-        // Bookings
+        // ============================================
+        // ROOM MANAGEMENT ROUTES (FIXED)
+        // ============================================
+        // Get all rooms for a specific space
+        this.router.get('/spaces/:spaceId/rooms', auth, (req, res, next) => RoomController.getRooms(req, res, next));
+        
+        // Create a new room under a space
+        this.router.post('/spaces/:spaceId/rooms', auth, (req, res, next) => RoomController.createRoom(req, res, next));
+        
+        // Update a room
+        this.router.put('/rooms/:roomId', auth, (req, res, next) => RoomController.updateRoom(req, res, next));
+        
+        // Delete a room
+        this.router.delete('/rooms/:roomId', auth, (req, res, next) => RoomController.deleteRoom(req, res, next));
+        
+        // Alternative: POST method for delete (if your frontend prefers POST)
+        this.router.post('/rooms/:roomId/delete', auth, (req, res, next) => RoomController.deleteRoom(req, res, next));
+
+        // ============================================
+        // BOOKING ROUTES
+        // ============================================
         this.router.get('/bookings', auth, (req, res, next) => BookingController.index(req, res, next));
         this.router.get('/bookings/:id/present', auth, (req, res, next) => BookingController.presentQr(req, res, next));
         
@@ -84,30 +107,40 @@ class SpaceRoutes {
         // Generic status actions (MUST be last)
         this.router.post('/bookings/:id/:action', auth, (req, res, next) => BookingController.updateStatus(req, res, next));
 
-        // Walk-ins
+        // ============================================
+        // WALK-IN ROUTES
+        // ============================================
         this.router.get('/walkins', auth, (req, res, next) => WalkinController.index(req, res, next));
         this.router.post('/walkins/store', auth, (req, res, next) => WalkinController.store(req, res, next));
         this.router.get('/walkins/guests', auth, (req, res, next) => WalkinController.guests(req, res, next));
         this.router.post('/walkins/:id/calculate', auth, (req, res, next) => WalkinController.calculateBill(req, res, next));
         this.router.post('/walkins/:id/checkout', auth, (req, res, next) => WalkinController.checkout(req, res, next));
         
-        // Earnings
+        // ============================================
+        // EARNINGS ROUTES
+        // ============================================
         this.router.get('/earnings', auth, (req, res, next) => EarningsController.index(req, res, next));
         this.router.get('/earnings/export/csv', auth, (req, res, next) => EarningsController.exportCSV(req, res, next));
 
-        // Staff Management
+        // ============================================
+        // STAFF MANAGEMENT ROUTES
+        // ============================================
         this.router.get('/staff', auth, (req, res, next) => StaffController.index(req, res, next));
         this.router.post('/staff', auth, (req, res, next) => StaffController.store(req, res, next));
         this.router.put('/staff/:id', auth, (req, res, next) => StaffController.update(req, res, next));
         this.router.post('/staff/:id/toggle', auth, (req, res, next) => StaffController.toggleStatus(req, res, next));
         this.router.delete('/staff/:id', auth, (req, res, next) => StaffController.destroy(req, res, next));
 
-        // Voucher Management
+        // ============================================
+        // VOUCHER MANAGEMENT ROUTES
+        // ============================================
         this.router.get('/vouchers', auth, (req, res, next) => VoucherController.index(req, res, next));
         this.router.post('/vouchers', auth, (req, res, next) => VoucherController.create(req, res, next));
         this.router.post('/vouchers/:id/delete', auth, (req, res, next) => VoucherController.delete(req, res, next));
 
-         // ============ REVIEW ROUTES (Space Owner) ============
+        // ============================================
+        // REVIEW ROUTES (Space Owner)
+        // ============================================
         // Get all reviews for owner's spaces
         this.router.get('/reviews', auth, (req, res, next) => ReviewController.getMySpaceReviews(req, res, next));
         

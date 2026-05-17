@@ -81,6 +81,14 @@ const spaceSchema = new mongoose.Schema({
     available_rooms: { 
         type: String, 
         default: null 
+    },
+    has_rooms: { 
+        type: Boolean, 
+        default: false 
+    },
+    room_count: { 
+        type: Number, 
+        default: 0 
     }
 }, { 
     timestamps: { 

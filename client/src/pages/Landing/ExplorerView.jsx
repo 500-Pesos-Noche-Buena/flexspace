@@ -193,10 +193,11 @@ const ExplorerView = () => {
     );
 
     return (
-        <div className="relative h-[85vh] w-full bg-slate-50 overflow-hidden flex flex-col md:rounded-[2.5rem] border border-slate-100 shadow-sm">
+        // Main container with isolation to contain all children
+        <div className="relative h-[85vh] w-full bg-slate-50 overflow-hidden flex flex-col md:rounded-[2.5rem] border border-slate-100 shadow-sm" style={{ isolation: 'isolate' }}>
             
-            {/* SEARCH & FILTERS TOP BAR - Increased z-index */}
-            <div className="bg-white p-4 border-b border-slate-100 flex items-center gap-2 z-9999 relative">
+            {/* SEARCH & FILTERS TOP BAR - Normal z-index */}
+            <div className="bg-white p-4 border-b border-slate-100 flex items-center gap-2 relative z-10">
                 <div className="relative flex-1">
                     <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input 
@@ -227,14 +228,14 @@ const ExplorerView = () => {
                 </button>
             </div>
 
-            {/* ANIMATED FILTER DRAWER - Higher z-index */}
+            {/* ANIMATED FILTER DRAWER - Lower z-index to stay inside container */}
             <AnimatePresence>
                 {showFilters && (
                     <motion.div 
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="absolute top-20 left-4 right-4 bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-10000"
+                        className="absolute top-18 left-4 right-4 bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-20"
                     >
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-black uppercase italic text-[10px] tracking-widest">Filter Hubs</h3>
@@ -335,9 +336,9 @@ const ExplorerView = () => {
                 )}
             </AnimatePresence>
 
-            {/* Results Count */}
+            {/* Results Count - Normal z-index */}
             {!loading && (
-                <div className="px-4 py-2 bg-white/80 backdrop-blur-sm border-b border-slate-100 text-[9px] font-black text-slate-500 z-9998 relative">
+                <div className="px-4 py-2 bg-white/80 backdrop-blur-sm border-b border-slate-100 text-[9px] font-black text-slate-500 relative z-10">
                     <span className="text-indigo-600">{filteredAndSortedSpaces.length}</span> spaces found
                     {userLatLng && <span className="ml-2 text-[8px]">· Sorted by distance</span>}
                 </div>
@@ -441,11 +442,11 @@ const ExplorerView = () => {
                 </motion.div>
             </div>
 
-            {/* MOBILE FLOATING TOGGLE */}
+            {/* MOBILE FLOATING TOGGLE - Lower z-index to stay inside container */}
             <motion.button 
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
-                className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-10001 flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl"
+                className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl"
             >
                 {viewMode === 'list' ? <><MapIcon size={14} /> View Map</> : <><List size={14} /> View Grid</>}
             </motion.button>

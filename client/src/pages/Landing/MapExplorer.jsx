@@ -23,8 +23,9 @@ const MARKER_STYLES = `
     transform: scale(1.05);
   }
 
+  /* LABEL HIDDEN BY DEFAULT - ONLY SHOWS WHEN MARKER IS ACTIVE/CLICKED */
   .space-label {
-    display: flex;
+    display: none;
     flex-direction: column;
     align-items: center;
     background: #0f172a;
@@ -47,6 +48,16 @@ const MARKER_STYLES = `
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-top: 5px solid #0f172a;
+  }
+
+  /* SHOW LABEL WHEN MARKER IS CLICKED (ACTIVE) */
+  .space-marker-active .space-label {
+    display: flex;
+  }
+
+  /* SHOW LABEL WHEN FOCUSED FROM PARENT */
+  .space-marker-focused .space-label {
+    display: flex;
   }
 
   .space-name {
@@ -99,6 +110,20 @@ const MARKER_STYLES = `
     box-shadow: 0 0 0 3px rgba(79,70,229,0.5);
     transform: scale(1.2);
   }
+  
+  .space-marker-active .space-pin {
+    background: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.5);
+    transform: scale(1.1);
+  }
+  
+  .space-marker-active .space-label {
+    background: #4f46e5;
+  }
+  
+  .space-marker-active .space-label::after {
+    border-top-color: #4f46e5;
+  }
 
   .user-location-marker {
     background: transparent !important;
@@ -129,6 +154,7 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
     const boundaryRef = useRef(null);
     const styleRef = useRef(null);
     const flyToTimeoutRef = useRef(null);
+    const activeMarkerIdRef = useRef(null);
 
     const parseCoord = (coord) => {
         if (coord === null || coord === undefined) return NaN;
@@ -175,7 +201,6 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
 
         if (isNaN(validLat) || isNaN(validLng)) return false;
 
-        // Guard: map must have valid pixel dimensions
         const size = mapRef.current.getSize();
         if (!size || size.x === 0 || size.y === 0) {
             console.warn("⚠️ Map has no size, skipping flyTo");
@@ -192,6 +217,17 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
         } catch (error) {
             console.error("❌ FlyTo error:", error);
             return false;
+        }
+    };
+
+    // Clear previously active marker
+    const clearActiveMarker = () => {
+        if (activeMarkerIdRef.current && markersRef.current[activeMarkerIdRef.current]) {
+            const prevMarker = markersRef.current[activeMarkerIdRef.current];
+            if (prevMarker && prevMarker._icon) {
+                prevMarker._icon.classList.remove('space-marker-active');
+            }
+            activeMarkerIdRef.current = null;
         }
     };
 
@@ -223,7 +259,6 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
     // INIT MAP
     useEffect(() => {
         if (!mapRef.current) {
-            // console.log("🗺️ Initializing map...");
             mapRef.current = L.map('map-container', {
                 zoomControl: false,
                 attributionControl: false
@@ -264,7 +299,7 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
         };
     }, [ILOILO_CENTER]);
 
-    // MARKERS
+    // MARKERS - label hidden by default, shows on click only
     useEffect(() => {
         if (!mapRef.current) return;
 
@@ -275,6 +310,7 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
             }
         });
         markersRef.current = {};
+        activeMarkerIdRef.current = null;
 
         spaces.forEach(space => {
             const lat = parseCoord(space.lat);
@@ -291,7 +327,7 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
             const customIcon = L.divIcon({
                 className: `space-marker-custom${isFocused ? ' space-marker-focused' : ''}`,
                 html: `
-                    <div class="space-marker-wrapper${isFocused ? ' space-marker-focused' : ''}">
+                    <div class="space-marker-wrapper">
                         <div class="space-label">
                             <span class="space-name">${shortName.replace(/'/g, "\\'")}</span>
                             <span class="space-rate">₱${space.rate_hour}/hr</span>
@@ -314,14 +350,32 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
                 `)
                 .addTo(mapRef.current);
 
+            // Click handler - show label, fly to, open popup
             marker.on('click', () => {
                 console.log("📍 Marker clicked:", space.name, { lat, lng });
+                
+                // Clear previous active marker
+                clearActiveMarker();
+                
+                // Mark this marker as active (shows the label)
+                if (marker._icon) {
+                    marker._icon.classList.add('space-marker-active');
+                    activeMarkerIdRef.current = space._id;
+                }
+                
                 safeFlyTo(lat, lng, 17, 0.8);
                 if (onMarkerClick) onMarkerClick(space);
             });
 
             markersRef.current[space._id] = marker;
         });
+        
+        // Click on map to clear active marker (hide all labels)
+        if (mapRef.current) {
+            mapRef.current.on('click', function() {
+                clearActiveMarker();
+            });
+        }
     }, [spaces, onMarkerClick]);
 
     // UPDATE focused marker style
@@ -335,6 +389,10 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
 
                 if (isFocused) {
                     container.classList.add('space-marker-focused');
+                    // Also clear any active marker that's not focused
+                    if (activeMarkerIdRef.current && activeMarkerIdRef.current !== id) {
+                        clearActiveMarker();
+                    }
                 } else {
                     container.classList.remove('space-marker-focused');
                 }
@@ -391,7 +449,6 @@ const MapExplorer = ({ spaces = [], userLatLng, onMarkerClick, focusedSpace }) =
 
         if (!userMarkerRef.current) {
             userMarkerRef.current = L.marker([lat, lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(mapRef.current);
-            // Only fly to user location if no space is focused
             if (!focusedSpace) {
                 safeFlyTo(lat, lng, 15, 1);
             }

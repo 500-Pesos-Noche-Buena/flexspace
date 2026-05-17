@@ -11,6 +11,7 @@ const Analytics = require('./schema/Analytics');
 const Blocklist = require('./schema/Blocklist');
 const Review = require('./schema/Review');
 const ActivityLog = require('./schema/ActivityLog');
+const Room = require('./schema/Room');
 
 module.exports = {
     User,
@@ -25,5 +26,6 @@ module.exports = {
     Analytics,
     Blocklist,
     Review,
-    ActivityLog
+    ActivityLog,
+    Room
 };
