@@ -25,6 +25,25 @@ const upload = multer({
     limits: { 
         fileSize: 5 * 1024 * 1024,
         files: 10
+    },
+    fileFilter: (req, file, cb) => {
+        // Define allowed mimetypes
+        const allowedTypes = [
+            'image/jpeg', 
+            'image/png', 
+            'image/gif', 
+            'image/webp', 
+            'application/pdf'
+        ];
+
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true); // Accept the file
+        } else {
+            // Reject the file
+            const error = new Error('Invalid file type. Only images and PDFs are allowed.');
+            error.code = 'LIMIT_FILE_TYPES';
+            cb(error, false);
+        }
     }
 });
 

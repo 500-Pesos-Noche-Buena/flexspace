@@ -392,6 +392,7 @@ const Register = () => {
                                 <label className="text-[8px] font-black text-slate-400 uppercase mb-1 ml-1 block">Business Permit</label>
                                 <input
                                     type="file"
+                                    accept="image/*,.pdf"
                                     required
                                     onChange={(e) => handleFileChange(e, 'business_permit')}
                                     className="block w-full text-[10px] text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-slate-900 file:text-white file:font-black file:uppercase file:text-[9px] bg-slate-50 rounded-xl border border-slate-200 p-1"
@@ -401,6 +402,7 @@ const Register = () => {
                                 <label className="text-[8px] font-black text-slate-400 uppercase mb-1 ml-1 block">DTI / SEC Registration</label>
                                 <input
                                     type="file"
+                                    accept="image/*,.pdf"
                                     required
                                     onChange={(e) => handleFileChange(e, 'dti_sec_reg')}
                                     className="block w-full text-[10px] text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-slate-900 file:text-white file:font-black file:uppercase file:text-[9px] bg-slate-50 rounded-xl border border-slate-200 p-1"
