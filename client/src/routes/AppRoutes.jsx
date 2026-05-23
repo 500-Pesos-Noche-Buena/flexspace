@@ -20,6 +20,7 @@ import PrivacyPolicy from '@/pages/Landing/PrivacyPolicy';
 import TermsOfService from '@/pages/Landing/TermsOfService';
 import FAQ from '@/pages/Landing/FAQ';
 import SpaceDetails from '@/pages/Landing/SpaceDetails';
+import Blogs from '@/pages/Landing/Blogs';
 
 // Admin & Space Owner Pages
 import AdminDashboard from '@/pages/Admin/Dashboard/Index';
@@ -73,6 +74,7 @@ export const AppRoutes = () => {
                 <Route path="privacy" element={<PrivacyPolicy />} />\
                 <Route path="terms" element={<TermsOfService />} />\
                 <Route path="/faq" element={<FAQ />} />
+                <Route path="/blogs" element={<Blogs />} />
                 
                 {/* Regular User Dashboard Area */}
                 <Route path="dashboard" element={<UserDashboard />} />

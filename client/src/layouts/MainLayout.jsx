@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, LayoutDashboard, User, LogOut, Globe, ReceiptText } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import ChatSupport from '@/components/ui/ChatSupport';
+import CookieConsent from '@/components/ui/CookieConsent';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { apiPost } from '@/utils/Api';
 
@@ -16,18 +17,15 @@ const MainLayout = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Ensure portal container exists
     useEffect(() => {
         setPortalContainer(document.body);
     }, []);
 
-    // ✅ Check if current route requires authentication
     const isProtectedRoute = useCallback(() => {
         const protectedPaths = ['/dashboard', '/user', '/profile', '/account'];
         return protectedPaths.some(path => location.pathname.startsWith(path));
     }, [location.pathname]);
 
-    // ✅ Redirect unauthenticated users from protected routes to login
     useEffect(() => {
         if (!isAuthenticated && isProtectedRoute()) {
             console.log('🔐 Protected route - redirecting to login');
@@ -36,7 +34,6 @@ const MainLayout = () => {
         }
     }, [isAuthenticated, isProtectedRoute, navigate]);
 
-    // ✅ Redirect admin and space owners to their specific dashboards
     useEffect(() => {
         if (isAuthenticated && user) {
             const currentPath = location.pathname;
@@ -54,7 +51,6 @@ const MainLayout = () => {
         }
     }, [isAuthenticated, user, navigate, location.pathname]);
 
-    // ✅ Handle logout
     const handleLogout = async () => {
         try {
             await apiPost('/auth/logout');
@@ -91,7 +87,6 @@ const MainLayout = () => {
         closeOverlays();
     }, [location.pathname, closeOverlays]);
 
-    // Profile dropdown content
     const profileDropdown = (
         <div className="fixed right-4 top-20 mt-4 w-64 bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-3 z-99999 animate-in slide-in-from-top-2 fade-in duration-200">
             <div className="px-5 py-4 mb-2 bg-slate-50 rounded-[1.8rem]">
@@ -147,6 +142,7 @@ const MainLayout = () => {
                             {!isAuthenticated ? (
                                 <>
                                     <div className="hidden md:flex items-center gap-6 mr-2">
+                                        <Link to="/blogs" onClick={closeOverlays} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors">Blog</Link>
                                         <Link to="/spaces" onClick={closeOverlays} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors">Explore</Link>
                                         <Link to="/login" onClick={closeOverlays} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors">Sign in</Link>
                                     </div>
@@ -211,6 +207,7 @@ const MainLayout = () => {
             </main>
 
             <ChatSupport />
+            <CookieConsent />
 
             <footer className="border-t border-slate-100 bg-white py-16 px-8 mt-auto">
                 <div className="max-w-7xl mx-auto">

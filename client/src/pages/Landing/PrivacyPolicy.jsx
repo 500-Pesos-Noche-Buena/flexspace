@@ -114,18 +114,25 @@ const PrivacyDashboard = () => {
                             </p>
                         </section>
 
-                        {/* Section 02 */}
                         <section id="adsense-cookies" className="space-y-4 p-8 rounded-2xl bg-linear-to-br from-white to-slate-50 border border-slate-200 shadow-inner scroll-mt-24">
                             <div className="flex items-center gap-2 text-indigo-600">
                                 <Eye className="w-6 h-6" />
                                 <h2 className="text-2xl font-bold tracking-tight">02. AdSense & Cookies</h2>
                             </div>
-                            <p className="text-slate-600 leading-relaxed">
-                                As a Google AdSense partner, we use cookies to serve relevant ads. Google’s use of advertising cookies enables it and its partners to serve ads based on your visit to <strong>FlexSpace</strong>.
-                                You can opt-out at any time via Google’s ad settings.
-                            </p>
+                            <div className="text-slate-600 leading-relaxed space-y-4">
+                                <p>
+                                    FlexSpace uses cookies to provide, analyze, and improve our services. We partner with Google AdSense to show relevant advertisements to our users.
+                                </p>
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li><strong>Third-Party Vendors:</strong> Third-party vendors, including Google, use cookies to serve ads based on a user's prior visits to our website or other websites.</li>
+                                    <li><strong>Google's Advertising Cookie:</strong> Google's use of advertising cookies enables it and its partners to serve ads to our users based on their visit to our site and/or other sites on the Internet.</li>
+                                    <li><strong>Opt-Out:</strong> Users may opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" className="text-indigo-600 underline font-medium" target="_blank" rel="noopener noreferrer">Ads Settings</a>. Alternatively, you can visit <a href="http://www.aboutads.info" className="text-indigo-600 underline font-medium" target="_blank" rel="noopener noreferrer">www.aboutads.info</a> to opt out of some third-party vendors' uses of cookies for personalized advertising.</li>
+                                </ul>
+                                <p className="text-sm italic">
+                                    You can manage your cookie preferences at any time through your browser settings or by using the consent banner provided on our homepage.
+                                </p>
+                            </div>
                         </section>
-
                         {/* Section 03 - Your Rights */}
                         <section id="your-rights" className="space-y-6 scroll-mt-24">
                             <div className="flex items-center gap-2">
