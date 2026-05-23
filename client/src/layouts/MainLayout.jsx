@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, User, LogOut, Globe, ReceiptText } from "lucide-react";
+import { Menu, X, LayoutDashboard, User, LogOut, Globe, ReceiptText, BookOpen } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import ChatSupport from '@/components/ui/ChatSupport';
 import CookieConsent from '@/components/ui/CookieConsent';
@@ -191,6 +191,12 @@ const MainLayout = () => {
                 {!isAuthenticated && isMenuOpen && (
                     <div className="md:hidden absolute top-20 left-0 right-0 bg-white border-b border-slate-100 p-6 shadow-xl animate-in slide-in-from-top duration-300">
                         <nav className="flex flex-col gap-4">
+                            <button 
+                                onClick={() => handleNavigate('/blogs')} 
+                                className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-900"
+                            >
+                                Explore Blogs <BookOpen size={14} className="text-indigo-600" />
+                            </button>
                             <button onClick={() => handleNavigate('/spaces')} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">
                                 Explore Hubs <Globe size={14} className="text-indigo-600" />
                             </button>
