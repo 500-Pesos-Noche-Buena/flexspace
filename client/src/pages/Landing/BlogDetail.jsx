@@ -91,7 +91,7 @@ const BlogDetail = () => {
     return (
         <div className="min-h-screen bg-white">
             {/* Hero Section */}
-            <div className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white py-16">
+            <div className="relative bg-linear-to-r from-indigo-600 via-purple-600 to-pink-600 text-white py-16">
                 <div className="absolute inset-0 bg-black/20"></div>
                 <div className="relative max-w-4xl mx-auto px-4 text-center">
                     <Link to="/blogs" className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-6 transition-colors">

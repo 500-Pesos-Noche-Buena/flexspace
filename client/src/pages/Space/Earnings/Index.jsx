@@ -3,7 +3,8 @@ import { apiGet, downloadFile } from '@/utils/Api';
 import {
     Receipt, TrendingUp, Wallet, ArrowUpRight, History,
     Calendar, Search, Loader2, Zap, Ticket, Gift, Percent,
-    Download, FileText, FileSpreadsheet, Printer
+    Download, FileText, FileSpreadsheet, Printer, Package,
+    Coffee, ShoppingBag, DollarSign, BarChart3, PieChart
 } from 'lucide-react';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from '@/utils/cn';
@@ -18,6 +19,7 @@ const PERIODS = [
 
 const EarningsTracker = () => {
     const [data, setData] = useState(null);
+    const [posStats, setPosStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState('daily');
     const [dateFrom, setDateFrom] = useState('');
@@ -28,7 +30,8 @@ const EarningsTracker = () => {
 
     const paramsRef = useRef({ period, dateFrom, dateTo, search, page });
 
-    const fetchEarnings = useCallback(async () => {
+    // Fetch both earnings and POS stats
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const { period, dateFrom, dateTo, search, page } = paramsRef.current;
@@ -36,10 +39,17 @@ const EarningsTracker = () => {
             if (dateFrom) params.append('dateFrom', dateFrom);
             if (dateTo) params.append('dateTo', dateTo);
 
-            const res = await apiGet(`/space/earnings?${params.toString()}`);
-            if (res.success) setData(res.data);
+            // Fetch earnings data
+            const earningsRes = await apiGet(`/space/earnings?${params.toString()}`);
+            if (earningsRes.success) setData(earningsRes.data);
+
+            // Fetch POS income stats
+            const posRes = await apiGet('/space/income/stats');
+            if (posRes.success) setPosStats(posRes.data);
+
         } catch (err) {
-            console.error("Failed to load earnings", err);
+            console.error("Failed to load data", err);
+            showToast({ icon: 'error', title: 'Failed to load earnings data' });
         } finally {
             setLoading(false);
         }
@@ -48,8 +58,8 @@ const EarningsTracker = () => {
     // Sync ref and refetch whenever filters change
     useEffect(() => {
         paramsRef.current = { period, dateFrom, dateTo, search, page };
-        fetchEarnings();
-    }, [period, dateFrom, dateTo, search, page, fetchEarnings]);
+        fetchData();
+    }, [period, dateFrom, dateTo, search, page, fetchData]);
 
     // Clear period selection when manual date range is set
     const handleDateFrom = (v) => { setDateFrom(v); setPeriod(''); setPage(1); };
@@ -85,10 +95,7 @@ const EarningsTracker = () => {
     const exportToPDF = () => {
         setExporting(true);
         try {
-            // Generate the report HTML
             const reportHtml = generateReportHTML();
-
-            // Open a new window with just the report
             const printWindow = window.open('', '_blank', 'width=1000,height=800,toolbar=yes,scrollbars=yes');
 
             if (!printWindow) {
@@ -97,15 +104,11 @@ const EarningsTracker = () => {
                 return;
             }
 
-            // Write the report HTML to the new window
             printWindow.document.write(reportHtml);
             printWindow.document.close();
 
-            // Wait for content to load then print
             printWindow.onload = () => {
                 printWindow.print();
-                // Optional: close the window after print (user might want to save as PDF first)
-                // printWindow.close();
             };
 
             showToast({ icon: 'success', title: 'PDF report opened' });
@@ -118,7 +121,7 @@ const EarningsTracker = () => {
     };
 
     // ============================================
-    // Generate HTML for PDF/Print (UPDATED with better print styles)
+    // Generate HTML for PDF/Print (WITH POS STATS)
     // ============================================
     const generateReportHTML = () => {
         const totalRevenue = data?.totalRevenue || 0;
@@ -126,6 +129,12 @@ const EarningsTracker = () => {
         const platformFee = data?.platformFee || 0;
         const totalVoucherDiscount = data?.totalVoucherDiscount || 0;
         const feePercent = data?.feePercent || 3;
+        
+        // POS Stats
+        const posDaily = posStats?.daily || { total: 0, count: 0 };
+        const posWeekly = posStats?.weekly || { total: 0, count: 0 };
+        const posMonthly = posStats?.monthly || { total: 0, count: 0 };
+        const posTotal = posStats?.total || { total: 0, count: 0 };
 
         const transactionsHTML = (data?.transactions || []).map(t => `
         <tr>
@@ -137,187 +146,80 @@ const EarningsTracker = () => {
             <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-transform: capitalize;">${t.type || 'unknown'}</td>
             <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.date ? new Date(t.date).toLocaleDateString() : 'N/A'}</td>
         </tr>
-    `).join('');
+        `).join('');
 
         const periodText = period.toUpperCase();
         const dateRange = dateFrom && dateTo ? `${dateFrom} to ${dateTo}` : periodText;
-
-        const currentDate = new Date().toLocaleString('en-PH', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
 
         return `<!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>Earnings Report - ${dateRange}</title>
+        <title>Complete Earnings Report - ${dateRange}</title>
         <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                padding: 40px;
-                color: #111827;
-                background: white;
-            }
-            @media print {
-                body {
-                    padding: 20px;
-                }
-                .no-break {
-                    page-break-inside: avoid;
-                }
-            }
-            h1 {
-                color: #10b981;
-                border-bottom: 2px solid #10b981;
-                padding-bottom: 12px;
-                margin-bottom: 24px;
-                font-size: 28px;
-            }
-            .header {
-                text-align: center;
-                margin-bottom: 32px;
-            }
-            .header h2 {
-                margin: 8px 0;
-                color: #374151;
-                font-size: 20px;
-            }
-            .header p {
-                color: #6b7280;
-                font-size: 12px;
-                margin: 4px 0;
-            }
-            .summary {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 16px;
-                margin-bottom: 40px;
-            }
-            .summary-card {
-                background: #f9fafb;
-                padding: 20px;
-                border-radius: 12px;
-                text-align: center;
-                border: 1px solid #e5e7eb;
-            }
-            .summary-card h3 {
-                font-size: 11px;
-                color: #6b7280;
-                margin-bottom: 8px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-            .summary-card .amount {
-                font-size: 24px;
-                font-weight: bold;
-                color: #10b981;
-            }
-            .summary-card .net {
-                color: #6366f1;
-            }
-            .section-title {
-                font-size: 16px;
-                font-weight: bold;
-                margin: 24px 0 16px 0;
-                color: #374151;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 16px 0;
-                font-size: 12px;
-            }
-            th {
-                background: #f9fafb;
-                padding: 12px;
-                text-align: left;
-                font-weight: 600;
-                color: #374151;
-                border-bottom: 2px solid #e5e7eb;
-            }
-            td {
-                padding: 10px 12px;
-                border-bottom: 1px solid #e5e7eb;
-            }
-            .text-right {
-                text-align: right;
-            }
-            .footer {
-                margin-top: 40px;
-                text-align: center;
-                font-size: 10px;
-                color: #9ca3af;
-                border-top: 1px solid #e5e7eb;
-                padding-top: 20px;
-            }
-            .badge {
-                display: inline-block;
-                padding: 2px 8px;
-                background: #f3f4f6;
-                border-radius: 12px;
-                font-size: 10px;
-            }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #111827; background: white; }
+            @media print { body { padding: 20px; } .no-break { page-break-inside: avoid; } }
+            h1 { color: #10b981; border-bottom: 2px solid #10b981; padding-bottom: 12px; margin-bottom: 24px; font-size: 28px; }
+            .header { text-align: center; margin-bottom: 32px; }
+            .header h2 { margin: 8px 0; color: #374151; font-size: 20px; }
+            .header p { color: #6b7280; font-size: 12px; margin: 4px 0; }
+            .section-title { font-size: 18px; font-weight: bold; margin: 32px 0 16px 0; color: #374151; border-left: 4px solid #10b981; padding-left: 12px; }
+            .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+            .summary-card { background: #f9fafb; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #e5e7eb; }
+            .summary-card h3 { font-size: 11px; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .summary-card .amount { font-size: 24px; font-weight: bold; color: #10b981; }
+            .summary-card .net { color: #6366f1; }
+            .pos-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 20px 0; }
+            .pos-card { background: #f0fdf4; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #bbf7d0; }
+            .pos-card .label { font-size: 10px; color: #059669; font-weight: 600; }
+            .pos-card .value { font-size: 18px; font-weight: bold; color: #047857; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
+            th { background: #f9fafb; padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; }
+            td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+            .text-right { text-align: right; }
+            .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 20px; }
         </style>
     </head>
     <body>
         <div class="header">
-            <h1>📊 Earnings Report</h1>
+            <h1>📊 Complete Earnings Report</h1>
             <h2>FlexSpace Iloilo</h2>
             <p>Period: ${dateRange}</p>
-            <p>Generated: ${currentDate}</p>
+            <p>Generated: ${new Date().toLocaleString()}</p>
         </div>
 
+        <!-- Booking Earnings Summary -->
+        <div class="section-title">🏢 Booking Earnings</div>
         <div class="summary">
-            <div class="summary-card">
-                <h3>Gross Revenue</h3>
-                <div class="amount">₱${totalRevenue.toLocaleString()}</div>
-            </div>
-            <div class="summary-card">
-                <h3>Platform Fee (${feePercent}%)</h3>
-                <div class="amount">₱${platformFee.toLocaleString()}</div>
-            </div>
-            <div class="summary-card">
-                <h3>Net Earnings</h3>
-                <div class="amount net">₱${netEarnings.toLocaleString()}</div>
-            </div>
-            <div class="summary-card">
-                <h3>Voucher Discounts</h3>
-                <div class="amount">₱${totalVoucherDiscount.toLocaleString()}</div>
+            <div class="summary-card"><h3>Gross Revenue</h3><div class="amount">₱${totalRevenue.toLocaleString()}</div></div>
+            <div class="summary-card"><h3>Platform Fee (${feePercent}%)</h3><div class="amount">₱${platformFee.toLocaleString()}</div></div>
+            <div class="summary-card"><h3>Net Earnings</h3><div class="amount net">₱${netEarnings.toLocaleString()}</div></div>
+            <div class="summary-card"><h3>Voucher Discounts</h3><div class="amount">₱${totalVoucherDiscount.toLocaleString()}</div></div>
+        </div>
+
+        <!-- POS Sales Summary -->
+        <div class="section-title">🛒 POS Sales Summary</div>
+        <div class="pos-grid">
+            <div class="pos-card"><div class="label">Today</div><div class="value">₱${(posDaily.total || 0).toLocaleString()}</div><div style="font-size:9px">${posDaily.count || 0} orders</div></div>
+            <div class="pos-card"><div class="label">This Week</div><div class="value">₱${(posWeekly.total || 0).toLocaleString()}</div><div style="font-size:9px">${posWeekly.count || 0} orders</div></div>
+            <div class="pos-card"><div class="label">This Month</div><div class="value">₱${(posMonthly.total || 0).toLocaleString()}</div><div style="font-size:9px">${posMonthly.count || 0} orders</div></div>
+            <div class="pos-card"><div class="label">All Time</div><div class="value">₱${(posTotal.total || 0).toLocaleString()}</div><div style="font-size:9px">${posTotal.count || 0} orders</div></div>
+        </div>
+
+        <!-- Combined Total -->
+        <div class="summary" style="margin-top: 24px;">
+            <div class="summary-card" style="background: #ecfdf5; border-color: #a7f3d0;">
+                <h3>💰 TOTAL REVENUE (Booking + POS)</h3>
+                <div class="amount" style="font-size: 32px;">₱${(totalRevenue + (posMonthly.total || 0)).toLocaleString()}</div>
+                <div style="font-size: 10px; margin-top: 8px;">Booking: ₱${totalRevenue.toLocaleString()} | POS: ₱${(posMonthly.total || 0).toLocaleString()}</div>
             </div>
         </div>
 
         <div class="section-title">📋 Transaction History</div>
-        
         <table>
-            <thead>
-                <tr>
-                    <th>Reference</th>
-                    <th>Guest</th>
-                    <th>Space</th>
-                    <th class="text-right">Amount</th>
-                    <th class="text-right">Discount</th>
-                    <th>Type</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${transactionsHTML || `
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px;">
-                            No transactions found for this period
-                        </td>
-                    </tr>
-                `}
-            </tbody>
+            <thead><tr><th>Reference</th><th>Guest</th><th>Space</th><th class="text-right">Amount</th><th class="text-right">Discount</th><th>Type</th><th>Date</th></tr></thead>
+            <tbody>${transactionsHTML || '<tr><td colspan="7" style="text-align:center; padding:40px;">No transactions found</td></tr>'}</tbody>
         </table>
 
         <div class="footer">
@@ -344,18 +246,23 @@ const EarningsTracker = () => {
         );
     }
 
+    // Get current period stats for POS
+    const currentPosStats = posStats?.[period === 'daily' ? 'daily' : period === 'weekly' ? 'weekly' : 'monthly'] || { total: 0, count: 0 };
+    const totalRevenue = data?.totalRevenue || 0;
+    const posRevenue = currentPosStats.total || 0;
+    const combinedRevenue = totalRevenue + posRevenue;
+
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10 no-print">
 
             {/* Header */}
             <div className="mb-6 md:mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-white uppercase italic">Earnings Tracker</h1>
-                    <p className="text-[10px] md:text-xs text-slate-500 font-medium uppercase tracking-widest">Financial performance & payout history</p>
+                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-white uppercase italic">Complete Financial Dashboard</h1>
+                    <p className="text-[10px] md:text-xs text-slate-500 font-medium uppercase tracking-widest">Booking earnings + POS sales combined</p>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* Export Buttons */}
                     <button
                         onClick={exportToCSV}
                         disabled={exporting}
@@ -379,9 +286,39 @@ const EarningsTracker = () => {
                 </div>
             </div>
 
+            {/* Combined Total Revenue Banner */}
+            <div className="mb-6 bg-linear-to-r from-emerald-600/20 to-indigo-600/20 border border-emerald-500/30 rounded-2xl p-4">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
+                            <DollarSign size={24} className="text-emerald-400" />
+                        </div>
+                        <div>
+                            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Total Revenue (This Period)</p>
+                            <p className="text-2xl font-[1000] text-white italic tracking-tighter">₱{combinedRevenue.toLocaleString()}</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-4 text-[9px]">
+                        <div className="text-center">
+                            <p className="text-slate-500">Bookings</p>
+                            <p className="text-white font-bold">₱{totalRevenue.toLocaleString()}</p>
+                        </div>
+                        <div className="w-px bg-white/10" />
+                        <div className="text-center">
+                            <p className="text-slate-500">POS Sales</p>
+                            <p className="text-white font-bold">₱{posRevenue.toLocaleString()}</p>
+                        </div>
+                        <div className="w-px bg-white/10" />
+                        <div className="text-center">
+                            <p className="text-slate-500">Orders</p>
+                            <p className="text-white font-bold">{(data?.totalOrders || 0) + (currentPosStats.count || 0)}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Filters */}
             <div className="mb-8 flex flex-wrap items-center gap-3">
-                {/* Period pills */}
                 <div className="flex bg-[#111114] border border-white/5 p-1 rounded-2xl shadow-2xl">
                     {PERIODS.map(p => (
                         <button
@@ -399,7 +336,6 @@ const EarningsTracker = () => {
                     ))}
                 </div>
 
-                {/* Date range */}
                 <div className="flex items-center gap-2 bg-[#111114] border border-white/5 rounded-2xl px-4 py-2 hover:border-emerald-500/30 transition-all duration-300">
                     <Calendar size={13} className="text-emerald-500" />
                     <input
@@ -419,7 +355,6 @@ const EarningsTracker = () => {
                     />
                 </div>
 
-                {/* Search */}
                 <div className="flex items-center gap-2 bg-[#111114] border border-white/5 rounded-2xl px-4 py-2 flex-1 min-w-50 hover:border-emerald-500/30 transition-all duration-300">
                     <Search size={13} className="text-emerald-500" />
                     <input
@@ -432,43 +367,32 @@ const EarningsTracker = () => {
                 </div>
             </div>
 
-            {/* Stats Grid - 5 cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-                <StatCard
-                    title="Gross Revenue"
-                    value={`₱${(data?.totalRevenue || 0).toLocaleString()}`}
-                    icon={<TrendingUp size={20} />}
-                    trend="Total Sales"
-                    color="emerald"
-                />
-                <StatCard
-                    title="Net Earnings"
-                    value={`₱${(data?.netEarnings || 0).toLocaleString()}`}
-                    icon={<Wallet size={20} />}
-                    trend="Your Share"
-                    color="indigo"
-                />
-                <StatCard
-                    title={`Platform Fee (${data?.feePercent ?? 3}%)`}
-                    value={`₱${(data?.platformFee || 0).toLocaleString()}`}
-                    icon={<Percent size={20} />}
-                    trend="Commission"
-                    color="rose"
-                />
-                <StatCard
-                    title="Voucher Discounts"
-                    value={`₱${(data?.totalVoucherDiscount || 0).toLocaleString()}`}
-                    icon={<Ticket size={20} />}
-                    trend={`${data?.bookingsWithVouchers || 0} bookings`}
-                    color="purple"
-                />
-                <StatCard
-                    title="Total Discount Given"
-                    value={`₱${(data?.totalDiscountGiven || 0).toLocaleString()}`}
-                    icon={<Gift size={20} />}
-                    trend="Lifetime"
-                    color="amber"
-                />
+            {/* Stats Grid - Booking Earnings */}
+            <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                    <Receipt size={14} className="text-emerald-400" />
+                    <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Booking Earnings</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard title="Gross Revenue" value={`₱${(data?.totalRevenue || 0).toLocaleString()}`} icon={<TrendingUp size={20} />} trend="Total Sales" color="emerald" />
+                    <StatCard title="Net Earnings" value={`₱${(data?.netEarnings || 0).toLocaleString()}`} icon={<Wallet size={20} />} trend="Your Share" color="indigo" />
+                    <StatCard title={`Platform Fee (${data?.feePercent ?? 3}%)`} value={`₱${(data?.platformFee || 0).toLocaleString()}`} icon={<Percent size={20} />} trend="Commission" color="rose" />
+                    <StatCard title="Voucher Discounts" value={`₱${(data?.totalVoucherDiscount || 0).toLocaleString()}`} icon={<Ticket size={20} />} trend={`${data?.bookingsWithVouchers || 0} bookings`} color="purple" />
+                </div>
+            </div>
+
+            {/* POS Sales Stats */}
+            <div className="mb-8">
+                <div className="flex items-center gap-2 mb-3">
+                    <ShoppingBag size={14} className="text-indigo-400" />
+                    <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">POS Sales (Products)</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard title="Today's POS" value={`₱${(posStats?.daily?.total || 0).toLocaleString()}`} icon={<Coffee size={20} />} trend={`${posStats?.daily?.count || 0} orders`} color="emerald" />
+                    <StatCard title="Weekly POS" value={`₱${(posStats?.weekly?.total || 0).toLocaleString()}`} icon={<Package size={20} />} trend={`${posStats?.weekly?.count || 0} orders`} color="indigo" />
+                    <StatCard title="Monthly POS" value={`₱${(posStats?.monthly?.total || 0).toLocaleString()}`} icon={<BarChart3 size={20} />} trend={`${posStats?.monthly?.count || 0} orders`} color="purple" />
+                    <StatCard title="Lifetime POS" value={`₱${(posStats?.total?.total || 0).toLocaleString()}`} icon={<DollarSign size={20} />} trend={`${posStats?.total?.count || 0} orders`} color="amber" />
+                </div>
             </div>
 
             {/* Transactions Table */}
@@ -484,7 +408,6 @@ const EarningsTracker = () => {
                         <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">
                             {data?.total || 0} records
                         </div>
-                        {/* Print button */}
                         <button
                             onClick={exportToPDF}
                             className="text-[8px] font-black text-slate-400 hover:text-white transition-all flex items-center gap-1"
@@ -647,74 +570,24 @@ const EarningsTracker = () => {
     );
 };
 
-// Enhanced StatCard with more colors
+// Enhanced StatCard
 const StatCard = ({ title, value, icon, trend, color }) => {
     const colorClasses = {
-        emerald: {
-            bg: 'bg-emerald-500/10',
-            border: 'border-emerald-500/20',
-            hover: 'group-hover:border-emerald-500/30',
-            icon: 'text-emerald-500',
-            iconHover: 'group-hover:bg-emerald-500 group-hover:text-black',
-            pulse: 'bg-emerald-500'
-        },
-        indigo: {
-            bg: 'bg-indigo-500/10',
-            border: 'border-indigo-500/20',
-            hover: 'group-hover:border-indigo-500/30',
-            icon: 'text-indigo-500',
-            iconHover: 'group-hover:bg-indigo-500 group-hover:text-white',
-            pulse: 'bg-indigo-500'
-        },
-        rose: {
-            bg: 'bg-rose-500/10',
-            border: 'border-rose-500/20',
-            hover: 'group-hover:border-rose-500/30',
-            icon: 'text-rose-500',
-            iconHover: 'group-hover:bg-rose-500 group-hover:text-white',
-            pulse: 'bg-rose-500'
-        },
-        purple: {
-            bg: 'bg-purple-500/10',
-            border: 'border-purple-500/20',
-            hover: 'group-hover:border-purple-500/30',
-            icon: 'text-purple-500',
-            iconHover: 'group-hover:bg-purple-500 group-hover:text-white',
-            pulse: 'bg-purple-500'
-        },
-        amber: {
-            bg: 'bg-amber-500/10',
-            border: 'border-amber-500/20',
-            hover: 'group-hover:border-amber-500/30',
-            icon: 'text-amber-500',
-            iconHover: 'group-hover:bg-amber-500 group-hover:text-black',
-            pulse: 'bg-amber-500'
-        }
+        emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-500', pulse: 'bg-emerald-500' },
+        indigo: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', icon: 'text-indigo-500', pulse: 'bg-indigo-500' },
+        rose: { bg: 'bg-rose-500/10', border: 'border-rose-500/20', icon: 'text-rose-500', pulse: 'bg-rose-500' },
+        purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', icon: 'text-purple-500', pulse: 'bg-purple-500' },
+        amber: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', icon: 'text-amber-500', pulse: 'bg-amber-500' }
     };
-
     const c = colorClasses[color] || colorClasses.emerald;
 
     return (
-        <div className={cn(
-            "relative overflow-hidden bg-[#0a0a0c] border border-white/3 p-6 rounded-4xl flex flex-col justify-between group hover:transition-all duration-500 shadow-2xl",
-            c.hover
-        )}>
+        <div className={cn("relative overflow-hidden bg-[#0a0a0c] border border-white/3 p-6 rounded-4xl group hover:transition-all duration-500 shadow-2xl", c.border)}>
             <div className="flex justify-between items-start mb-4">
-                <div className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500",
-                    c.bg,
-                    c.border,
-                    c.iconHover
-                )}>
-                    <div className={cn("transition-all duration-500", c.icon)}>
-                        {icon}
-                    </div>
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500", c.bg, c.border)}>
+                    <div className={c.icon}>{icon}</div>
                 </div>
-                <div className={cn(
-                    "text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter",
-                    c.bg,
-                    c.icon
-                )}>
+                <div className={cn("text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter", c.bg, c.icon)}>
                     <div className="flex items-center gap-1">
                         <div className={cn("w-1 h-1 rounded-full animate-pulse", c.pulse)} />
                         {trend}
@@ -723,11 +596,8 @@ const StatCard = ({ title, value, icon, trend, color }) => {
             </div>
             <div>
                 <p className="text-[9px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">{title}</p>
-                <p className="text-2xl font-black text-white tracking-tighter group-hover:scale-105 transition-transform duration-300">
-                    {value}
-                </p>
+                <p className="text-2xl font-black text-white tracking-tighter">{value}</p>
             </div>
-            <Zap size={80} className="absolute -right-6 -bottom-6 opacity-5 rotate-12 group-hover:rotate-25 transition-transform duration-700" />
         </div>
     );
 };

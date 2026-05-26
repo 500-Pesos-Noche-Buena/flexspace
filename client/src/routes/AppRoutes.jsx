@@ -44,7 +44,12 @@ import EarningsTracker from '@/pages/Space/Earnings/Index';
 import StaffManagement from '@/pages/Space/Staff/Index';
 import Vouchers from '@/pages/Space/Voucher/Index';
 import SpaceReviewList from '@/pages/Space/Reviews/Index';
-
+import POS from '@/pages/Space/Pos/Index';
+import Inventory from '@/pages/Space/Pos/Inventory';
+import Income from '@/pages/Space/Pos/Income';
+import Orders from '@/pages/Space/Pos/Orders';
+import Products from '@/pages/Space/Pos/Products';
+import PaymentSettings from '@/pages/Space/PaymentSettings/Index';
 // Regular User Pages
 import UserDashboard from '@/pages/User/Dashboard/Index';
 import UserSpace from '@/pages/User/Space/Index';
@@ -56,6 +61,8 @@ import ReviewPage from '@/pages/Public/ReviewPage';
 import AlreadyReviewedPage from '@/pages/Public/AlreadyReviewedPage';
 import InvalidQrPage from '@/pages/Public/InvalidQrPage';
 import NotCompletedPage from '@/pages/Public/NotCompletedPage';
+import PaymentSuccess from '@/pages/Payment/Success';
+import PaymentFailed from '@/pages/Payment/Failed';
 import { i } from 'framer-motion/client';
 
 export const AppRoutes = () => {
@@ -65,6 +72,8 @@ export const AppRoutes = () => {
             <Route path="/review/already-reviewed" element={<AlreadyReviewedPage />} />
             <Route path="/review/invalid" element={<InvalidQrPage />} />
             <Route path="/review/not-completed" element={<NotCompletedPage />} />
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/failed" element={<PaymentFailed />} />
 
             {/* 1. MAIN/USER ROUTES - Uses MainLayout */}
             <Route path="/" element={<MainLayout />}>
@@ -119,6 +128,12 @@ export const AppRoutes = () => {
                     <Route path="staff" element={<StaffManagement />} />
                     <Route path="vouchers" element={<Vouchers />} />
                     <Route path="reviews" element={<SpaceReviewList />} />
+                    <Route path="pos" element={<POS />} />
+                    <Route path="inventory" element={<Inventory />} />
+                    <Route path="income" element={<Income />} />
+                    <Route path="orders" element={<Orders />} />
+                    <Route path="products" element={<Products />} />
+                    <Route path="payment-settings" element={<PaymentSettings />} />
                 </Route>
             </Route>
 

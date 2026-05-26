@@ -2,7 +2,15 @@ const { User, Booking } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const { hashPassword, comparePassword } = require('@/api/v1/utils/hash');
-const { deleteFileByUrl } = require('@/api/v1/utils/cloudinary');
+const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+
+// Configure cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 class ProfileController {
     getProfile = async (req, res, next) => {
@@ -90,29 +98,46 @@ class ProfileController {
                 throw new ApiError(HTTP_STATUS.NOT_FOUND, "User not found");
             }
 
-            // 🔥 DELETE OLD QR CODE
-            if (user.business_payment_qr) {
-                await deleteFileByUrl(user.business_payment_qr);
-            }
-
-            // Get Cloudinary URL from middleware
-            const qrUrl = req.cloudinaryUrl;
-
-            if (!qrUrl) {
+            // Upload directly to Cloudinary (sync, not queue)
+            try {
+                const result = await cloudinary.uploader.upload(req.file.path, {
+                    folder: 'payment_qr',
+                    resource_type: 'image'
+                });
+                
+                // Delete old QR if exists
+                if (user.business_payment_qr) {
+                    const oldPublicId = user.business_payment_qr.split('/').pop().split('.')[0];
+                    if (oldPublicId) {
+                        try {
+                            await cloudinary.uploader.destroy(`payment_qr/${oldPublicId}`);
+                        } catch (err) {
+                            console.log('Old QR deletion failed:', err.message);
+                        }
+                    }
+                }
+                
+                user.business_payment_qr = result.secure_url;
+                await user.save();
+                
+                // Clean up temp file
+                try {
+                    fs.unlinkSync(req.file.path);
+                } catch (err) {
+                    console.log('Temp file cleanup error:', err.message);
+                }
+                
+                return res.status(HTTP_STATUS.OK).json({
+                    success: true,
+                    message: "Payment QR code updated successfully",
+                    data: {
+                        business_payment_qr: result.secure_url
+                    }
+                });
+            } catch (uploadError) {
+                console.error('Cloudinary upload error:', uploadError);
                 throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Failed to upload QR code");
             }
-
-            // Save to database
-            user.business_payment_qr = qrUrl;
-            await user.save();
-
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                message: "Payment QR code updated successfully",
-                data: {
-                    business_payment_qr: qrUrl
-                }
-            });
         } catch (error) {
             console.error('QR Update Error:', error.message);
             next(error);
@@ -173,30 +198,30 @@ class ProfileController {
     };
 
     getRecentActivity = async (req, res, next) => {
-    try {
-        const userId = req.user?.sub || req.user?._id;
+        try {
+            const userId = req.user?.sub || req.user?._id;
 
-        const bookings = await Booking.find({ user_id: userId, status: 'completed' })
-            .populate('space_id', 'name')
-            .sort({ updated_at: -1 })
-            .limit(10);
+            const bookings = await Booking.find({ user_id: userId, status: 'completed' })
+                .populate('space_id', 'name')
+                .sort({ updated_at: -1 })
+                .limit(10);
 
-        const activities = bookings.map(booking => ({
-            spaceName: booking.space_id?.name || 'Unknown Space',
-            duration: booking.total_hours || 0,
-            amount: booking.total_amount || 0,
-            date: new Date(booking.updated_at).toLocaleDateString()
-        }));
+            const activities = bookings.map(booking => ({
+                spaceName: booking.space_id?.name || 'Unknown Space',
+                duration: booking.total_hours || 0,
+                amount: booking.total_amount || 0,
+                date: new Date(booking.updated_at).toLocaleDateString()
+            }));
 
-        return res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: activities  // Make sure data is an array
-        });
-    } catch (error) {
-        console.error('Recent activity error:', error);
-        next(error);
-    }
-};
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: activities
+            });
+        } catch (error) {
+            console.error('Recent activity error:', error);
+            next(error);
+        }
+    };
 }
 
 module.exports = new ProfileController();

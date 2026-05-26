@@ -59,6 +59,18 @@ const userSchema = new mongoose.Schema({
         type: [String],
         default: ['cash']
     },
+    encrypted_paymongo_key: { 
+        type: String, 
+        default: null 
+    },
+    encrypted_xendit_key: { 
+        type: String, 
+        default: null 
+    },
+    encrypted_stripe_key: { 
+        type: String, 
+        default: null 
+    },
     resetPasswordToken: { type: String, default: null },
     resetPasswordExpires: { type: Date, default: null },
     otpCode: { type: String, default: null },

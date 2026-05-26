@@ -13,6 +13,8 @@ const Review = require('./schema/Review');
 const ActivityLog = require('./schema/ActivityLog');
 const Room = require('./schema/Room');
 const Blog = require('./schema/Blog');
+const Order = require('./schema/Order');
+const Product = require('./schema/Product');
 
 module.exports = {
     User,
@@ -29,5 +31,7 @@ module.exports = {
     Review,
     ActivityLog,
     Room,
-    Blog
+    Blog,
+    Order,
+    Product
 };

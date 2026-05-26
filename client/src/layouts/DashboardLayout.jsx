@@ -3,7 +3,10 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutGrid, Users, FileText, Calendar, Box, Fence,
     ShoppingCart, Receipt, ChevronLeft, LogOut, User,
-    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity, Star, Database
+    DollarSign,
+    Package,
+    ClipboardList,
+    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity, Star, Database, CreditCard
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
 import { useAuth } from '@/context/AuthContext';
@@ -168,6 +171,18 @@ export default function DashboardLayout() {
             });
 
             sections.push({
+                title: "Point of Sale",
+                items: [
+                    // ...(isActualOwner ? [
+                    //     { href: "/space/income", active: isRouteActive("/space/income"), icon: <DollarSign />, label: "Income Reports" },
+                    // ] : []),
+                    { href: "/space/pos", active: isRouteActive("/space/pos"), icon: <ShoppingCart />, label: "Point of Sale" },
+                    { href: "/space/inventory", active: isRouteActive("/space/inventory"), icon: <Package />, label: "Inventory" },
+                    { href: "/space/orders", active: isRouteActive("/space/orders"), icon: <ClipboardList />, label: "Customer Orders" },
+                ],
+            });
+
+            sections.push({
                 title: "Finance",
                 items: [
                     ...(isActualOwner ? [
@@ -179,6 +194,7 @@ export default function DashboardLayout() {
 
         return sections.filter(section => section.items.length > 0);
     }, [isAdmin, hasSpaceAccess, isActualOwner, isRouteActive]);
+
     if (!isAuthenticated) {
         return null;
     }
@@ -275,7 +291,6 @@ export default function DashboardLayout() {
                                 className={`relative w-10 h-10 rounded-xl border-2 transition-all duration-300 object-cover ${isProfileOpen ? "border-emerald-500 scale-95" : "border-transparent"}`}
                                 alt="profile"
                                 onError={(e) => {
-                                    // Fallback if avatar fails to load
                                     e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=059669&color=fff&bold=true`;
                                 }}
                             />
@@ -297,6 +312,19 @@ export default function DashboardLayout() {
                                         </div>
                                         My Profile
                                     </button>
+
+                                    {/* Payment Settings - Only for space owners, not for staff */}
+                                    {(authUser?.role === 'space') && (
+                                        <button
+                                            onClick={() => { navigate('/space/payment-settings'); setIsProfileOpen(false); }}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 rounded-3xl transition-all text-left group"
+                                        >
+                                            <div className="p-2 rounded-xl bg-white/5 group-hover:bg-purple-500/20 group-hover:text-purple-400 transition-all duration-300">
+                                                <CreditCard className="w-3.5 h-3.5" />
+                                            </div>
+                                            Payment Settings
+                                        </button>
+                                    )}
 
                                     {isAdmin && (
                                         <button

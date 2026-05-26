@@ -16,11 +16,10 @@ class AuthRoutes {
     initializeRoutes = () => {
         console.log('--- 🛡️ Initializing Auth Routes (Google OAuth + JWT) ---');
         
-        
         // --- PUBLIC ROUTES ---
         this.router.post('/login', 
-            antiDdos.strictLimiter,  // 10 attempts per 15 minutes
-            antiDdos.gatekeeper,      // Check banned IPs
+            antiDdos.strictLimiter,
+            antiDdos.gatekeeper,
             authController.login
         );
         
@@ -37,7 +36,7 @@ class AuthRoutes {
             authController.register
         );
 
-        // ============ GOOGLE OAUTH ROUTES (JWT-based) ============
+        // ============ GOOGLE OAUTH ROUTES ============
         this.router.get('/google',
             passport.authenticate('google', { scope: ['profile', 'email'], session: false })
         );
@@ -47,22 +46,24 @@ class AuthRoutes {
             (req, res, next) => authController.googleCallback(req, res, next)
         );
 
+        // Profile routes
         this.router.get('/profile', auth, profileController.getProfile);
         this.router.get('/recent-activity', auth, profileController.getRecentActivity);
         this.router.put('/profile/update', auth, profileController.updateProfile);
         this.router.put('/profile/update-password', auth, profileController.updatePassword);
         
+        // QR Code upload - REMOVED processUploadedFiles (handles directly in controller)
         this.router.put('/profile/payment-qr', 
             auth, 
-            upload.single('qr_code'),
-            processUploadedFiles,   
+            upload.single('qr_code'),  // Only multer, no queue processing
             profileController.updatePaymentQR
         );
         
+        // Payment methods
         this.router.put('/profile/payment-methods', auth, profileController.updatePaymentMethods);
         this.router.get('/profile/payment-details', auth, profileController.getPaymentDetails);
 
-        // --- PASSWORD RESET ROUTES (Public) ---
+        // Password reset routes
         this.router.post('/forgot-password', passwordController.forgotPassword);
         this.router.post('/verify-otp', passwordController.verifyOTP);
         this.router.post('/reset-password', passwordController.resetPassword);
