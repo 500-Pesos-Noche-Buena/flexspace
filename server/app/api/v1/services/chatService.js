@@ -221,32 +221,66 @@ OTHER RULES
 
         history.push({ role: 'user', parts: [{ text: message }] });
 
-        try {
-            const response = await this.genAI.models.generateContent({
-                model: 'gemini-3.1-flash-lite-preview',
-                contents: history,
-                config: {
-                    systemInstruction: this.getSystemInstruction(spaceContext, districtList),
-                    maxOutputTokens: 800,
-                    temperature: 0.3
+        // Inside your chatService.js - processMessage method
+        const modelsToTry = [
+            // Gemini 3 Series (Newer, might have separate quota)
+            'gemini-3.1-flash-lite-preview', // As you requested
+            'gemini-3.1-pro-preview',
+            'models/gemini-3.1-flash-lite-preview',
+            
+            // Gemini 2.0 Series (Your old ones, currently exhausted)
+            'gemini-2.0-flash-lite',
+            'gemini-2.0-flash',
+            
+            // Gemini 2.5 Series (A middle-ground option)
+            'gemini-2.5-flash',
+            'gemini-2.5-flash-lite',
+        ];
+
+        let lastError = null;
+
+        for (const modelName of modelsToTry) {
+            try {
+                console.log(`[AI] 🔄 Trying model: ${modelName}`);
+
+                const response = await this.genAI.models.generateContent({
+                    model: modelName,
+                    contents: history,
+                    config: {
+                        systemInstruction: this.getSystemInstruction(spaceContext, districtList),
+                        maxOutputTokens: 800,
+                        temperature: 0.3
+                    }
+                });
+
+                const finalResponse = response.text?.trim();
+                if (finalResponse) {
+                    console.log(`[AI] ✅ Success! Using model: ${modelName}`);
+                    history.push({ role: 'model', parts: [{ text: finalResponse }] });
+
+                    if (history.length > 40) history.splice(0, 2);
+                    return finalResponse;
                 }
-            });
-
-            const finalResponse = response.text?.trim();
-            if (!finalResponse) throw new Error('Empty response');
-
-            history.push({ role: 'model', parts: [{ text: finalResponse }] });
-
-            // Keep last 20 turns (40 messages) to avoid token bloat
-            if (history.length > 40) history.splice(0, 2);
-
-            return finalResponse;
-
-        } catch (error) {
-            history.pop();
-            console.error("[AI] Gemini error:", error.message);
-            return "Sorry gid, something went wrong. Please try again! 🙏";
+            } catch (error) {
+                lastError = error;
+                console.log(`[AI] ❌ Failed: ${modelName} - ${error.message}`);
+                continue;
+            }
         }
+
+        // If all models fail, return a helpful fallback
+        history.pop();
+        console.error("[AI] All models failed:", lastError?.message);
+
+        // Return a fallback response in the user's language
+        const lang = detectLanguage(message);
+        const fallbacks = {
+            english: "I'm having trouble connecting to my AI service right now. Please try again in a few moments, or you can contact our support team directly for assistance! 🙏",
+            tagalog: "May problema sa koneksyon ngayon. Pakisubukan muli mamaya, o makipag-ugnayan sa aming support team para sa tulong! 🙏",
+            hiligaynon: "May problema sa koneksyon subong. Palihog subli liwat sa ulihi, o kontak sa amon support team para sa bulig! 🙏"
+        };
+
+        return fallbacks[lang] || fallbacks.english;
     }
 }
 

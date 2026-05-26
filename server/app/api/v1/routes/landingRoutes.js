@@ -1,5 +1,6 @@
 const express = require('express');
 const landingController = require('@/api/v1/controllers/landingController');
+const roomController = require('@/api/v1/controllers/space/roomController'); // Add this
 const protect = require('@/api/v1/middleware/protectionMiddleware');
 
 class LandingRoutes {
@@ -10,6 +11,18 @@ class LandingRoutes {
 
     initializeRoutes() {
         console.log('--- 🛡️ Initializing Landing Routes ---');
+
+        this.router.get('/spaces/:spaceId/rooms', (req, res, next) => 
+            roomController.getPublicRoomsBySpace(req, res, next)
+        );
+
+        this.router.get('/rooms/:roomId/availability', (req, res, next) => 
+            roomController.checkRoomAvailability(req, res, next)
+        );
+
+        this.router.get('/spaces/:id/availability', (req, res, next) => 
+            landingController.getSpaceAvailability(req, res, next)
+        );
 
         this.router.get('/explorer', protect, (req, res, next) => 
             landingController.getExplorerData(req, res, next)

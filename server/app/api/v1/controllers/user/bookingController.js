@@ -1,4 +1,4 @@
-const { Booking, Space, User, Review } = require('@/api/v1/models'); // Fixed: Review instead of Reviews
+const { Booking, Space, User, Review, Room } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const crypto = require('crypto');
@@ -7,94 +7,196 @@ const rewardService = require('@/api/v1/services/rewardService');
 class BookingController {
     getUserId = (req) => req.user?.sub || req.user?._id || req.user?.id;
 
-   // In your BookingController.js - update getMyBookings method
-getMyBookings = async (req, res, next) => {
-    try {
-        const userId = this.getUserId(req);
-        const { page = 1, limit = 10, status = '' } = req.query;
+    // In your BookingController.js - update getMyBookings method
+    getMyBookings = async (req, res, next) => {
+        try {
+            const userId = this.getUserId(req);
+            const { page = 1, limit = 10, status = '' } = req.query;
 
-        let query = { user_id: userId };
-        if (status) query.status = status;
+            let query = { user_id: userId };
+            if (status) query.status = status;
 
-        // Get total points for the user to display in dashboard
-        const userPoints = await rewardService.getUserPoints(userId);
+            // Get total points for the user to display in dashboard
+            const userPoints = await rewardService.getUserPoints(userId);
 
-        const total = await Booking.countDocuments(query);
-        let bookings = await Booking.find(query)
-            .populate('space_id', 'name image area rate_hour user_id')
-            .sort({ created_at: -1 })
-            .limit(limit * 1)
-            .skip((page - 1) * limit)
-            .lean();
+            const total = await Booking.countDocuments(query);
+            let bookings = await Booking.find(query)
+                .populate('space_id', 'name image area rate_hour user_id')
+                .sort({ created_at: -1 })
+                .limit(limit * 1)
+                .skip((page - 1) * limit)
+                .lean();
 
-        // Check which completed bookings have been reviewed
-        if (bookings.length > 0) {
-            const bookingIds = bookings.map(b => b._id);
-            
-            // Get all reviews for these bookings
-            const reviews = await Review.find({ 
-                booking_id: { $in: bookingIds },
-                user_id: userId 
-            }).lean();
+            // Check which completed bookings have been reviewed
+            if (bookings.length > 0) {
+                const bookingIds = bookings.map(b => b._id);
 
-            // Create a Set of booking_ids that have reviews
-            const reviewedBookingIds = new Set(
-                reviews.map(r => r.booking_id.toString())
-            );
+                // Get all reviews for these bookings
+                const reviews = await Review.find({
+                    booking_id: { $in: bookingIds },
+                    user_id: userId
+                }).lean();
 
-            // Add has_reviewed and is_edited flags to each booking
-            bookings = bookings.map(booking => {
-                const review = reviews.find(r => r.booking_id.toString() === booking._id.toString());
-                return {
-                    ...booking,
-                    has_reviewed: reviewedBookingIds.has(booking._id.toString()),
-                    is_edited: review ? review.is_edited : false
-                };
-            });
-        }
+                // Create a Set of booking_ids that have reviews
+                const reviewedBookingIds = new Set(
+                    reviews.map(r => r.booking_id.toString())
+                );
 
-        return res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: {
-                bookings,
-                total,
-                points: userPoints
+                // Add has_reviewed and is_edited flags to each booking
+                bookings = bookings.map(booking => {
+                    const review = reviews.find(r => r.booking_id.toString() === booking._id.toString());
+                    return {
+                        ...booking,
+                        has_reviewed: reviewedBookingIds.has(booking._id.toString()),
+                        is_edited: review ? review.is_edited : false
+                    };
+                });
             }
-        });
-    } catch (error) {
-        console.error('Error in getMyBookings:', error);
-        next(error);
-    }
-};
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: {
+                    bookings,
+                    total,
+                    points: userPoints
+                }
+            });
+        } catch (error) {
+            console.error('Error in getMyBookings:', error);
+            next(error);
+        }
+    };
 
     createBooking = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
-            const { space_id, date, start_time, end_time, is_open_time, notes } = req.body;
+            const {
+                space_id, room_id, bookable_type,
+                date, start_time, end_time, is_open_time, notes
+            } = req.body;
 
-            const bookingData = {
-                user_id: userId,
-                space_id,
-                notes,
-                is_open_time: !!is_open_time,
-                status: 'pending',
-                booking_type: 'online',
-                qr_code_token: crypto.randomBytes(20).toString('hex'),
-                ticket_number: `FLX-${Math.floor(1000 + Math.random() * 9000)}`
-            };
-
+            // Parse dates
             const dateStr = date.split('T')[0];
+            const selectedDate = new Date(dateStr);
+            const year = selectedDate.getFullYear();
+            const month = selectedDate.getMonth();
+            const day = selectedDate.getDate();
+
+            let startDateTime, endDateTime;
 
             if (is_open_time) {
-                bookingData.start_time = new Date(`${dateStr}T00:00:00+08:00`);
-                bookingData.end_time = new Date(`${dateStr}T23:59:59+08:00`);
+                startDateTime = new Date(year, month, day, 0, 0, 0);
+                endDateTime = new Date(year, month, day, 23, 59, 59);
             } else {
-                bookingData.start_time = new Date(`${dateStr}T${start_time}:00+08:00`);
-                bookingData.end_time = new Date(`${dateStr}T${end_time}:00+08:00`);
+                const [startHour, startMinute] = (start_time || '00:00').split(':');
+                const [endHour, endMinute] = (end_time || '23:59').split(':');
+                startDateTime = new Date(year, month, day, parseInt(startHour), parseInt(startMinute), 0);
+                endDateTime = new Date(year, month, day, parseInt(endHour), parseInt(endMinute), 0);
             }
 
+            // CHECK: User already has a booking for this space/room on overlapping time?
+            const existingUserBooking = await Booking.findOne({
+                user_id: userId,
+                space_id: space_id,
+                status: { $in: ['pending', 'confirmed', 'active', 'pending_payment'] },
+                $or: [
+                    {
+                        $and: [
+                            { start_time: { $lte: endDateTime } },
+                            { end_time: { $gte: startDateTime } }
+                        ]
+                    }
+                ]
+            });
+
+            if (existingUserBooking) {
+                throw new ApiError(HTTP_STATUS.CONFLICT, 'You already have an active booking for this space at this time. Please cancel your existing booking first.');
+            }
+
+            // Get rate
+            let rate_per_hour = 0;
+
+            if (bookable_type === 'room' && room_id) {
+                const room = await Room.findById(room_id);
+                if (!room) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Room not found');
+                rate_per_hour = room.rate_hour;
+            } else if (space_id) {
+                const space = await Space.findById(space_id);
+                if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
+                rate_per_hour = space.rate_hour;
+            }
+
+            // CHECK FOR ROOM DOUBLE BOOKING
+            if (bookable_type === 'room' && room_id) {
+                const conflictingBooking = await Booking.findOne({
+                    room_id,
+                    status: { $in: ['pending', 'confirmed', 'active', 'pending_payment'] },
+                    _id: { $ne: existingUserBooking?._id },
+                    $or: [
+                        {
+                            $and: [
+                                { start_time: { $lte: endDateTime } },
+                                { end_time: { $gte: startDateTime } }
+                            ]
+                        }
+                    ]
+                });
+
+                if (conflictingBooking) {
+                    throw new ApiError(HTTP_STATUS.CONFLICT, 'This room is already booked for the selected time');
+                }
+            }
+
+            // CHECK FOR SPACE CAPACITY
+            if (bookable_type === 'space' && space_id) {
+                const space = await Space.findById(space_id);
+
+                const activeBookingsCount = await Booking.countDocuments({
+                    space_id,
+                    bookable_type: 'space',
+                    status: { $in: ['pending', 'confirmed', 'active', 'pending_payment'] },
+                    _id: { $ne: existingUserBooking?._id },
+                    $or: [
+                        {
+                            $and: [
+                                { start_time: { $lte: endDateTime } },
+                                { end_time: { $gte: startDateTime } }
+                            ]
+                        }
+                    ]
+                });
+
+                const availableSeats = (space.capacity || 0) - activeBookingsCount;
+
+                if (availableSeats <= 0) {
+                    throw new ApiError(HTTP_STATUS.CONFLICT, `No available seats for the selected time. Maximum capacity (${space.capacity}) reached.`);
+                }
+            }
+
+            // Create booking
+            const bookingData = {
+                booking_type: 'online',
+                bookable_type,
+                user_id: userId,
+                space_id: space_id || null,
+                room_id: room_id || null,
+                rate_per_hour,
+                notes: notes || null,
+                is_open_time: !!is_open_time,
+                status: 'pending',
+                payment_status: 'unpaid',
+                qr_code_token: crypto.randomBytes(20).toString('hex'),
+                ticket_number: `FLX-${Math.floor(1000 + Math.random() * 9000)}`,
+                start_time: startDateTime,
+                end_time: endDateTime
+            };
+
             const newBooking = await Booking.create(bookingData);
-            return res.status(HTTP_STATUS.CREATED).json({ success: true, data: newBooking });
+
+            return res.status(HTTP_STATUS.CREATED).json({
+                success: true,
+                data: newBooking
+            });
         } catch (error) {
             console.error('Create booking error:', error);
             next(error);
@@ -181,7 +283,7 @@ getMyBookings = async (req, res, next) => {
             }
 
             const voucherResult = await rewardService.validateVoucher(voucherCode, userId);
-            
+
             if (voucherResult.min_spend && totalAmount < voucherResult.min_spend) {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Minimum spend of ₱${voucherResult.min_spend} required to use this voucher. Current total: ₱${totalAmount.toFixed(2)}`);
             }
@@ -233,7 +335,7 @@ getMyBookings = async (req, res, next) => {
             }
 
             const validationResult = await rewardService.validateVoucher(voucherCode, userId);
-            
+
             if (validationResult.min_spend && totalAmount < validationResult.min_spend) {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Minimum spend of ₱${validationResult.min_spend} required to use this voucher. Current total: ₱${totalAmount.toFixed(2)}`);
             }
@@ -277,7 +379,7 @@ getMyBookings = async (req, res, next) => {
             const { voucherCode } = req.body;
 
             const voucherResult = await rewardService.validateVoucher(voucherCode, userId);
-            
+
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 data: {

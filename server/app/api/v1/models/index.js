@@ -12,6 +12,7 @@ const Blocklist = require('./schema/Blocklist');
 const Review = require('./schema/Review');
 const ActivityLog = require('./schema/ActivityLog');
 const Room = require('./schema/Room');
+const Blog = require('./schema/Blog');
 
 module.exports = {
     User,
@@ -27,5 +28,6 @@ module.exports = {
     Blocklist,
     Review,
     ActivityLog,
-    Room
+    Room,
+    Blog
 };

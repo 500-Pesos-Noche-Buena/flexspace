@@ -4,6 +4,7 @@ const adminRoutes = require('./adminRoutes');
 const spaceRoutes = require('./spaceRoutes');
 const landingRoutes = require('./landingRoutes');
 const userRoutes = require('./userRoutes');
+const blogRoutes = require('./blogRoutes');  // ← ADD THIS
 const { Analytics } = require('@/api/v1/models');
 const emailController = require('@/api/v1/controllers/emailController');
 const chatController = require('@/api/v1/controllers/chatController');
@@ -77,7 +78,7 @@ class ApiRouter {
                     } else {
                         analytics.dailyStats.push({ date: today, visitors: 1, pageViews: 1 });
                     }
-                    analytics.dailyStats = analytics.dailyStats.slice(-30); // Keep last 30 days
+                    analytics.dailyStats = analytics.dailyStats.slice(-30);
 
                     analytics.updatedAt = new Date();
                 }
@@ -95,6 +96,7 @@ class ApiRouter {
         this.router.use('/admin', adminRoutes);
         this.router.use('/space', spaceRoutes);
         this.router.use('/user', userRoutes);
+        this.router.use('/blogs', blogRoutes);  // ← ADD THIS (mounts at /api/v1/blogs)
         
         this.router.post('/chat/support', chatController.chatSupport);
         

@@ -1,4 +1,5 @@
 const { Space, District, User, Booking, Review } = require('@/api/v1/models');
+const { HTTP_STATUS } = require('@/api/v1/utils/constants'); // Add this line
 
 class LandingController {
     async getExplorerData(req, res) {
@@ -197,6 +198,99 @@ class LandingController {
             return res.status(500).json({ success: false, message: error.message });
         }
     }
+
+    getSpaceAvailability = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { date, start_time, end_time, is_open_time } = req.query;
+
+        const space = await Space.findById(id);
+        if (!space) {
+            return res.status(404).json({
+                success: false,
+                message: 'Space not found'
+            });
+        }
+
+        // Parse the selected date
+        const selectedDate = new Date(date);
+        const year = selectedDate.getFullYear();
+        const month = selectedDate.getMonth();
+        const day = selectedDate.getDate();
+
+        let startDateTime, endDateTime;
+
+        if (is_open_time === 'true') {
+            // Whole day from 00:00 to 23:59
+            startDateTime = new Date(year, month, day, 0, 0, 0);
+            endDateTime = new Date(year, month, day, 23, 59, 59);
+        } else {
+            // Specific time range
+            const [startHour, startMinute] = (start_time || '00:00').split(':');
+            const [endHour, endMinute] = (end_time || '23:59').split(':');
+            
+            startDateTime = new Date(year, month, day, parseInt(startHour), parseInt(startMinute), 0);
+            endDateTime = new Date(year, month, day, parseInt(endHour), parseInt(endMinute), 0);
+        }
+
+        console.log('=== SPACE AVAILABILITY CHECK ===');
+        console.log('Space ID:', id);
+        console.log('Selected Date:', date);
+        console.log('Start DateTime:', startDateTime);
+        console.log('End DateTime:', endDateTime);
+        console.log('Is Open Time:', is_open_time);
+
+        // Count active bookings for the space (open area only, not rooms)
+        // Include ALL statuses that occupy seats: pending, confirmed, active, pending_payment
+        const activeBookings = await Booking.find({
+            space_id: id,
+            bookable_type: 'space', // Only count space/open area bookings
+            status: { $in: ['pending', 'confirmed', 'active', 'pending_payment'] },
+            $or: [
+                {
+                    $and: [
+                        { start_time: { $lte: endDateTime } },
+                        { end_time: { $gte: startDateTime } }
+                    ]
+                }
+            ]
+        }).lean();
+
+        const bookingCount = activeBookings.length;
+        const availableSeats = Math.max(0, (space.capacity || 0) - bookingCount);
+        
+        console.log(`Total capacity: ${space.capacity}`);
+        console.log(`Active bookings found: ${bookingCount}`);
+        console.log('Bookings details:');
+        activeBookings.forEach(b => {
+            console.log(`  - ${b.ticket_number}: ${b.status} from ${b.start_time} to ${b.end_time}`);
+        });
+        console.log(`Available seats: ${availableSeats}`);
+        console.log('================================');
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                occupied_seats: bookingCount,
+                available_seats: availableSeats,
+                total_capacity: space.capacity || 0,
+                is_available: availableSeats > 0,
+                bookings: activeBookings.map(b => ({
+                    ticket: b.ticket_number,
+                    status: b.status,
+                    start: b.start_time,
+                    end: b.end_time
+                }))
+            }
+        });
+    } catch (error) {
+        console.error('Get space availability error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 }
 
 module.exports = new LandingController();

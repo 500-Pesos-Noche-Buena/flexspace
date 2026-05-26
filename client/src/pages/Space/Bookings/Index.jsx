@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import {
     Clock, CheckCircle2, User, ReceiptText, LogIn, LogOut, Activity,
-    XCircle, QrCode, Banknote, Loader2, BadgeCheck, AlertCircle, Users, UserPlus, Star
+    XCircle, QrCode, Banknote, Loader2, BadgeCheck, AlertCircle, Users, UserPlus, Star,
+    Eye, DoorOpen, CheckCircle
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { DataTable } from '@/components/ui/DataTable';
@@ -22,10 +23,24 @@ const formatPHDate = (dateStr) => new Date(dateStr).toLocaleDateString('en-PH', 
 });
 
 // ─── Live Billing Timer ───────────────────────────────────────────────────────
-const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, booking }) => {
+const LiveBillingTimer = ({ checkInAt, checkOutAt, onAmountUpdate, booking }) => {
     const [elapsed, setElapsed] = useState('00:00:00');
     const [amount, setAmount] = useState(0);
 
+    const getCorrectRate = () => {
+        if (booking?.room_id?.rate_hour) {
+            // console.log('✅ Using ROOM rate:', booking.room_id.rate_hour, 'for room:', booking.room_id.name);
+            return booking.room_id.rate_hour;
+        }
+        if (booking?.rate_per_hour) {
+            // console.log('✅ Using rate_per_hour:', booking.rate_per_hour);
+            return booking.rate_per_hour;
+        }
+        // console.log('⚠️ Using SPACE rate:', booking?.space_id?.rate_hour);
+        return booking?.space_id?.rate_hour || 0;
+    };
+
+    const rateHour = getCorrectRate();
     const hasVoucher = booking?.voucher_discount > 0;
     const voucherDiscount = booking?.voucher_discount || 0;
 
@@ -38,9 +53,9 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
             const mins = Math.floor((seconds % 3600) / 60);
             const secs = seconds % 60;
 
-            // Calculate based on actual time spent (per hour for ALL bookings)
+            // Calculate based on actual time spent using CORRECT rate
             const hoursSpent = seconds / 3600;
-            let total = hoursSpent * (rateHour || 0);
+            let total = hoursSpent * rateHour;
 
             // Apply voucher discount if available
             if (hasVoucher && total > 0) {
@@ -105,7 +120,6 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
         </div>
     );
 };
-
 // ─── Payment Panel ────────────────────────────────────────────────────────────
 const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onApplyVoucher }) => {
     const [method, setMethod] = useState('cash');
@@ -116,26 +130,32 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
     const [appliedVoucher, setAppliedVoucher] = useState(null);
     const [currentTotal, setCurrentTotal] = useState(liveTotalAmount || 0);
 
+    // Get the CORRECT rate for display
+    const getCorrectRate = () => {
+        if (booking?.room_id?.rate_hour) return booking.room_id.rate_hour;
+        if (booking?.rate_per_hour) return booking.rate_per_hour;
+        return booking?.space_id?.rate_hour || 0;
+    };
+    const ratePerHour = getCorrectRate();
+
     // Get QR code from multiple possible paths
     const qrPaymentImage =
-        booking?.space_id?.user_id?.business_payment_qr ||  // Space owner's QR
-        booking?.space_id?.business_payment_qr ||           // Direct space QR
-        booking?.business_payment_qr ||                     // Booking's own QR
+        booking?.space_id?.user_id?.business_payment_qr ||
+        booking?.space_id?.business_payment_qr ||
+        booking?.business_payment_qr ||
         null;
 
-    // Debug log to see what's available
     useEffect(() => {
-        console.log('🔍 PaymentPanel - Debug QR paths:', {
-            'booking?.space_id?.user_id?.business_payment_qr': booking?.space_id?.user_id?.business_payment_qr,
-            'booking?.space_id?.business_payment_qr': booking?.space_id?.business_payment_qr,
-            'booking?.business_payment_qr': booking?.business_payment_qr,
-            'Full booking object': booking,
-            'Space ID': booking?.space_id,
-            'User ID within space': booking?.space_id?.user_id
+        console.log('🔍 PaymentPanel - Rate debug:', {
+            room_rate: booking?.room_id?.rate_hour,
+            rate_per_hour: booking?.rate_per_hour,
+            space_rate: booking?.space_id?.rate_hour,
+            final_rate: ratePerHour,
+            booking_type: booking?.booking_type,
+            bookable_type: booking?.bookable_type
         });
-    }, [booking]);
+    }, [booking, ratePerHour]);
 
-    // Update current total when liveTotalAmount changes
     useEffect(() => {
         if (liveTotalAmount > 0) {
             setCurrentTotal(liveTotalAmount);
@@ -146,12 +166,9 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
     const change = numericReceived - currentTotal;
     const cashValid = numericReceived >= currentTotal;
 
-    // Check if voucher was already applied to this booking
     const hasExistingVoucher = booking?.voucher_discount > 0;
     const existingDiscount = booking?.voucher_discount || 0;
     const originalAmount = hasExistingVoucher ? (currentTotal + existingDiscount) : currentTotal;
-
-    // Calculate final total with new voucher discount
     const finalTotal = hasExistingVoucher ? currentTotal : Math.max(0, currentTotal - voucherDiscount);
 
     const handleApplyVoucher = async () => {
@@ -193,20 +210,40 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
         setVoucherCode('');
     };
 
-    // Construct full image URL
     const getFullImageUrl = (path) => {
         if (!path) return null;
         if (path.startsWith('http')) return path;
         return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${path}`;
     };
 
+    // Get the appropriate location name (room or space)
+    const getLocationName = () => {
+        if (booking?.room_id?.name) return booking.room_id.name;
+        return booking?.space_id?.name;
+    };
+
     return (
         <div className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/5 overflow-hidden">
+            {/* Booking Type Badge */}
+            {booking?.room_id && (
+                <div className="px-5 pt-4">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-500/20 rounded-lg">
+                        <DoorOpen size={10} className="text-emerald-400" />
+                        <span className="text-[8px] text-emerald-400 font-black uppercase">Private Room: {booking.room_id.name}</span>
+                    </div>
+                </div>
+            )}
+
             {/* Total header */}
             <div className="px-5 pt-5 pb-3 border-b border-white/10">
                 <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Payment</p>
 
-                {/* Show original price if voucher applied */}
+                {/* Show rate info */}
+                <div className="flex justify-between items-center mb-2">
+                    <span className="text-[8px] text-slate-500">Rate</span>
+                    <span className="text-[8px] text-white font-bold">₱{ratePerHour}/hour</span>
+                </div>
+
                 {(hasExistingVoucher || appliedVoucher) && (
                     <div className="flex justify-between items-center mb-1">
                         <span className="text-[8px] text-slate-500">Original amount</span>
@@ -216,7 +253,6 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                     </div>
                 )}
 
-                {/* Voucher discount */}
                 {(hasExistingVoucher || appliedVoucher) && (
                     <div className="flex justify-between items-center mb-2">
                         <span className="text-[8px] text-emerald-400 font-bold uppercase">Voucher discount</span>
@@ -233,7 +269,6 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                     </span>
                 </div>
 
-                {/* Show voucher code if applied */}
                 {(hasExistingVoucher || appliedVoucher) && (
                     <div className="mt-2 pt-2 border-t border-white/10">
                         <div className="flex justify-between items-center">
@@ -246,7 +281,7 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                 )}
             </div>
 
-            {/* Voucher Input Section - Only show if no voucher applied yet */}
+            {/* Voucher Input Section */}
             {!hasExistingVoucher && !appliedVoucher && (
                 <div className="px-4 pt-4 pb-2 border-b border-white/10">
                     <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -271,7 +306,6 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                 </div>
             )}
 
-            {/* Remove voucher button if applied but not yet confirmed */}
             {appliedVoucher && !hasExistingVoucher && (
                 <div className="px-4 pt-2 pb-2">
                     <button
@@ -360,7 +394,7 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                 </div>
             )}
 
-            {/* QR / GCash - Fixed version */}
+            {/* QR / GCash */}
             {method === 'qr' && (
                 <div className="px-4 pb-4 text-center">
                     {qrPaymentImage ? (
@@ -403,7 +437,6 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                             </p>
                             <button
                                 onClick={() => {
-                                    // Optional: Refresh booking data
                                     if (onApplyVoucher) onApplyVoucher(booking);
                                 }}
                                 className="mt-3 px-3 py-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg text-[8px] font-black uppercase"
@@ -536,6 +569,80 @@ const BookingsIndex = () => {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [selectedReviewBooking, setSelectedReviewBooking] = useState(null);
     const [showReviewQR, setShowReviewQR] = useState(false);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [selectedBookingDetails, setSelectedBookingDetails] = useState(null);
+    const [isApproving, setIsApproving] = useState(false);
+
+    const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
+    const [fetchingRooms, setFetchingRooms] = useState(false);
+
+
+    const fetchRoomsWithAvailability = async (spaceId) => {
+    if (!spaceId) return;
+    
+    setFetchingRooms(true);
+    try {
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Fetch all rooms for this space
+        const roomsRes = await apiGet(`/space/spaces/${spaceId}/rooms`);
+        const rooms = roomsRes.data || [];
+        
+        // Check availability for each room for today
+        const roomsWithStatus = await Promise.all(
+            rooms.map(async (room) => {
+                try {
+                    const availRes = await apiGet(`/landing/rooms/${room._id}/availability?date=${today}&is_open_time=true`);
+                    return {
+                        ...room,
+                        is_available: availRes.success ? availRes.data.is_available : true
+                    };
+                } catch (err) {
+                    return { ...room, is_available: true };
+                }
+            })
+        );
+        
+        setRoomsWithAvailability(roomsWithStatus);
+    } catch (err) {
+        console.error('Failed to fetch rooms with availability:', err);
+        setRoomsWithAvailability([]);
+    } finally {
+        setFetchingRooms(false);
+    }
+};
+
+    // Fetch full booking details (including room info)
+    const fetchBookingDetails = async (bookingId) => {
+        try {
+            const res = await apiGet(`/space/bookings/${bookingId}/details`);
+            if (res.success) {
+                setSelectedBookingDetails(res.data);
+                setShowDetailsModal(true);
+            }
+        } catch (err) {
+            showToast({ icon: 'error', title: 'Failed to load booking details' });
+        }
+    };
+
+    // Handle confirm from details modal
+    const handleConfirmFromDetails = async () => {
+        if (!selectedBookingDetails) return;
+        setIsApproving(true);
+        try {
+            await apiPost(`/space/bookings/${selectedBookingDetails._id}/confirm`);
+            showToast({ icon: 'success', title: 'Booking confirmed successfully!' });
+            setShowDetailsModal(false);
+            setSelectedBookingDetails(null);
+            await fetchData(paramsRef.current, false);
+        } catch (err) {
+            showToast({ icon: 'error', title: err?.message || 'Failed to confirm booking' });
+        } finally {
+            setIsApproving(false);
+        }
+    };
+
 
     // Add function to open review modal
     const openReviewModal = (booking) => {
@@ -554,12 +661,14 @@ const BookingsIndex = () => {
     const [showWalkinModal, setShowWalkinModal] = useState(false);
     const [walkinForm, setWalkinForm] = useState({
         space_id: '',
+        room_id: '',
         name: '',
         is_open_time: true,
         start_time: '',
         end_time: ''
     });
     const [spaces, setSpaces] = useState([]);
+    const [selectedSpaceRooms, setSelectedSpaceRooms] = useState([]);
     const [submitting, setSubmitting] = useState(false);
 
     const paramsRef = useRef(currentParams);
@@ -613,16 +722,23 @@ const BookingsIndex = () => {
                 setTotalCount(total);
                 setStats(fetched);
 
-                setSelectedQR(prev => {
-                    if (!prev) return null;
-                    const fresh = rowData.find(b => b._id === prev._id);
-                    return fresh || prev;
-                });
+                // If we have a selected booking, refresh its details
+                if (selectedQR?._id) {
+                    try {
+                        const detailsRes = await apiGet(`/space/bookings/${selectedQR._id}/details`);
+                        if (detailsRes.success) {
+                            setSelectedQR(detailsRes.data);
+                            setLiveAmount(detailsRes.data.total_amount || 0);
+                        }
+                    } catch (err) {
+                        console.error('Failed to refresh selected booking:', err);
+                    }
+                }
             }
         } catch {
             if (!isSilent) showToast({ icon: 'error', title: 'Failed to sync bookings' });
         }
-    }, [bookingType]);
+    }, [bookingType, selectedQR?._id]);
 
     useEffect(() => {
         fetchData(paramsRef.current, false);
@@ -659,11 +775,30 @@ const BookingsIndex = () => {
         }
     };
 
-    const openModal = (row) => {
-        setSelectedQR(row);
-        setLiveAmount(row.total_amount || 0);
-        setShowReceipt(false);
-        setReceiptData(null);
+    const openModal = async (row) => {
+        // Fetch full details including room info
+        try {
+            const res = await apiGet(`/space/bookings/${row._id}/details`);
+            if (res.success) {
+                setSelectedQR(res.data);
+                setLiveAmount(res.data.total_amount || 0);
+                setShowReceipt(false);
+                setReceiptData(null);
+            } else {
+                // Fallback to row data
+                setSelectedQR(row);
+                setLiveAmount(row.total_amount || 0);
+                setShowReceipt(false);
+                setReceiptData(null);
+            }
+        } catch (err) {
+            console.error('Failed to fetch booking details:', err);
+            // Fallback to row data
+            setSelectedQR(row);
+            setLiveAmount(row.total_amount || 0);
+            setShowReceipt(false);
+            setReceiptData(null);
+        }
     };
 
     const closeModal = () => {
@@ -814,13 +949,11 @@ const BookingsIndex = () => {
                     {/* Pending actions */}
                     {row.status === 'pending' && (
                         <>
-                            <button onClick={() => updateStatus(row._id, 'confirm')}
-                                className="p-2 bg-emerald-600/20 text-emerald-500 rounded-lg border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all">
-                                <CheckCircle2 size={14} />
-                            </button>
-                            <button onClick={() => updateStatus(row._id, 'reject')}
-                                className="p-2 bg-red-600/20 text-red-500 rounded-lg border border-red-500/20 hover:bg-red-600 hover:text-white transition-all">
-                                <XCircle size={14} />
+                            <button
+                                onClick={() => fetchBookingDetails(row._id)}
+                                className="p-2 bg-emerald-600/20 text-emerald-500 rounded-lg border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all"
+                            >
+                                <Eye size={14} />
                             </button>
                         </>
                     )}
@@ -962,81 +1095,163 @@ const BookingsIndex = () => {
                 </Button>
             </div>
 
-            <Modal open={showWalkinModal} onClose={() => setShowWalkinModal(false)} title="New Walk-in Check-in" size="md" variant="dark">
-                <form onSubmit={handleWalkinCheckin} className="space-y-4">
-                    <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Select Space</label>
-                        <select
-                            required
-                            className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
-                            value={walkinForm.space_id}
-                            onChange={(e) => setWalkinForm({ ...walkinForm, space_id: e.target.value })}
-                        >
-                            <option value="" className="bg-[#111114]">Choose space...</option>
-                            {spaces.map(s => (
-                                <option key={s._id} value={s._id} className="bg-[#111114]">{s.name}</option>
-                            ))}
-                        </select>
-                    </div>
+          <Modal open={showWalkinModal} onClose={() => setShowWalkinModal(false)} title="New Walk-in Check-in" size="md" variant="dark">
+    <form onSubmit={handleWalkinCheckin} className="space-y-4">
+        <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Select Space</label>
+            <select
+                required
+                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                value={walkinForm.space_id}
+                onChange={async (e) => {
+                    const spaceId = e.target.value;
+                    setWalkinForm({ ...walkinForm, space_id: spaceId, room_id: '' });
+                    if (spaceId) {
+                        // Fetch rooms for this space with today's availability
+                        await fetchRoomsWithAvailability(spaceId);
+                    }
+                }}
+            >
+                <option value="" className="bg-[#111114]">Choose space...</option>
+                {spaces.map(s => (
+                    <option key={s._id} value={s._id} className="bg-[#111114]">{s.name}</option>
+                ))}
+            </select>
+        </div>
 
-                    <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Guest Name</label>
-                        <input
-                            type="text"
-                            required
-                            placeholder="Enter guest name"
-                            className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
-                            value={walkinForm.name}
-                            onChange={(e) => setWalkinForm({ ...walkinForm, name: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-2xl">
-                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Open Time (Timer counts up)</span>
-                        <input
-                            type="checkbox"
-                            className="w-5 h-5 accent-emerald-500"
-                            checked={walkinForm.is_open_time}
-                            onChange={(e) => setWalkinForm({ ...walkinForm, is_open_time: e.target.checked })}
-                        />
-                    </div>
-
-                    {!walkinForm.is_open_time && (
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Start Time</label>
-                                <input
-                                    type="time"
-                                    required
-                                    className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
-                                    value={walkinForm.start_time}
-                                    onChange={(e) => setWalkinForm({ ...walkinForm, start_time: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">End Time</label>
-                                <input
-                                    type="time"
-                                    required
-                                    className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
-                                    value={walkinForm.end_time}
-                                    onChange={(e) => setWalkinForm({ ...walkinForm, end_time: e.target.value })}
-                                />
-                            </div>
+        {/* Room Selection with Today's Availability */}
+        {walkinForm.space_id && (
+            <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                    Select Room (Optional - Leave empty for hot desk)
+                </label>
+                <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                    {roomsWithAvailability.length === 0 ? (
+                        <div className="p-3 bg-white/5 rounded-xl text-center">
+                            <p className="text-[10px] text-slate-500">No rooms available today</p>
                         </div>
+                    ) : (
+                        roomsWithAvailability.map((room) => (
+                            <div
+                                key={room._id}
+                                onClick={() => {
+                                    if (room.is_available) {
+                                        setWalkinForm({ ...walkinForm, room_id: room._id });
+                                    }
+                                }}
+                                className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                                    walkinForm.room_id === room._id
+                                        ? 'border-emerald-500 bg-emerald-500/10'
+                                        : room.is_available
+                                        ? 'border-white/10 hover:border-emerald-500/50'
+                                        : 'border-red-500/30 bg-red-500/5 opacity-60 cursor-not-allowed'
+                                }`}
+                            >
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-sm font-bold text-white">{room.name}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <Users size={12} className="text-slate-400" />
+                                            <span className="text-[10px] text-slate-400">Up to {room.capacity}</span>
+                                            <span className="text-[10px] text-emerald-400">₱{room.rate_hour}/hr</span>
+                                        </div>
+                                    </div>
+                                    {!room.is_available ? (
+                                        <span className="text-[8px] bg-red-500/20 text-red-400 px-2 py-1 rounded">
+                                            Booked Today
+                                        </span>
+                                    ) : walkinForm.room_id === room._id ? (
+                                        <CheckCircle size={16} className="text-emerald-500" />
+                                    ) : (
+                                        <div className="w-4 h-4 rounded-full border border-white/20" />
+                                    )}
+                                </div>
+                                {room.is_airconditioned && (
+                                    <span className="inline-block mt-2 text-[8px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
+                                        Airconditioned
+                                    </span>
+                                )}
+                            </div>
+                        ))
                     )}
+                </div>
+                <p className="text-[8px] text-slate-600 mt-1">
+                    {walkinForm.room_id ? 'Guest will use private room' : 'Guest will use hot desk / open area'}
+                </p>
+            </div>
+        )}
 
-                    <div className="flex gap-3 pt-4">
-                        <button type="button" onClick={() => setShowWalkinModal(false)} className="flex-1 py-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
-                            Cancel
-                        </button>
-                        <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-2xl bg-emerald-600 text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all disabled:opacity-50">
-                            {submitting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                            Check In
-                        </button>
-                    </div>
-                </form>
-            </Modal>
+        <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Guest Name</label>
+            <input
+                type="text"
+                required
+                placeholder="Enter guest name"
+                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                value={walkinForm.name}
+                onChange={(e) => setWalkinForm({ ...walkinForm, name: e.target.value })}
+            />
+        </div>
+
+        <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-2xl">
+            <span className="text-[10px] font-black text-white uppercase tracking-widest">Open Time (Timer counts up)</span>
+            <input
+                type="checkbox"
+                className="w-5 h-5 accent-emerald-500"
+                checked={walkinForm.is_open_time}
+                onChange={(e) => setWalkinForm({ ...walkinForm, is_open_time: e.target.checked })}
+            />
+        </div>
+
+        {!walkinForm.is_open_time && (
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Start Time</label>
+                    <input
+                        type="time"
+                        required
+                        className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                        value={walkinForm.start_time}
+                        onChange={(e) => setWalkinForm({ ...walkinForm, start_time: e.target.value })}
+                    />
+                </div>
+                <div>
+                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">End Time</label>
+                    <input
+                        type="time"
+                        required
+                        className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                        value={walkinForm.end_time}
+                        onChange={(e) => setWalkinForm({ ...walkinForm, end_time: e.target.value })}
+                    />
+                </div>
+            </div>
+        )}
+
+        {/* Show rate based on selection */}
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+            <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">Rate Info</p>
+            <p className="text-xs text-white font-bold mt-1">
+                ₱{walkinForm.room_id 
+                    ? roomsWithAvailability.find(r => r._id === walkinForm.room_id)?.rate_hour 
+                    : spaces.find(s => s._id === walkinForm.space_id)?.rate_hour || 0}/hour
+            </p>
+            <p className="text-[8px] text-slate-500 mt-1">
+                {walkinForm.room_id ? 'Private room rate applied' : 'Open area / hot desk rate applied'}
+            </p>
+        </div>
+
+        <div className="flex gap-3 pt-4">
+            <button type="button" onClick={() => setShowWalkinModal(false)} className="flex-1 py-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
+                Cancel
+            </button>
+            <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-2xl bg-emerald-600 text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all disabled:opacity-50">
+                {submitting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                Check In
+            </button>
+        </div>
+    </form>
+</Modal>
 
             <DataTable
                 columns={columns}
@@ -1120,10 +1335,10 @@ const BookingsIndex = () => {
                             {booking.status === 'pending' && (
                                 <div className="flex-1 flex gap-2">
                                     <button
-                                        onClick={() => updateStatus(booking._id, 'confirm')}
-                                        className="flex-1 py-3 bg-emerald-600/20 text-emerald-500 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all"
+                                        onClick={() => fetchBookingDetails(booking._id)}
+                                        className="flex-1 py-3 bg-emerald-600/20 text-emerald-500 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center gap-2"
                                     >
-                                        Confirm
+                                        <Eye size={12} /> View Details
                                     </button>
                                     <button
                                         onClick={() => updateStatus(booking._id, 'reject')}
@@ -1193,13 +1408,11 @@ const BookingsIndex = () => {
                             </>
                         )}
 
-                        {/* Active session — show timer + calculate button */}
                         {isActive && booking?.check_in_at && (
                             <>
                                 <LiveBillingTimer
                                     checkInAt={booking.check_in_at}
                                     checkOutAt={booking.check_out_at}
-                                    rateHour={booking.space_id?.rate_hour || 0}
                                     onAmountUpdate={setLiveAmount}
                                     booking={booking}
                                 />
@@ -1221,7 +1434,6 @@ const BookingsIndex = () => {
                                 <LiveBillingTimer
                                     checkInAt={booking.check_in_at}
                                     checkOutAt={booking.check_out_at}
-                                    rateHour={booking.space_id?.rate_hour || 0}
                                     onAmountUpdate={() => { }}
                                     booking={booking}
                                 />
@@ -1289,6 +1501,133 @@ const BookingsIndex = () => {
                         </div>
                     )}
                 </div>
+            </Modal>
+
+
+            {/* ── BOOKING DETAILS MODAL (for pending approvals) ── */}
+            <Modal
+                open={showDetailsModal}
+                onClose={() => {
+                    setShowDetailsModal(false);
+                    setSelectedBookingDetails(null);
+                }}
+                title="Booking Details"
+                size="lg"
+                variant="dark"
+            >
+                {selectedBookingDetails && (
+                    <div className="space-y-4">
+                        {/* Header */}
+                        <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-[8px] text-indigo-400 font-black uppercase">Booking ID</p>
+                                    <p className="text-sm font-black text-white">#{selectedBookingDetails.ticket_number}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[8px] text-indigo-400 font-black uppercase">Type</p>
+                                    <p className="text-xs font-black text-white uppercase">
+                                        {selectedBookingDetails.booking_type === 'walkin' ? 'Walk-in' : 'Online'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Customer Info */}
+                        <div className="bg-white/5 rounded-2xl p-4">
+                            <p className="text-[8px] text-slate-500 font-black uppercase mb-2">Customer Details</p>
+                            <div className="space-y-2">
+                                <div className="flex justify-between">
+                                    <span className="text-[10px] text-slate-400">Name</span>
+                                    <span className="text-[10px] text-white font-bold">
+                                        {selectedBookingDetails.user_id?.name || selectedBookingDetails.guest_name || 'Guest'}
+                                    </span>
+                                </div>
+                                {selectedBookingDetails.user_id?.email && (
+                                    <div className="flex justify-between">
+                                        <span className="text-[10px] text-slate-400">Email</span>
+                                        <span className="text-[10px] text-white">{selectedBookingDetails.user_id.email}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Space & Room Info */}
+                        <div className="bg-white/5 rounded-2xl p-4">
+                            <p className="text-[8px] text-slate-500 font-black uppercase mb-2">Booking Details</p>
+                            <div className="space-y-2">
+                                <div className="flex justify-between">
+                                    <span className="text-[10px] text-slate-400">Space</span>
+                                    <span className="text-[10px] text-white font-bold">{selectedBookingDetails.space_id?.name}</span>
+                                </div>
+                                {selectedBookingDetails.room_id && (
+                                    <div className="flex justify-between">
+                                        <span className="text-[10px] text-slate-400">Room</span>
+                                        <span className="text-[10px] text-emerald-400 font-bold">
+                                            {selectedBookingDetails.room_id.name}
+                                            <span className="text-slate-500 ml-1">(₱{selectedBookingDetails.room_id.rate_hour}/hr)</span>
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between">
+                                    <span className="text-[10px] text-slate-400">Rate</span>
+                                    <span className="text-[10px] text-white">₱{selectedBookingDetails.rate_per_hour || selectedBookingDetails.space_id?.rate_hour}/hour</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-[10px] text-slate-400">Booking Type</span>
+                                    <span className="text-[10px] text-white">
+                                        {selectedBookingDetails.is_open_time ? 'Open Time' : 'Fixed Schedule'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-[10px] text-slate-400">Date</span>
+                                    <span className="text-[10px] text-white">{formatPHDate(selectedBookingDetails.start_time)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-[10px] text-slate-400">Time</span>
+                                    <span className="text-[10px] text-white">
+                                        {selectedBookingDetails.is_open_time
+                                            ? 'All Day'
+                                            : `${formatPHTime(selectedBookingDetails.start_time)} - ${formatPHTime(selectedBookingDetails.end_time)}`}
+                                    </span>
+                                </div>
+                                {selectedBookingDetails.notes && (
+                                    <div className="mt-2 pt-2 border-t border-white/10">
+                                        <p className="text-[8px] text-slate-500 font-black uppercase mb-1">Notes</p>
+                                        <p className="text-[9px] text-slate-400">{selectedBookingDetails.notes}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-4">
+                            <button
+                                onClick={() => {
+                                    setShowDetailsModal(false);
+                                    setSelectedBookingDetails(null);
+                                }}
+                                className="flex-1 py-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => updateStatus(selectedBookingDetails._id, 'reject')}
+                                className="flex-1 py-3 rounded-2xl bg-red-600/20 text-red-400 font-black text-[10px] uppercase hover:bg-red-600 hover:text-white transition-all"
+                            >
+                                Reject
+                            </button>
+                            <button
+                                onClick={handleConfirmFromDetails}
+                                disabled={isApproving}
+                                className="flex-1 py-3 rounded-2xl bg-emerald-600 text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all disabled:opacity-50"
+                            >
+                                {isApproving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                Confirm Booking
+                            </button>
+                        </div>
+                    </div>
+                )}
             </Modal>
         </div>
     );

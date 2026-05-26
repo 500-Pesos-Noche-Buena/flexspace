@@ -477,48 +477,48 @@ class BookingController {
     // PUBLIC QR CODE REDIRECT (No Auth)
     // GET /api/v1/space/qr/:token
     // ============================================
-   handleQRRedirect = async (req, res, next) => {
-    try {
-        const { token } = req.params;
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';  // ← FIXED: use 5173 not 3000
+    handleQRRedirect = async (req, res, next) => {
+        try {
+            const { token } = req.params;
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';  // ← FIXED: use 5173 not 3000
 
-        console.log('QR Redirect - Token:', token);  // DEBUG
+            console.log('QR Redirect - Token:', token);  // DEBUG
 
-        // Find booking by QR token
-        const booking = await Booking.findOne({ qr_code_token: token })
-            .populate('space_id', 'name address')
-            .populate('user_id', 'name email');
+            // Find booking by QR token
+            const booking = await Booking.findOne({ qr_code_token: token })
+                .populate('space_id', 'name address')
+                .populate('user_id', 'name email');
 
-        if (!booking) {
-            console.log('No booking found for token:', token);
-            return res.redirect(`${frontendUrl}/review/invalid?error=invalid_token`);
+            if (!booking) {
+                console.log('No booking found for token:', token);
+                return res.redirect(`${frontendUrl}/review/invalid?error=invalid_token`);
+            }
+
+            console.log('Booking found:', booking._id, 'Status:', booking.status);
+
+            // Check if booking is completed (eligible for review)
+            if (booking.status !== 'completed') {
+                console.log('Booking not completed. Status:', booking.status);
+                return res.redirect(`${frontendUrl}/review/not-completed?booking_id=${booking._id}&status=${booking.status}`);
+            }
+
+            // Check if review already exists
+            const existingReview = await Review.findOne({ booking_id: booking._id });
+            if (existingReview) {
+                console.log('Review already exists for booking:', booking._id);
+                return res.redirect(`${frontendUrl}/review/already-reviewed?booking_id=${booking._id}`);
+            }
+
+            // Redirect to review page
+            console.log('Redirecting to review page:', `${frontendUrl}/review/booking/${booking._id}`);
+            return res.redirect(`${frontendUrl}/review/booking/${booking._id}`);
+
+        } catch (error) {
+            console.error('QR Redirect Error:', error);
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            return res.redirect(`${frontendUrl}/review/invalid?error=server_error&message=${encodeURIComponent(error.message)}`);
         }
-
-        console.log('Booking found:', booking._id, 'Status:', booking.status);
-
-        // Check if booking is completed (eligible for review)
-        if (booking.status !== 'completed') {
-            console.log('Booking not completed. Status:', booking.status);
-            return res.redirect(`${frontendUrl}/review/not-completed?booking_id=${booking._id}&status=${booking.status}`);
-        }
-
-        // Check if review already exists
-        const existingReview = await Review.findOne({ booking_id: booking._id });
-        if (existingReview) {
-            console.log('Review already exists for booking:', booking._id);
-            return res.redirect(`${frontendUrl}/review/already-reviewed?booking_id=${booking._id}`);
-        }
-
-        // Redirect to review page
-        console.log('Redirecting to review page:', `${frontendUrl}/review/booking/${booking._id}`);
-        return res.redirect(`${frontendUrl}/review/booking/${booking._id}`);
-
-    } catch (error) {
-        console.error('QR Redirect Error:', error);
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-        return res.redirect(`${frontendUrl}/review/invalid?error=server_error&message=${encodeURIComponent(error.message)}`);
-    }
-};
+    };
 
     // ============================================
     // GET BOOKING FOR REVIEW (Public)
@@ -729,6 +729,39 @@ class BookingController {
 
         } catch (error) {
             console.error('Can review check error:', error);
+            next(error);
+        }
+    };
+
+    // Add this method after your index method
+    getBookingDetails = async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const ownerId = await this.getOwnerId(req);
+
+            const booking = await Booking.findById(id)
+                .populate({
+                    path: 'space_id',
+                    select: 'name rate_hour qr_payment_image user_id address images',
+                    populate: {
+                        path: 'user_id',
+                        select: 'name email business_payment_qr payment_methods'
+                    }
+                })
+                .populate('room_id', 'name type capacity rate_hour images amenities is_airconditioned has_window')
+                .populate('user_id', 'name email phone')
+                .lean();
+
+            if (!booking || String(booking.space_id.user_id._id) !== String(ownerId)) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Unauthorized access.');
+            }
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: booking
+            });
+        } catch (error) {
+            console.error('Get booking details error:', error);
             next(error);
         }
     };
