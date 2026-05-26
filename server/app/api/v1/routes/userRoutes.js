@@ -29,19 +29,19 @@ class UserRoutes {
         this.router.get('/bookings', auth, (req, res, next) => bookingController.getMyBookings(req, res, next));
         this.router.post('/bookings', auth, (req, res, next) => bookingController.createBooking(req, res, next));
         this.router.post('/bookings/scan', auth, (req, res, next) => bookingController.scanHubQRCode(req, res, next));
-
-        // Voucher routes for existing bookings (pending_payment)
+        
+        // Active booking - FAST endpoint for ChatOrder
+this.router.get('/active-booking-fast', auth, (req, res, next) => bookingController.getActiveBookingFast(req, res, next));
+        // Voucher routes
         this.router.post('/bookings/:id/preview-voucher', auth, (req, res, next) => bookingController.previewVoucher(req, res, next));
         this.router.post('/bookings/:id/redeem-voucher', auth, (req, res, next) => bookingController.redeemVoucher(req, res, next));
-
-        // Preview voucher during booking creation
         this.router.post('/vouchers/preview', auth, (req, res, next) => bookingController.previewVoucherForBooking(req, res, next));
 
-        // Redeem points for vouchers
+        // Redeem points
         this.router.get('/vouchers', auth, (req, res, next) => redeemController.index(req, res, next));
         this.router.post('/vouchers/redeem', auth, (req, res, next) => redeemController.redeem(req, res, next));
 
-        // ========== REVIEW ROUTES ==========
+        // Review Routes
         this.router.post('/reviews', auth, (req, res, next) => reviewController.submitReview(req, res, next));
         this.router.get('/reviews', auth, (req, res, next) => reviewController.getMyReviews(req, res, next));
         this.router.get('/reviews/check/:bookingId', auth, (req, res, next) => reviewController.checkBookingReviewed(req, res, next));
@@ -51,30 +51,13 @@ class UserRoutes {
         this.router.post('/reviews/:id/helpful', auth, (req, res, next) => reviewController.markHelpful(req, res, next));
         this.router.delete('/reviews/:id/helpful', auth, (req, res, next) => reviewController.removeHelpful(req, res, next));
 
+        // Orders
         this.router.get('/orders', auth, (req, res, next) => userOrderController.getMyOrders(req, res, next));
         this.router.get('/orders/:orderId', auth, (req, res, next) => userOrderController.getOrderDetails(req, res, next));
         this.router.get('/orders/by-number/:orderNumber', auth, (req, res, next) => userOrderController.getOrderByNumber(req, res, next));
         this.router.get('/orders/:orderId/status', auth, (req, res, next) => userOrderController.getOrderStatus(req, res, next));
         this.router.post('/orders', auth, (req, res, next) => userOrderController.createOrder(req, res, next));
         this.router.post('/orders/:orderId/cancel', auth, (req, res, next) => userOrderController.cancelOrder(req, res, next));
-        this.router.get('/user/orders', auth, async (req, res, next) => {
-            try {
-                const Order = require('@/api/v1/models/schema/Order');
-                
-                const orders = await Order.find({ 
-                    customer_id: req.user._id 
-                }).sort({ created_at: -1 });
-                
-                return res.status(200).json({
-                    success: true,
-                    data: { orders }
-                });
-            } catch (error) {
-                console.error('Error fetching user orders:', error);
-                next(error);
-            }
-        });
-
     }
 
     getRouter() {

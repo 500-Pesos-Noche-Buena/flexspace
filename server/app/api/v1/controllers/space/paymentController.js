@@ -52,27 +52,55 @@ class PaymentController {
         }
     };
 
+    // In paymentController.js - update createPaymentLink
+
     createPaymentLink = async (req, res, next) => {
         try {
             const ownerId = await this.getOwnerId(req);
             const { amount, order_number, customer_name, payment_method = 'gcash' } = req.body;
+
+            if (!order_number) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Order number or ticket number is required');
+            }
+
             const user = await User.findById(ownerId).select('encrypted_paymongo_key');
             if (!user?.encrypted_paymongo_key) {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No payment gateway configured');
             }
+
+            // Check if this is a booking (ticket number) or POS order
+            const Order = require('@/api/v1/models/schema/Order');
+            const Booking = require('@/api/v1/models/schema/Booking');
+
+            let existingOrder = await Order.findOne({ order_number: order_number });
+            let existingBooking = null;
+
+            if (!existingOrder) {
+                existingBooking = await Booking.findOne({ ticket_number: order_number });
+            }
+
+            // For bookings, we don't need to update anything - just create payment link
+            // The booking status will be updated when payment is confirmed via webhook
+
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-            const successUrl = `${frontendUrl}/payment/success?order_id=${order_number}&amount=${amount}`;
+            const successUrl = `${frontendUrl}/payment/success?order_id=${order_number}&amount=${amount}&type=${existingOrder ? 'order' : 'booking'}`;
+
             const response = await axios.post(`${PAYBRIDGE_API_URL}/paymongo`, {
                 amount: parseFloat(amount),
                 success_url: successUrl,
                 payment_method: payment_method,
-                metadata: { order_number, customer_name }
+                metadata: {
+                    order_number: order_number,
+                    customer_name: customer_name,
+                    type: existingOrder ? 'order' : 'booking'
+                }
             }, {
                 headers: {
                     'X-Encrypted-Secret': user.encrypted_paymongo_key,
                     'X-PayBridge-Master-Key': PAYBRIDGE_MASTER_KEY
                 }
             });
+
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 data: {
@@ -81,6 +109,7 @@ class PaymentController {
                 }
             });
         } catch (error) {
+            console.error('Create payment link error:', error);
             next(error);
         }
     };

@@ -9,10 +9,12 @@ const PaymentSuccess = () => {
     const [searchParams] = useSearchParams();
     const [verifying, setVerifying] = useState(true);
     const [paymentStatus, setPaymentStatus] = useState(null);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const paymentIntentId = searchParams.get('payment_intent_id');
     const orderId = searchParams.get('order_id');
     const amount = searchParams.get('amount');
+    const type = searchParams.get('type'); // 'order' or 'booking'
 
     useEffect(() => {
         if (paymentIntentId) {
@@ -20,44 +22,52 @@ const PaymentSuccess = () => {
         } else {
             setVerifying(false);
             setPaymentStatus('error');
+            setErrorMessage('No payment intent ID found');
         }
     }, [paymentIntentId]);
 
-    const verifyAndConfirmPayment = async () => {
-        try {
-            // Use PUBLIC verification endpoint
-            const verifyRes = await apiGet(`/landing/payment/verify/${paymentIntentId}`);
+// In PaymentSuccess.jsx, update the verifyAndConfirmPayment function:
+
+const verifyAndConfirmPayment = async () => {
+    try {
+        console.log('🔍 Verifying payment:', { paymentIntentId, orderId, amount });
+        
+        // FIXED: Use /payment/verify/ instead of /verify-payment/
+        const verifyRes = await apiGet(`/landing/payment/verify/${paymentIntentId}`);
+        
+        console.log('Verification response:', verifyRes);
+        
+        if (verifyRes.success && verifyRes.data?.is_paid) {
+            // FIXED: Use /orders/ instead of /confirm-order/
+            const confirmRes = await apiPost(`/landing/orders/${orderId}/confirm-payment`, {
+                payment_intent_id: paymentIntentId
+            });
             
-            if (verifyRes.success && verifyRes.data.is_paid) {
-                // Use PUBLIC order confirmation endpoint
-                if (orderId) {
-                    const updateRes = await apiPost(`/landing/orders/${orderId}/confirm-payment`, {
-                        payment_intent_id: paymentIntentId
-                    });
-                    
-                    if (updateRes.success) {
-                        setPaymentStatus('success');
-                        showToast({ 
-                            icon: 'success', 
-                            title: 'Payment Confirmed!', 
-                            text: 'Your order is now being prepared.' 
-                        });
-                    } else {
-                        setPaymentStatus('warning');
-                    }
-                } else {
-                    setPaymentStatus('success');
-                }
+            console.log('Confirmation response:', confirmRes);
+            
+            if (confirmRes.success) {
+                setPaymentStatus('success');
+                showToast({ 
+                    icon: 'success', 
+                    title: 'Payment Confirmed!', 
+                    text: confirmRes.message 
+                });
             } else {
-                setPaymentStatus('failed');
+                setPaymentStatus('warning');
+                setErrorMessage(confirmRes.message || 'Payment verified but update failed');
             }
-        } catch (err) {
-            console.error('Payment verification error:', err);
-            setPaymentStatus('error');
-        } finally {
-            setVerifying(false);
+        } else {
+            setPaymentStatus('failed');
+            setErrorMessage(verifyRes.message || 'Payment verification failed');
         }
-    };
+    } catch (err) {
+        console.error('Payment verification error:', err);
+        setPaymentStatus('error');
+        setErrorMessage(err.message || 'Failed to verify payment');
+    } finally {
+        setVerifying(false);
+    }
+};
 
     if (verifying) {
         return (
@@ -105,7 +115,7 @@ const PaymentSuccess = () => {
                                 Back to Home
                             </Button>
                         </Link>
-                        <Link to="/dashboard" className="flex-1">
+                        <Link to="/user/orders" className="flex-1">
                             <Button className="w-full bg-white/5 hover:bg-white/10 text-white">
                                 <ShoppingBag size={16} className="mr-2" />
                                 My Orders
@@ -125,13 +135,20 @@ const PaymentSuccess = () => {
                 </div>
                 
                 <h1 className="text-2xl font-black text-white mb-2">Payment Failed</h1>
-                <p className="text-slate-400 mb-6">
-                    We couldn't verify your payment. Please try again or contact support.
+                <p className="text-slate-400 mb-2">
+                    We couldn't verify your payment.
+                </p>
+                {errorMessage && (
+                    <p className="text-red-400 text-sm mb-4">{errorMessage}</p>
+                )}
+                <p className="text-slate-400 text-sm mb-6">
+                    Please try again or contact support.
                 </p>
                 
                 <div className="flex gap-3">
                     <Link to="/" className="flex-1">
                         <Button className="w-full bg-indigo-600 hover:bg-indigo-500">
+                            <Home size={16} className="mr-2" />
                             Return to Home
                         </Button>
                     </Link>

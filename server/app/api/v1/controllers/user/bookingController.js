@@ -6,66 +6,86 @@ const rewardService = require('@/api/v1/services/rewardService');
 
 class BookingController {
     getUserId = (req) => req.user?.sub || req.user?._id || req.user?.id;
-
-    // In your BookingController.js - update getMyBookings method
-    getMyBookings = async (req, res, next) => {
-        try {
-            const userId = this.getUserId(req);
-            const { page = 1, limit = 10, status = '' } = req.query;
-
-            let query = { user_id: userId };
-            if (status) query.status = status;
-
-            // Get total points for the user to display in dashboard
-            const userPoints = await rewardService.getUserPoints(userId);
-
-            const total = await Booking.countDocuments(query);
-            let bookings = await Booking.find(query)
-                .populate('space_id', 'name image area rate_hour user_id')
-                .sort({ created_at: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit)
-                .lean();
-
-            // Check which completed bookings have been reviewed
-            if (bookings.length > 0) {
-                const bookingIds = bookings.map(b => b._id);
-
-                // Get all reviews for these bookings
-                const reviews = await Review.find({
-                    booking_id: { $in: bookingIds },
-                    user_id: userId
-                }).lean();
-
-                // Create a Set of booking_ids that have reviews
-                const reviewedBookingIds = new Set(
-                    reviews.map(r => r.booking_id.toString())
-                );
-
-                // Add has_reviewed and is_edited flags to each booking
-                bookings = bookings.map(booking => {
-                    const review = reviews.find(r => r.booking_id.toString() === booking._id.toString());
-                    return {
-                        ...booking,
-                        has_reviewed: reviewedBookingIds.has(booking._id.toString()),
-                        is_edited: review ? review.is_edited : false
-                    };
-                });
-            }
-
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: {
-                    bookings,
-                    total,
-                    points: userPoints
-                }
-            });
-        } catch (error) {
-            console.error('Error in getMyBookings:', error);
-            next(error);
+// In bookingController.js, update getMyBookings method:
+// Add this method to your bookingController.js
+getActiveBookingFast = async (req, res, next) => {
+    try {
+        const userId = req.user?.sub || req.user?._id || req.user?.id;
+        
+        const booking = await Booking.findOne({
+            user_id: userId,
+            status: { $in: ['confirmed', 'active', 'pending_payment'] }
+        })
+        .select('ticket_number status space_id _id')  // ← add _id
+        .sort({ created_at: -1 })
+        .lean();
+        
+        if (!booking) {
+            return res.status(HTTP_STATUS.OK).json({ success: true, data: null });
         }
-    };
+        
+        const space = await Space.findById(booking.space_id)
+            .select('_id name rate_hour')  // ← add _id
+            .lean();
+        
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            data: {
+                booking: {
+                    _id: booking._id,           // ← include this
+                    ticket_number: booking.ticket_number,
+                    status: booking.status
+                },
+                space: space
+            }
+        });
+    } catch (error) {
+        console.error('Get active booking fast error:', error);
+        next(error);
+    }
+};
+getMyBookings = async (req, res, next) => {
+    try {
+        const userId = req.user?.sub || req.user?._id || req.user?.id;
+        const { status, limit = 10, page = 1 } = req.query;
+        
+        let query = { user_id: userId };
+        
+        // Add status filter if provided (IMPORTANT for performance)
+        if (status) {
+            const statuses = status.split(',');
+            query.status = { $in: statuses };
+        } else {
+            // Default: only get recent active bookings (not completed/cancelled)
+            query.status = { $in: ['pending', 'confirmed', 'active', 'pending_payment'] };
+        }
+        
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        const [bookings, total] = await Promise.all([
+            Booking.find(query)
+                .populate('space_id', 'name rate_hour images address')
+                .sort({ created_at: -1 })
+                .limit(parseInt(limit))
+                .skip(skip)
+                .lean(),
+            Booking.countDocuments(query)
+        ]);
+        
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            data: {
+                bookings,
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit)
+            }
+        });
+    } catch (error) {
+        console.error('Get my bookings error:', error);
+        next(error);
+    }
+};
 
     createBooking = async (req, res, next) => {
         try {

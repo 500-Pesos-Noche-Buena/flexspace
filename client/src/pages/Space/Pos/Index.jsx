@@ -5,7 +5,7 @@ import {
     ShoppingCart, Plus, Minus, Trash2, CreditCard,
     Banknote, QrCode, Search, Package, Coffee,
     Sandwich, Cookie, Users, Loader2, Percent, History, X, CheckCircle,
-    ExternalLink, Copy, Download
+    ExternalLink, Copy, Download, User, Smartphone, Receipt
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
@@ -932,234 +932,284 @@ const POS = () => {
                 </div>
             </Modal>
 
-            {/* Payment Modal */}
-            <Modal open={paymentModal} onClose={() => { setPaymentModal(false); setShowPaymentLink(false); }} title="Complete Payment" size="md" variant="dark">
-                {!showPaymentLink ? (
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Customer Name</label>
-                            <input
-                                type="text"
-                                value={customerName}
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                placeholder="Walk-in Customer"
-                                className="w-full mt-1 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 outline-none"
-                            />
-                        </div>
+            {/* Payment Modal - Improved Design */}
+<Modal open={paymentModal} onClose={() => { setPaymentModal(false); setShowPaymentLink(false); }} title="Complete Payment" size="lg" variant="dark">
+    {!showPaymentLink ? (
+        <div className="space-y-6">
+            {/* Customer Name Input */}
+            <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-2">
+                    <User size={12} /> Customer Name
+                </label>
+                <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Enter customer name"
+                    className="w-full mt-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-600 focus:border-indigo-500 outline-none transition-all"
+                />
+            </div>
 
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPaymentMethod('cash')}
-                                className={cn(
-                                    "flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all",
-                                    paymentMethod === 'cash' ? "bg-emerald-600 text-white" : "bg-white/5 text-slate-400 hover:bg-white/10"
-                                )}
-                            >
-                                <Banknote size={16} /> Cash
-                            </button>
-                            <button
-                                onClick={() => setPaymentMethod('qr')}
-                                className={cn(
-                                    "flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all",
-                                    paymentMethod === 'qr' ? "bg-blue-600 text-white" : "bg-white/5 text-slate-400 hover:bg-white/10"
-                                )}
-                            >
-                                <QrCode size={16} /> GCash/QR
-                            </button>
-                            <button
-                                onClick={() => setPaymentMethod('online')}
-                                className={cn(
-                                    "flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all",
-                                    paymentMethod === 'online' ? "bg-purple-600 text-white" : "bg-white/5 text-slate-400 hover:bg-white/10"
-                                )}
-                            >
-                                <CreditCard size={16} /> Online Payment
-                            </button>
-                        </div>
-
-                        {paymentMethod === 'cash' && (
-                            <div>
-                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Amount Received</label>
-                                <input
-                                    type="number"
-                                    value={amountReceived}
-                                    onChange={(e) => setAmountReceived(e.target.value)}
-                                    placeholder="0.00"
-                                    className="w-full mt-1 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 outline-none"
-                                />
-                                {amountReceived && parseFloat(amountReceived) > 0 && (
-                                    <p className="text-xs text-emerald-400 mt-1">
-                                        Change: ₱{(parseFloat(amountReceived) - calculateTotal()).toFixed(2)}
-                                    </p>
-                                )}
-                            </div>
+            {/* Payment Method Selection - Premium Cards */}
+            <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-2 mb-3">
+                    <CreditCard size={12} /> Payment Method
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                    {/* Cash */}
+                    <button
+                        onClick={() => setPaymentMethod('cash')}
+                        className={cn(
+                            "p-4 rounded-xl border-2 transition-all group",
+                            paymentMethod === 'cash' 
+                                ? "bg-emerald-500/20 border-emerald-500 shadow-lg shadow-emerald-900/20" 
+                                : "bg-white/5 border-white/10 hover:border-emerald-500/50"
                         )}
+                    >
+                        <Banknote size={28} className={cn("mx-auto mb-2 transition-all", paymentMethod === 'cash' ? "text-emerald-400" : "text-slate-500 group-hover:text-emerald-400")} />
+                        <p className={cn("text-xs font-bold", paymentMethod === 'cash' ? "text-emerald-400" : "text-white")}>Cash</p>
+                        <p className="text-[8px] text-slate-500 mt-1">Pay in person</p>
+                    </button>
 
-                        {paymentMethod === 'qr' && (
-                            <div className="text-center">
-                                {qrPaymentImage ? (
-                                    <>
-                                        <div className="bg-white p-4 rounded-2xl shadow-xl mb-3 inline-block">
-                                            <img
-                                                src={getFullImageUrl(qrPaymentImage)}
-                                                alt="Payment QR Code"
-                                                className="w-48 h-48 object-contain"
-                                                onError={(e) => {
-                                                    console.error('QR failed to load:', qrPaymentImage);
-                                                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Crect x="3" y="3" width="18" height="18" rx="2" ry="2"%3E%3C/rect%3E%3Cline x1="3" y1="9" x2="21" y2="9"%3E%3C/line%3E%3Cline x1="9" y1="21" x2="9" y2="15"%3E%3C/line%3E%3C/svg%3E';
-                                                }}
-                                            />
-                                        </div>
-                                        <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest mb-1">
-                                            Customer scans to pay
-                                        </p>
-                                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-                                            GCash / QRPh / Maya
-                                        </p>
-                                        <div className="mt-3 p-2 bg-blue-500/10 rounded-lg">
-                                            <p className="text-[8px] text-blue-400 font-mono">
-                                                Amount: ₱{calculateTotal().toFixed(2)}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={async () => {
-                                                await completeOrder('qr', calculateTotal());
-                                            }}
-                                            disabled={isProcessing}
-                                            className="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-sm disabled:opacity-50"
-                                        >
-                                            {isProcessing ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Mark as Paid'}
-                                        </button>
-                                    </>
-                                ) : (
-                                    <div className="py-6">
-                                        <div className="w-20 h-20 mx-auto bg-slate-800 rounded-2xl flex items-center justify-center mb-3">
-                                            <QrCode size={40} className="text-slate-600" />
-                                        </div>
-                                        <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest">
-                                            No QR code available
-                                        </p>
-                                        <p className="text-[8px] text-slate-700 mt-1">
-                                            Please upload a payment QR code in Profile Settings
-                                        </p>
-                                        <button
-                                            onClick={() => window.open('/profile', '_blank')}
-                                            className="mt-3 px-3 py-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg text-[8px] font-black uppercase"
-                                        >
-                                            Go to Settings
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                    {/* GCash/QR */}
+                    <button
+                        onClick={() => setPaymentMethod('qr')}
+                        className={cn(
+                            "p-4 rounded-xl border-2 transition-all group",
+                            paymentMethod === 'qr' 
+                                ? "bg-blue-500/20 border-blue-500 shadow-lg shadow-blue-900/20" 
+                                : "bg-white/5 border-white/10 hover:border-blue-500/50"
                         )}
+                    >
+                        <Smartphone size={28} className={cn("mx-auto mb-2 transition-all", paymentMethod === 'qr' ? "text-blue-400" : "text-slate-500 group-hover:text-blue-400")} />
+                        <p className={cn("text-xs font-bold", paymentMethod === 'qr' ? "text-blue-400" : "text-white")}>GCash/QR</p>
+                        <p className="text-[8px] text-slate-500 mt-1">Scan to pay</p>
+                    </button>
 
-                        {/* Online Payment - Generate QR for PayMongo link */}
-                        {paymentMethod === 'online' && (
-                            <div className="text-center py-4">
-                                {hasPayMongoKey ? (
-                                    <>
-                                        <CreditCard size={48} className="mx-auto text-purple-400 mb-3" />
-                                        <p className="text-sm text-white font-bold mb-2">PayMongo Online Payment</p>
-                                        <p className="text-[10px] text-slate-400 mb-4">
-                                            Customer scans QR to pay via GCash, PayMaya, or Card
-                                        </p>
-                                        <div className="bg-purple-500/10 rounded-xl p-3 mb-4">
-                                            <p className="text-[8px] text-purple-400 font-black uppercase">Total Amount</p>
-                                            <p className="text-xl font-black text-white">₱{calculateTotal().toFixed(2)}</p>
-                                        </div>
-                                        <div className="flex gap-2 justify-center mb-3">
-                                            <img src="/images/gcash-logo.png" className="h-5" alt="GCash" />
-                                            <img src="/images/paymaya-logo.png" className="h-5" alt="PayMaya" />
-                                            <img src="/images/visa-mastercard.png" className="h-5" alt="Card" />
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="py-4">
-                                        <CreditCard size={48} className="mx-auto text-slate-600 mb-3" />
-                                        <p className="text-sm text-amber-400 font-bold mb-2">PayMongo Not Configured</p>
-                                        <p className="text-[10px] text-slate-400 mb-4">
-                                            Please add your PayMongo secret key in Payment Settings
-                                        </p>
-                                        <button
-                                            onClick={() => window.open('/space/payment-settings', '_blank')}
-                                            className="px-4 py-2 bg-amber-600/20 text-amber-400 rounded-lg text-[10px] font-black uppercase hover:bg-amber-600 hover:text-white"
-                                        >
-                                            Configure PayMongo
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                    {/* Online Payment */}
+                    <button
+                        onClick={() => setPaymentMethod('online')}
+                        className={cn(
+                            "p-4 rounded-xl border-2 transition-all group",
+                            paymentMethod === 'online' 
+                                ? "bg-purple-500/20 border-purple-500 shadow-lg shadow-purple-900/20" 
+                                : "bg-white/5 border-white/10 hover:border-purple-500/50"
                         )}
+                    >
+                        <CreditCard size={28} className={cn("mx-auto mb-2 transition-all", paymentMethod === 'online' ? "text-purple-400" : "text-slate-500 group-hover:text-purple-400")} />
+                        <p className={cn("text-xs font-bold", paymentMethod === 'online' ? "text-purple-400" : "text-white")}>Card/PayMongo</p>
+                        <p className="text-[8px] text-slate-500 mt-1">Online payment</p>
+                    </button>
+                </div>
+            </div>
 
-
-                        <div className="bg-indigo-500/10 rounded-xl p-3 text-center">
-                            <p className="text-[10px] text-indigo-400 font-black uppercase">Total Due</p>
-                            <p className="text-2xl font-black text-white">₱{calculateTotal().toFixed(2)}</p>
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                onClick={() => setPaymentModal(false)}
-                                className="flex-1 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={processPayment}
-                                disabled={isProcessing || (paymentMethod === 'cash' && (!amountReceived || parseFloat(amountReceived) < calculateTotal()))}
-                                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
-                            >
-                                {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                {paymentMethod === 'online' ? 'Generate Payment Link' : 'Complete Payment'}
-                            </button>
-                        </div>
+            {/* Cash Payment Section */}
+            {paymentMethod === 'cash' && (
+                <div className="bg-linear-to-r from-emerald-500/10 to-emerald-600/5 rounded-xl p-4 border border-emerald-500/20">
+                    <label className="text-[10px] font-black text-emerald-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                        <Banknote size={12} /> Amount Received
+                    </label>
+                    <div className="relative mt-2">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-black text-lg">₱</span>
+                        <input
+                            type="number"
+                            value={amountReceived}
+                            onChange={(e) => setAmountReceived(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full pl-8 pr-4 py-3 rounded-xl bg-black/50 border border-emerald-500/30 text-white placeholder:text-slate-600 focus:border-emerald-500 outline-none text-lg font-bold"
+                        />
                     </div>
-                ) : (
-                    <div className="space-y-4 text-center">
-                        <div className="bg-purple-500/20 rounded-full w-16 h-16 flex items-center justify-center mx-auto">
-                            <ExternalLink size={32} className="text-purple-400" />
+                    {amountReceived && parseFloat(amountReceived) > 0 && (
+                        <div className="mt-3 p-2 bg-emerald-500/20 rounded-lg flex justify-between items-center">
+                            <span className="text-[9px] text-emerald-400 font-black uppercase">Change</span>
+                            <span className="text-lg font-black text-emerald-400">₱{(parseFloat(amountReceived) - calculateTotal()).toFixed(2)}</span>
                         </div>
-                        <h3 className="text-white font-black text-lg">Payment Link Generated</h3>
-                        <p className="text-slate-400 text-sm">Share this link with the customer to complete payment</p>
+                    )}
+                </div>
+            )}
 
-                        <div className="bg-white/5 rounded-xl p-3">
-                            <p className="text-[8px] text-purple-400 font-black uppercase mb-1">Payment Link</p>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="text"
-                                    value={paymentLink}
-                                    readOnly
-                                    className="flex-1 px-3 py-2 bg-black/50 rounded-lg text-white text-xs font-mono"
+            {/* QR Payment Section */}
+            {paymentMethod === 'qr' && (
+                <div className="bg-linear-to-r from-blue-500/10 to-blue-600/5 rounded-xl p-4 border border-blue-500/20 text-center">
+                    {qrPaymentImage ? (
+                        <>
+                            <div className="bg-white p-4 rounded-2xl inline-block mb-3 shadow-xl">
+                                <img
+                                    src={getFullImageUrl(qrPaymentImage)}
+                                    alt="Payment QR Code"
+                                    className="w-48 h-48 object-contain"
+                                    onError={(e) => {
+                                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"%3E%3C/rect%3E%3Cline x1="3" y1="9" x2="21" y2="9"%3E%3C/line%3E%3C/svg%3E';
+                                    }}
                                 />
-                                <button
-                                    onClick={copyPaymentLink}
-                                    className="p-2 bg-purple-600/20 hover:bg-purple-600 rounded-lg transition-colors"
-                                >
-                                    {copied ? <CheckCircle size={16} className="text-emerald-400" /> : <Copy size={16} className="text-purple-400" />}
-                                </button>
                             </div>
-                        </div>
-
-                        <div className="bg-indigo-500/10 rounded-xl p-3">
-                            <p className="text-[8px] text-indigo-400 font-black uppercase">Total Amount</p>
-                            <p className="text-2xl font-black text-white">₱{calculateTotal().toFixed(2)}</p>
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
+                            <p className="text-[10px] text-blue-400 font-black uppercase tracking-wider">Scan to Pay</p>
+                            <p className="text-[8px] text-slate-500 mb-3">GCash / QRPh / Maya</p>
+                            <div className="bg-blue-500/20 rounded-lg p-2 mb-3">
+                                <p className="text-[8px] text-blue-400 font-black uppercase">Amount</p>
+                                <p className="text-lg font-black text-white">₱{calculateTotal().toFixed(2)}</p>
+                            </div>
                             <button
-                                onClick={() => {
-                                    setShowPaymentLink(false);
-                                    setPaymentModal(false);
-                                    resetOrder();
-                                }}
-                                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-bold text-sm"
+                                onClick={async () => await completeOrder('qr', calculateTotal())}
+                                disabled={isProcessing}
+                                className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-sm disabled:opacity-50 transition-all"
                             >
-                                Order Completed
+                                {isProcessing ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Mark as Paid'}
+                            </button>
+                        </>
+                    ) : (
+                        <div className="py-6">
+                            <QrCode size={48} className="mx-auto text-slate-600 mb-3" />
+                            <p className="text-sm text-amber-400 font-bold mb-2">No QR Code Available</p>
+                            <p className="text-[10px] text-slate-400 mb-4">Please upload a payment QR code in Profile Settings</p>
+                            <button
+                                onClick={() => window.open('/profile', '_blank')}
+                                className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all"
+                            >
+                                Go to Settings
                             </button>
                         </div>
+                    )}
+                </div>
+            )}
+
+            {/* Online Payment Section */}
+            {paymentMethod === 'online' && (
+                <div className="bg-linear-to-r from-purple-500/10 to-purple-600/5 rounded-xl p-4 border border-purple-500/20 text-center">
+                    {hasPayMongoKey ? (
+                        <>
+                            <CreditCard size={48} className="mx-auto text-purple-400 mb-3" />
+                            <p className="text-sm text-white font-bold mb-2">PayMongo Online Payment</p>
+                            <p className="text-[10px] text-slate-400 mb-4">Customer pays via GCash, PayMaya, or Credit/Debit Card</p>
+                            
+                            {/* Supported Payment Logos */}
+                            <div className="flex justify-center gap-4 mb-4">
+                                <div className="flex flex-col items-center">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                                        <span className="text-xs font-black text-emerald-400">GCash</span>
+                                    </div>
+                                    <span className="text-[8px] text-slate-500 mt-1">GCash</span>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                                        <span className="text-xs font-black text-blue-400">Maya</span>
+                                    </div>
+                                    <span className="text-[8px] text-slate-500 mt-1">PayMaya</span>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                                        <CreditCard size={16} className="text-purple-400" />
+                                    </div>
+                                    <span className="text-[8px] text-slate-500 mt-1">Card</span>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-purple-500/20 rounded-lg p-2 mb-4">
+                                <p className="text-[8px] text-purple-400 font-black uppercase">Total Amount</p>
+                                <p className="text-xl font-black text-white">₱{calculateTotal().toFixed(2)}</p>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="py-6">
+                            <CreditCard size={48} className="mx-auto text-slate-600 mb-3" />
+                            <p className="text-sm text-amber-400 font-bold mb-2">PayMongo Not Configured</p>
+                            <p className="text-[10px] text-slate-400 mb-4">Please add your PayMongo secret key in Payment Settings</p>
+                            <button
+                                onClick={() => window.open('/space/payment-settings', '_blank')}
+                                className="px-4 py-2 bg-amber-600/20 text-amber-400 rounded-lg text-[10px] font-black uppercase hover:bg-amber-600 hover:text-white transition-all"
+                            >
+                                Configure PayMongo
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Total Amount Card */}
+            <div className="bg-linear-to-r from-indigo-500/20 to-purple-500/20 rounded-xl p-4 border border-indigo-500/30">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <p className="text-[8px] text-indigo-400 font-black uppercase tracking-wider">Total Due</p>
+                        <p className="text-2xl font-black text-white">₱{calculateTotal().toFixed(2)}</p>
                     </div>
-                )}
-            </Modal>
+                    <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                        <Receipt size={20} className="text-indigo-400" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
+                <button
+                    onClick={() => setPaymentModal(false)}
+                    className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors rounded-xl"
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={processPayment}
+                    disabled={isProcessing || (paymentMethod === 'cash' && (!amountReceived || parseFloat(amountReceived) < calculateTotal()))}
+                    className="flex-1 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-lg shadow-emerald-900/20"
+                >
+                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                    {paymentMethod === 'online' ? 'Generate Payment Link' : 'Complete Payment'}
+                </button>
+            </div>
+        </div>
+    ) : (
+        // Payment Link Generated Screen
+        <div className="text-center py-4 space-y-5">
+            <div className="w-20 h-20 mx-auto bg-linear-to-r from-purple-500/20 to-purple-600/20 rounded-2xl flex items-center justify-center border border-purple-500/30">
+                <ExternalLink size={40} className="text-purple-400" />
+            </div>
+            
+            <div>
+                <h3 className="text-white font-black text-xl mb-1">Payment Link Generated!</h3>
+                <p className="text-slate-400 text-xs">Share this link with the customer to complete payment</p>
+            </div>
+
+            {/* Payment Link Box */}
+            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <p className="text-[8px] text-purple-400 font-black uppercase tracking-wider mb-2">Payment Link</p>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="text"
+                        value={paymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2.5 bg-black/50 rounded-lg text-white text-xs font-mono truncate"
+                    />
+                    <button
+                        onClick={copyPaymentLink}
+                        className="p-2.5 bg-purple-600/20 hover:bg-purple-600 rounded-lg transition-all"
+                    >
+                        {copied ? <CheckCircle size={16} className="text-emerald-400" /> : <Copy size={16} className="text-purple-400" />}
+                    </button>
+                </div>
+            </div>
+
+            {/* Amount Box */}
+            <div className="bg-linear-to-r from-indigo-500/20 to-purple-500/20 rounded-xl p-4 border border-indigo-500/30">
+                <p className="text-[8px] text-indigo-400 font-black uppercase tracking-wider">Total Amount</p>
+                <p className="text-3xl font-black text-white">₱{calculateTotal().toFixed(2)}</p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+                <button
+                    onClick={() => {
+                        setShowPaymentLink(false);
+                        setPaymentModal(false);
+                        resetOrder();
+                    }}
+                    className="flex-1 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 rounded-xl text-white font-bold text-sm transition-all shadow-lg shadow-emerald-900/20"
+                >
+                    <CheckCircle size={16} className="inline mr-2" />
+                    Order Completed
+                </button>
+            </div>
+        </div>
+    )}
+</Modal>
 
             <PaymentQRModal
                 isOpen={showPaymentQR}

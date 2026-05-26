@@ -69,6 +69,85 @@ class SpaceRoutes {
         this.router.post('/bookings/:id/apply-voucher', auth, (req, res, next) => BookingController.applyVoucher(req, res, next));
         this.router.post('/bookings/:id/:action', auth, (req, res, next) => BookingController.updateStatus(req, res, next));
 
+        // In spaceRoutes.js - update the webhook
+        this.router.post('/payment-webhook', async (req, res, next) => {
+            try {
+                console.log('📢 Payment webhook received:', JSON.stringify(req.body, null, 2));
+
+                const { event, data } = req.body;
+
+                if (event === 'payment.succeeded' || event === 'payment_intent.succeeded') {
+                    const orderNumber = data.order_number || data.metadata?.order_number;
+                    const paymentIntentId = data.payment_intent_id || data.id;
+                    const type = data.metadata?.type || 'order';
+
+                    console.log(`✅ Payment succeeded for: ${orderNumber} (type: ${type})`);
+
+                    if (orderNumber) {
+                        if (type === 'order') {
+                            // Update POS Order
+                            const Order = require('@/api/v1/models/schema/Order');
+                            const order = await Order.findOne({ order_number: orderNumber });
+                            if (order) {
+                                order.status = 'confirmed';
+                                order.payment_status = 'paid';
+                                order.payment_intent_id = paymentIntentId;
+                                await order.save();
+                                console.log(`✅ Order ${orderNumber} updated to confirmed`);
+                            }
+                        } else {
+                            // Update Booking
+                            const Booking = require('@/api/v1/models/schema/Booking');
+                            const booking = await Booking.findOne({ ticket_number: orderNumber });
+                            if (booking && booking.status === 'pending_payment') {
+                                booking.status = 'confirmed';
+                                booking.payment_status = 'paid';
+                                await booking.save();
+                                console.log(`✅ Booking ${orderNumber} updated to confirmed`);
+                            }
+                        }
+                    }
+                }
+
+                return res.status(200).json({ success: true });
+            } catch (error) {
+                console.error('Webhook error:', error);
+                return res.status(200).json({ success: false, error: error.message });
+            }
+        });
+
+        this.router.get('/payment-methods', auth, async (req, res, next) => {
+            try {
+                const userId = req.user?.sub || req.user?._id || req.user?.id;
+
+                // Get the user's payment methods from their profile
+                const User = require('@/api/v1/models/schema/User');
+                const user = await User.findById(userId).select('payment_methods');
+
+                const paymentMethodsFromUser = user?.payment_methods || ['gcash', 'maya', 'credit_card'];
+
+                // Map to frontend-friendly format
+                const methods = paymentMethodsFromUser.map(method => {
+                    const config = {
+                        gcash: { id: 'gcash', name: 'GCash', value: 'gcash', icon: 'smartphone', color: 'emerald' },
+                        maya: { id: 'maya', name: 'Maya', value: 'maya', icon: 'smartphone', color: 'blue' },
+                        credit_card: { id: 'credit_card', name: 'Credit/Debit Card', value: 'card', icon: 'credit-card', color: 'purple' },
+                        bank_transfer: { id: 'bank_transfer', name: 'Bank Transfer', value: 'bank_transfer', icon: 'landmark', color: 'indigo' },
+                        paypal: { id: 'paypal', name: 'PayPal', value: 'paypal', icon: 'wallet', color: 'blue' },
+                        cash: { id: 'cash', name: 'Cash', value: 'cash', icon: 'banknote', color: 'amber' }
+                    };
+                    return config[method] || { id: method, name: method, value: method, icon: 'credit-card', color: 'purple' };
+                });
+
+                return res.status(HTTP_STATUS.OK).json({
+                    success: true,
+                    data: methods
+                });
+            } catch (error) {
+                console.error('Get payment methods error:', error);
+                next(error);
+            }
+        });
         // ============ WALK-INS ============
         this.router.get('/walkins', auth, (req, res, next) => WalkinController.index(req, res, next));
         this.router.post('/walkins/store', auth, (req, res, next) => WalkinController.store(req, res, next));
@@ -111,7 +190,7 @@ class SpaceRoutes {
         this.router.get('/orders/recent', auth, (req, res, next) => POSController.getRecentOrders(req, res, next));
         this.router.post('/orders', auth, (req, res, next) => POSController.createOrder(req, res, next));
         this.router.put('/orders/:orderId/status', auth, (req, res, next) => POSController.updateOrderStatus(req, res, next));
-        
+
         this.router.get('/income/stats', auth, (req, res, next) => POSController.getIncomeStats(req, res, next));
 
         // ============ PAYMENT & QR ============
@@ -120,7 +199,7 @@ class SpaceRoutes {
         this.router.post('/payment/create-link', auth, (req, res, next) => PaymentController.createPaymentLink(req, res, next));
         this.router.get('/payment/verify/:paymentIntentId', auth, (req, res, next) => PaymentController.verifyPayment(req, res, next));
         this.router.get('/payment/key-status', auth, (req, res, next) => PaymentController.getPaymentKeyStatus(req, res, next));
-        
+
     }
 
     getRouter() {

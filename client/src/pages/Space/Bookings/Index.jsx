@@ -4,7 +4,7 @@ import { apiGet, apiPost } from '@/utils/Api';
 import {
     Clock, CheckCircle2, User, ReceiptText, LogIn, LogOut, Activity,
     XCircle, QrCode, Banknote, Loader2, BadgeCheck, AlertCircle, Users, UserPlus, Star,
-    Eye, DoorOpen, CheckCircle
+    Eye, DoorOpen, CheckCircle, CreditCard, Smartphone, Landmark, Wallet, Copy, ExternalLink
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { DataTable } from '@/components/ui/DataTable';
@@ -14,6 +14,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import PaymentQRModal from '@/components/PaymentQRModal';
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatPHTime = (dateStr) => new Date(dateStr).toLocaleTimeString('en-PH', {
     hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila'
@@ -121,7 +123,7 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, onAmountUpdate, booking }) =>
     );
 };
 // ─── Payment Panel ────────────────────────────────────────────────────────────
-const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onApplyVoucher }) => {
+const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onApplyVoucher, onOpenOnlinePayment }) => {
     const [method, setMethod] = useState('cash');
     const [received, setReceived] = useState('');
     const [voucherCode, setVoucherCode] = useState('');
@@ -144,17 +146,6 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
         booking?.space_id?.business_payment_qr ||
         booking?.business_payment_qr ||
         null;
-
-    useEffect(() => {
-        console.log('🔍 PaymentPanel - Rate debug:', {
-            room_rate: booking?.room_id?.rate_hour,
-            rate_per_hour: booking?.rate_per_hour,
-            space_rate: booking?.space_id?.rate_hour,
-            final_rate: ratePerHour,
-            booking_type: booking?.booking_type,
-            bookable_type: booking?.bookable_type
-        });
-    }, [booking, ratePerHour]);
 
     useEffect(() => {
         if (liveTotalAmount > 0) {
@@ -216,12 +207,6 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
         return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${path}`;
     };
 
-    // Get the appropriate location name (room or space)
-    const getLocationName = () => {
-        if (booking?.room_id?.name) return booking.room_id.name;
-        return booking?.space_id?.name;
-    };
-
     return (
         <div className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/5 overflow-hidden">
             {/* Booking Type Badge */}
@@ -238,28 +223,26 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
             <div className="px-5 pt-5 pb-3 border-b border-white/10">
                 <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Payment</p>
 
-                {/* Show rate info */}
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-[8px] text-slate-500">Rate</span>
                     <span className="text-[8px] text-white font-bold">₱{ratePerHour}/hour</span>
                 </div>
 
                 {(hasExistingVoucher || appliedVoucher) && (
-                    <div className="flex justify-between items-center mb-1">
-                        <span className="text-[8px] text-slate-500">Original amount</span>
-                        <span className="text-[10px] text-slate-500 line-through">
-                            ₱{(hasExistingVoucher ? originalAmount : currentTotal + voucherDiscount).toFixed(2)}
-                        </span>
-                    </div>
-                )}
-
-                {(hasExistingVoucher || appliedVoucher) && (
-                    <div className="flex justify-between items-center mb-2">
-                        <span className="text-[8px] text-emerald-400 font-bold uppercase">Voucher discount</span>
-                        <span className="text-[10px] text-emerald-400 font-bold">
-                            -₱{(hasExistingVoucher ? existingDiscount : voucherDiscount).toFixed(2)}
-                        </span>
-                    </div>
+                    <>
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-[8px] text-slate-500">Original amount</span>
+                            <span className="text-[10px] text-slate-500 line-through">
+                                ₱{(hasExistingVoucher ? originalAmount : currentTotal + voucherDiscount).toFixed(2)}
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-[8px] text-emerald-400 font-bold uppercase">Voucher discount</span>
+                            <span className="text-[10px] text-emerald-400 font-bold">
+                                -₱{(hasExistingVoucher ? existingDiscount : voucherDiscount).toFixed(2)}
+                            </span>
+                        </div>
+                    </>
                 )}
 
                 <div className="flex items-baseline justify-between">
@@ -284,9 +267,7 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
             {/* Voucher Input Section */}
             {!hasExistingVoucher && !appliedVoucher && (
                 <div className="px-4 pt-4 pb-2 border-b border-white/10">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                        Have a voucher?
-                    </p>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-2">Have a voucher?</p>
                     <div className="flex gap-2">
                         <input
                             type="text"
@@ -298,7 +279,7 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                         <button
                             onClick={handleApplyVoucher}
                             disabled={applyingVoucher || !voucherCode.trim()}
-                            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest disabled:opacity-50"
+                            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[9px] font-black uppercase disabled:opacity-50"
                         >
                             {applyingVoucher ? <Loader2 size={12} className="animate-spin" /> : 'Apply'}
                         </button>
@@ -308,23 +289,18 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
 
             {appliedVoucher && !hasExistingVoucher && (
                 <div className="px-4 pt-2 pb-2">
-                    <button
-                        onClick={handleRemoveVoucher}
-                        className="text-[8px] text-red-400 hover:text-red-300"
-                    >
-                        Remove voucher
-                    </button>
+                    <button onClick={handleRemoveVoucher} className="text-[8px] text-red-400 hover:text-red-300">Remove voucher</button>
                 </div>
             )}
 
-            {/* Method toggle */}
+            {/* Method toggle - 3 options */}
             <div className="flex gap-2 p-4">
                 <button
                     onClick={() => setMethod('cash')}
                     className={cn(
                         "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 border transition-all",
                         method === 'cash'
-                            ? "bg-emerald-500 border-emerald-500 text-black shadow-lg shadow-emerald-900/30"
+                            ? "bg-emerald-500 border-emerald-500 text-black shadow-lg"
                             : "border-white/10 text-slate-500 hover:border-white/20"
                     )}
                 >
@@ -335,11 +311,27 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                     className={cn(
                         "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 border transition-all",
                         method === 'qr'
-                            ? "bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-900/30"
+                            ? "bg-blue-500 border-blue-500 text-white shadow-lg"
                             : "border-white/10 text-slate-500 hover:border-white/20"
                     )}
                 >
                     <QrCode size={13} /> GCash / QR
+                </button>
+                <button
+                    onClick={() => {
+                        // Call parent to open PaymentQRModal
+                        if (onOpenOnlinePayment) {
+                            onOpenOnlinePayment({
+                                amount: finalTotal,
+                                orderNumber: booking.ticket_number,  // Force use ticket_number for bookings
+                                bookingId: booking._id,
+                                spaceId: booking.space_id?._id  // Add this
+                            });
+                        }
+                    }}
+                    className="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 border transition-all bg-purple-600/20 border-purple-500/50 text-purple-400 hover:bg-purple-600 hover:text-white"
+                >
+                    <CreditCard size={13} /> Online
                 </button>
             </div>
 
@@ -347,47 +339,36 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
             {method === 'cash' && (
                 <div className="px-4 pb-4 space-y-3">
                     <div>
-                        <p className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
-                            Cash Received
-                        </p>
+                        <p className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">Cash Received</p>
                         <div className="relative">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-lg select-none">₱</span>
                             <input
                                 type="number"
                                 min={0}
                                 step="0.01"
-                                className="w-full bg-black/50 border border-white/10 pl-8 pr-4 py-3 rounded-xl text-white font-black text-lg focus:border-emerald-500 outline-none transition-all"
+                                className="w-full bg-black/50 border border-white/10 pl-8 pr-4 py-3 rounded-xl text-white font-black text-lg focus:border-emerald-500 outline-none"
                                 placeholder="0.00"
                                 value={received}
                                 onChange={(e) => setReceived(e.target.value)}
                             />
                         </div>
                     </div>
-
                     {numericReceived > 0 && (
                         <div className={cn(
                             "p-3 rounded-xl border flex justify-between items-center",
-                            cashValid
-                                ? "bg-emerald-500/10 border-emerald-500/20"
-                                : "bg-red-500/10 border-red-500/20"
+                            cashValid ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
                         )}>
                             <span className={cn(
                                 "text-[10px] font-black uppercase flex items-center gap-1.5",
                                 cashValid ? "text-emerald-400" : "text-red-400"
                             )}>
-                                {cashValid
-                                    ? <><BadgeCheck size={11} /> Change</>
-                                    : <><AlertCircle size={11} /> Short by</>
-                                }
+                                {cashValid ? <><BadgeCheck size={11} /> Change</> : <><AlertCircle size={11} /> Short by</>}
                             </span>
                             <span className={cn(
                                 "text-xl font-[1000] italic tracking-tighter",
                                 cashValid ? "text-emerald-400" : "text-red-400"
                             )}>
-                                ₱{cashValid
-                                    ? change.toFixed(2)
-                                    : ((hasExistingVoucher ? currentTotal : finalTotal) - numericReceived).toFixed(2)
-                                }
+                                ₱{cashValid ? change.toFixed(2) : ((hasExistingVoucher ? currentTotal : finalTotal) - numericReceived).toFixed(2)}
                             </span>
                         </div>
                     )}
@@ -407,48 +388,28 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                                         className="w-48 h-48 object-contain"
                                         onError={(e) => {
                                             console.error('QR failed to load:', qrPaymentImage);
-                                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Crect x="3" y="3" width="18" height="18" rx="2" ry="2"%3E%3C/rect%3E%3Cline x1="3" y1="9" x2="21" y2="9"%3E%3C/line%3E%3Cline x1="9" y1="21" x2="9" y2="15"%3E%3C/line%3E%3C/svg%3E';
+                                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"%3E%3C/rect%3E%3Cline x1="3" y1="9" x2="21" y2="9"%3E%3C/line%3E%3C/svg%3E';
                                         }}
                                     />
                                 </div>
                             </div>
-                            <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest mb-1">
-                                Customer scans to pay
-                            </p>
-                            <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
-                                GCash / QRPh / Maya
-                            </p>
+                            <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest mb-1">Customer scans to pay</p>
+                            <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">GCash / QRPh / Maya</p>
                             <div className="mt-2 p-2 bg-blue-500/10 rounded-lg">
-                                <p className="text-[8px] text-blue-400 font-mono">
-                                    Amount: ₱{(hasExistingVoucher ? currentTotal : finalTotal).toFixed(2)}
-                                </p>
+                                <p className="text-[8px] text-blue-400 font-mono">Amount: ₱{(hasExistingVoucher ? currentTotal : finalTotal).toFixed(2)}</p>
                             </div>
                         </>
                     ) : (
                         <div className="py-6">
-                            <div className="w-20 h-20 mx-auto bg-slate-800 rounded-2xl flex items-center justify-center mb-3">
-                                <QrCode size={40} className="text-slate-600" />
-                            </div>
-                            <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest">
-                                No QR code available
-                            </p>
-                            <p className="text-[8px] text-slate-700 mt-1">
-                                Please contact the space owner
-                            </p>
-                            <button
-                                onClick={() => {
-                                    if (onApplyVoucher) onApplyVoucher(booking);
-                                }}
-                                className="mt-3 px-3 py-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg text-[8px] font-black uppercase"
-                            >
-                                Refresh
-                            </button>
+                            <div className="w-20 h-20 mx-auto bg-slate-800 rounded-2xl flex items-center justify-center mb-3"><QrCode size={40} className="text-slate-600" /></div>
+                            <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest">No QR code available</p>
+                            <p className="text-[8px] text-slate-700 mt-1">Please contact the space owner</p>
                         </div>
                     )}
                 </div>
             )}
 
-            {/* Confirm */}
+            {/* Confirm Button */}
             <div className="px-4 pb-5">
                 <button
                     disabled={isSubmitting || (method === 'cash' && !cashValid) || currentTotal === 0}
@@ -460,22 +421,16 @@ const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onAp
                     })}
                     className={cn(
                         "w-full py-4 rounded-2xl font-black uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl",
-                        method === 'cash'
-                            ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20 text-white"
-                            : "bg-blue-600 hover:bg-blue-500 shadow-blue-900/20 text-white",
+                        method === 'cash' ? "bg-emerald-600 hover:bg-emerald-500" : "bg-blue-600 hover:bg-blue-500",
                         (isSubmitting || (method === 'cash' && !cashValid) || currentTotal === 0) && "opacity-30 cursor-not-allowed"
                     )}
                 >
-                    {isSubmitting
-                        ? <><Loader2 size={14} className="animate-spin" /> Processing...</>
-                        : <><BadgeCheck size={14} /> Confirm & Complete Session</>
-                    }
+                    {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Processing...</> : <><BadgeCheck size={14} /> Confirm & Complete Session</>}
                 </button>
             </div>
         </div>
     );
 };
-
 // ─── Receipt ──────────────────────────────────────────────────────────────────
 const ReceiptScreen = ({ booking, onClose }) => {
     const [showReviewQR, setShowReviewQR] = useState(false);
@@ -557,6 +512,7 @@ const BookingsIndex = () => {
     const [currentParams, setCurrentParams] = useState({ page: 1, search: '' });
     const [bookingType, setBookingType] = useState('all');
 
+
     const [reviewQrUrl, setReviewQrUrl] = useState(null);
 
     // Modal state
@@ -576,42 +532,60 @@ const BookingsIndex = () => {
     const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
     const [fetchingRooms, setFetchingRooms] = useState(false);
 
+    const [showPaymentQRModal, setShowPaymentQRModal] = useState(false);
+    const [paymentQRData, setPaymentQRData] = useState({ amount: 0, orderNumber: '', bookingId: '' });
+
+    const handleOpenOnlinePayment = ({ amount, orderNumber, bookingId, spaceId }) => {
+        setPaymentQRData({ amount, orderNumber, bookingId, spaceId });
+        setShowPaymentQRModal(true);
+    };
+
+
+    const handleOnlinePaymentComplete = async (orderNumber) => {
+        showToast({ icon: 'success', title: 'Payment confirmed!', text: `Order ${orderNumber} is now being prepared.` });
+        // Refresh the booking to update status
+        await fetchData();
+        // Close the modal
+        setShowPaymentQRModal(false);
+        // Close the booking modal
+        closeModal();
+    };
 
     const fetchRoomsWithAvailability = async (spaceId) => {
-    if (!spaceId) return;
-    
-    setFetchingRooms(true);
-    try {
-        // Get today's date in YYYY-MM-DD format
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Fetch all rooms for this space
-        const roomsRes = await apiGet(`/space/spaces/${spaceId}/rooms`);
-        const rooms = roomsRes.data || [];
-        
-        // Check availability for each room for today
-        const roomsWithStatus = await Promise.all(
-            rooms.map(async (room) => {
-                try {
-                    const availRes = await apiGet(`/landing/rooms/${room._id}/availability?date=${today}&is_open_time=true`);
-                    return {
-                        ...room,
-                        is_available: availRes.success ? availRes.data.is_available : true
-                    };
-                } catch (err) {
-                    return { ...room, is_available: true };
-                }
-            })
-        );
-        
-        setRoomsWithAvailability(roomsWithStatus);
-    } catch (err) {
-        console.error('Failed to fetch rooms with availability:', err);
-        setRoomsWithAvailability([]);
-    } finally {
-        setFetchingRooms(false);
-    }
-};
+        if (!spaceId) return;
+
+        setFetchingRooms(true);
+        try {
+            // Get today's date in YYYY-MM-DD format
+            const today = new Date().toISOString().split('T')[0];
+
+            // Fetch all rooms for this space
+            const roomsRes = await apiGet(`/space/spaces/${spaceId}/rooms`);
+            const rooms = roomsRes.data || [];
+
+            // Check availability for each room for today
+            const roomsWithStatus = await Promise.all(
+                rooms.map(async (room) => {
+                    try {
+                        const availRes = await apiGet(`/landing/rooms/${room._id}/availability?date=${today}&is_open_time=true`);
+                        return {
+                            ...room,
+                            is_available: availRes.success ? availRes.data.is_available : true
+                        };
+                    } catch (err) {
+                        return { ...room, is_available: true };
+                    }
+                })
+            );
+
+            setRoomsWithAvailability(roomsWithStatus);
+        } catch (err) {
+            console.error('Failed to fetch rooms with availability:', err);
+            setRoomsWithAvailability([]);
+        } finally {
+            setFetchingRooms(false);
+        }
+    };
 
     // Fetch full booking details (including room info)
     const fetchBookingDetails = async (bookingId) => {
@@ -1095,163 +1069,162 @@ const BookingsIndex = () => {
                 </Button>
             </div>
 
-          <Modal open={showWalkinModal} onClose={() => setShowWalkinModal(false)} title="New Walk-in Check-in" size="md" variant="dark">
-    <form onSubmit={handleWalkinCheckin} className="space-y-4">
-        <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Select Space</label>
-            <select
-                required
-                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
-                value={walkinForm.space_id}
-                onChange={async (e) => {
-                    const spaceId = e.target.value;
-                    setWalkinForm({ ...walkinForm, space_id: spaceId, room_id: '' });
-                    if (spaceId) {
-                        // Fetch rooms for this space with today's availability
-                        await fetchRoomsWithAvailability(spaceId);
-                    }
-                }}
-            >
-                <option value="" className="bg-[#111114]">Choose space...</option>
-                {spaces.map(s => (
-                    <option key={s._id} value={s._id} className="bg-[#111114]">{s.name}</option>
-                ))}
-            </select>
-        </div>
+            <Modal open={showWalkinModal} onClose={() => setShowWalkinModal(false)} title="New Walk-in Check-in" size="md" variant="dark">
+                <form onSubmit={handleWalkinCheckin} className="space-y-4">
+                    <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Select Space</label>
+                        <select
+                            required
+                            className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                            value={walkinForm.space_id}
+                            onChange={async (e) => {
+                                const spaceId = e.target.value;
+                                setWalkinForm({ ...walkinForm, space_id: spaceId, room_id: '' });
+                                if (spaceId) {
+                                    // Fetch rooms for this space with today's availability
+                                    await fetchRoomsWithAvailability(spaceId);
+                                }
+                            }}
+                        >
+                            <option value="" className="bg-[#111114]">Choose space...</option>
+                            {spaces.map(s => (
+                                <option key={s._id} value={s._id} className="bg-[#111114]">{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
 
-        {/* Room Selection with Today's Availability */}
-        {walkinForm.space_id && (
-            <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                    Select Room (Optional - Leave empty for hot desk)
-                </label>
-                <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
-                    {roomsWithAvailability.length === 0 ? (
-                        <div className="p-3 bg-white/5 rounded-xl text-center">
-                            <p className="text-[10px] text-slate-500">No rooms available today</p>
-                        </div>
-                    ) : (
-                        roomsWithAvailability.map((room) => (
-                            <div
-                                key={room._id}
-                                onClick={() => {
-                                    if (room.is_available) {
-                                        setWalkinForm({ ...walkinForm, room_id: room._id });
-                                    }
-                                }}
-                                className={`p-3 rounded-xl border transition-all cursor-pointer ${
-                                    walkinForm.room_id === room._id
-                                        ? 'border-emerald-500 bg-emerald-500/10'
-                                        : room.is_available
-                                        ? 'border-white/10 hover:border-emerald-500/50'
-                                        : 'border-red-500/30 bg-red-500/5 opacity-60 cursor-not-allowed'
-                                }`}
-                            >
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-bold text-white">{room.name}</p>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <Users size={12} className="text-slate-400" />
-                                            <span className="text-[10px] text-slate-400">Up to {room.capacity}</span>
-                                            <span className="text-[10px] text-emerald-400">₱{room.rate_hour}/hr</span>
-                                        </div>
+                    {/* Room Selection with Today's Availability */}
+                    {walkinForm.space_id && (
+                        <div>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                Select Room (Optional - Leave empty for hot desk)
+                            </label>
+                            <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                                {roomsWithAvailability.length === 0 ? (
+                                    <div className="p-3 bg-white/5 rounded-xl text-center">
+                                        <p className="text-[10px] text-slate-500">No rooms available today</p>
                                     </div>
-                                    {!room.is_available ? (
-                                        <span className="text-[8px] bg-red-500/20 text-red-400 px-2 py-1 rounded">
-                                            Booked Today
-                                        </span>
-                                    ) : walkinForm.room_id === room._id ? (
-                                        <CheckCircle size={16} className="text-emerald-500" />
-                                    ) : (
-                                        <div className="w-4 h-4 rounded-full border border-white/20" />
-                                    )}
-                                </div>
-                                {room.is_airconditioned && (
-                                    <span className="inline-block mt-2 text-[8px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
-                                        Airconditioned
-                                    </span>
+                                ) : (
+                                    roomsWithAvailability.map((room) => (
+                                        <div
+                                            key={room._id}
+                                            onClick={() => {
+                                                if (room.is_available) {
+                                                    setWalkinForm({ ...walkinForm, room_id: room._id });
+                                                }
+                                            }}
+                                            className={`p-3 rounded-xl border transition-all cursor-pointer ${walkinForm.room_id === room._id
+                                                ? 'border-emerald-500 bg-emerald-500/10'
+                                                : room.is_available
+                                                    ? 'border-white/10 hover:border-emerald-500/50'
+                                                    : 'border-red-500/30 bg-red-500/5 opacity-60 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="text-sm font-bold text-white">{room.name}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <Users size={12} className="text-slate-400" />
+                                                        <span className="text-[10px] text-slate-400">Up to {room.capacity}</span>
+                                                        <span className="text-[10px] text-emerald-400">₱{room.rate_hour}/hr</span>
+                                                    </div>
+                                                </div>
+                                                {!room.is_available ? (
+                                                    <span className="text-[8px] bg-red-500/20 text-red-400 px-2 py-1 rounded">
+                                                        Booked Today
+                                                    </span>
+                                                ) : walkinForm.room_id === room._id ? (
+                                                    <CheckCircle size={16} className="text-emerald-500" />
+                                                ) : (
+                                                    <div className="w-4 h-4 rounded-full border border-white/20" />
+                                                )}
+                                            </div>
+                                            {room.is_airconditioned && (
+                                                <span className="inline-block mt-2 text-[8px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
+                                                    Airconditioned
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))
                                 )}
                             </div>
-                        ))
+                            <p className="text-[8px] text-slate-600 mt-1">
+                                {walkinForm.room_id ? 'Guest will use private room' : 'Guest will use hot desk / open area'}
+                            </p>
+                        </div>
                     )}
-                </div>
-                <p className="text-[8px] text-slate-600 mt-1">
-                    {walkinForm.room_id ? 'Guest will use private room' : 'Guest will use hot desk / open area'}
-                </p>
-            </div>
-        )}
 
-        <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Guest Name</label>
-            <input
-                type="text"
-                required
-                placeholder="Enter guest name"
-                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
-                value={walkinForm.name}
-                onChange={(e) => setWalkinForm({ ...walkinForm, name: e.target.value })}
-            />
-        </div>
+                    <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Guest Name</label>
+                        <input
+                            type="text"
+                            required
+                            placeholder="Enter guest name"
+                            className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                            value={walkinForm.name}
+                            onChange={(e) => setWalkinForm({ ...walkinForm, name: e.target.value })}
+                        />
+                    </div>
 
-        <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-2xl">
-            <span className="text-[10px] font-black text-white uppercase tracking-widest">Open Time (Timer counts up)</span>
-            <input
-                type="checkbox"
-                className="w-5 h-5 accent-emerald-500"
-                checked={walkinForm.is_open_time}
-                onChange={(e) => setWalkinForm({ ...walkinForm, is_open_time: e.target.checked })}
-            />
-        </div>
+                    <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-2xl">
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Open Time (Timer counts up)</span>
+                        <input
+                            type="checkbox"
+                            className="w-5 h-5 accent-emerald-500"
+                            checked={walkinForm.is_open_time}
+                            onChange={(e) => setWalkinForm({ ...walkinForm, is_open_time: e.target.checked })}
+                        />
+                    </div>
 
-        {!walkinForm.is_open_time && (
-            <div className="grid grid-cols-2 gap-3">
-                <div>
-                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Start Time</label>
-                    <input
-                        type="time"
-                        required
-                        className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
-                        value={walkinForm.start_time}
-                        onChange={(e) => setWalkinForm({ ...walkinForm, start_time: e.target.value })}
-                    />
-                </div>
-                <div>
-                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">End Time</label>
-                    <input
-                        type="time"
-                        required
-                        className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
-                        value={walkinForm.end_time}
-                        onChange={(e) => setWalkinForm({ ...walkinForm, end_time: e.target.value })}
-                    />
-                </div>
-            </div>
-        )}
+                    {!walkinForm.is_open_time && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Start Time</label>
+                                <input
+                                    type="time"
+                                    required
+                                    className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                                    value={walkinForm.start_time}
+                                    onChange={(e) => setWalkinForm({ ...walkinForm, start_time: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">End Time</label>
+                                <input
+                                    type="time"
+                                    required
+                                    className="w-full mt-2 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm"
+                                    value={walkinForm.end_time}
+                                    onChange={(e) => setWalkinForm({ ...walkinForm, end_time: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    )}
 
-        {/* Show rate based on selection */}
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
-            <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">Rate Info</p>
-            <p className="text-xs text-white font-bold mt-1">
-                ₱{walkinForm.room_id 
-                    ? roomsWithAvailability.find(r => r._id === walkinForm.room_id)?.rate_hour 
-                    : spaces.find(s => s._id === walkinForm.space_id)?.rate_hour || 0}/hour
-            </p>
-            <p className="text-[8px] text-slate-500 mt-1">
-                {walkinForm.room_id ? 'Private room rate applied' : 'Open area / hot desk rate applied'}
-            </p>
-        </div>
+                    {/* Show rate based on selection */}
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                        <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">Rate Info</p>
+                        <p className="text-xs text-white font-bold mt-1">
+                            ₱{walkinForm.room_id
+                                ? roomsWithAvailability.find(r => r._id === walkinForm.room_id)?.rate_hour
+                                : spaces.find(s => s._id === walkinForm.space_id)?.rate_hour || 0}/hour
+                        </p>
+                        <p className="text-[8px] text-slate-500 mt-1">
+                            {walkinForm.room_id ? 'Private room rate applied' : 'Open area / hot desk rate applied'}
+                        </p>
+                    </div>
 
-        <div className="flex gap-3 pt-4">
-            <button type="button" onClick={() => setShowWalkinModal(false)} className="flex-1 py-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
-                Cancel
-            </button>
-            <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-2xl bg-emerald-600 text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all disabled:opacity-50">
-                {submitting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                Check In
-            </button>
-        </div>
-    </form>
-</Modal>
+                    <div className="flex gap-3 pt-4">
+                        <button type="button" onClick={() => setShowWalkinModal(false)} className="flex-1 py-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-2xl bg-emerald-600 text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all disabled:opacity-50">
+                            {submitting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                            Check In
+                        </button>
+                    </div>
+                </form>
+            </Modal>
 
             <DataTable
                 columns={columns}
@@ -1438,17 +1411,27 @@ const BookingsIndex = () => {
                                     booking={booking}
                                 />
                                 <PaymentPanel
-                                    booking={booking}
+                                    booking={selectedQR}
                                     liveTotalAmount={liveAmount}
                                     onComplete={handlePaymentComplete}
                                     isSubmitting={isSubmitting}
                                     onApplyVoucher={handleApplyVoucher}
+                                    onOpenOnlinePayment={handleOpenOnlinePayment}
                                 />
                             </>
                         )}
                     </>
                 )}
             </Modal>
+
+           <PaymentQRModal
+    isOpen={showPaymentQRModal}
+    onClose={() => setShowPaymentQRModal(false)}
+    orderNumber={paymentQRData.orderNumber}
+    amount={paymentQRData.amount}
+    spaceId={paymentQRData.spaceId}  // Add this
+    onPaymentComplete={handleOnlinePaymentComplete}
+/>
 
             {/* ── REVIEW QR MODAL ── */}
             <Modal
