@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
 import { DataTable } from '@/components/ui/DataTable';
 import { showToast } from '@/components/ui/SweetAlert2';
-import PaymentQRModal from '@/components/PaymentQRModal';
+import PaymentQRModal from '@/components/modal/PaymentQRModal';
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';

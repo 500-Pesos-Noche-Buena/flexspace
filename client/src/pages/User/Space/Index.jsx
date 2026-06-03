@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiGet } from '@/utils/Api';
-import { 
-    Search, MapPin, Loader2, ArrowRight, LayoutGrid, Coins, Star, Clock, 
+import {
+    Search, MapPin, Loader2, ArrowRight, LayoutGrid, Coins, Star, Clock,
     Users, Filter, X, Grid3x3, List, Wifi, Coffee, ParkingCircle, Wind,
     Sparkles, TrendingUp, ChevronDown, ChevronUp, Heart
 } from 'lucide-react';
@@ -47,26 +47,26 @@ const SpaceIndex = () => {
         } else {
             setLoading(true);
         }
-        
+
         try {
             const districtParam = selectedDistrict !== 'All' ? `&district=${selectedDistrict}` : '';
             const sortParam = `&sort=${sortBy}`;
             const priceParam = `&minPrice=${priceRange.min}&maxPrice=${priceRange.max}`;
-            
+
             const res = await apiGet(`/user/spaces?search=${search}${districtParam}${sortParam}${priceParam}&page=${pageNum}&limit=12`);
-            
+
             const newSpaces = res.data || [];
             const total = res.total || 0;
-            
+
             setTotalCount(total);
             setHasMore(pageNum * 12 < total);
-            
+
             if (isLoadMore) {
                 setSpaces(prev => [...prev, ...newSpaces]);
             } else {
                 setSpaces(newSpaces);
             }
-            
+
             // Get user points
             const bookingsRes = await apiGet('/user/bookings?limit=1');
             if (bookingsRes.data?.points !== undefined) {
@@ -98,7 +98,7 @@ const SpaceIndex = () => {
     // Infinite scroll observer
     useEffect(() => {
         if (loadingMore) return;
-        
+
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
@@ -109,11 +109,11 @@ const SpaceIndex = () => {
             },
             { threshold: 0.1, rootMargin: '100px' }
         );
-        
+
         if (lastSpaceRef.current) {
             observer.observe(lastSpaceRef.current);
         }
-        
+
         return () => observer.disconnect();
     }, [hasMore, loading, loadingMore, page, spaces.length]);
 
@@ -145,14 +145,14 @@ const SpaceIndex = () => {
     const getTodayHours = (space) => {
         if (space?.hours_json) {
             try {
-                const hours = typeof space.hours_json === 'string' 
-                    ? JSON.parse(space.hours_json) 
+                const hours = typeof space.hours_json === 'string'
+                    ? JSON.parse(space.hours_json)
                     : space.hours_json;
-                
+
                 const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                 const today = days[new Date().getDay()];
                 const todayHours = hours[today];
-                
+
                 if (todayHours && todayHours.active) {
                     return `${formatTimeToAMPM(todayHours.open)} - ${formatTimeToAMPM(todayHours.close)}`;
                 }
@@ -184,7 +184,7 @@ const SpaceIndex = () => {
             <header className="relative bg-white border-b border-slate-100 pt-10 sm:pt-16 pb-12 sm:pb-16 px-5 sm:px-8 overflow-hidden">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50 rounded-full blur-3xl opacity-50 z-0" />
                 <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-50 rounded-full blur-3xl opacity-30 z-0" />
-                
+
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
                         <div className="max-w-2xl">
@@ -195,7 +195,7 @@ const SpaceIndex = () => {
                                 </span>
                             </div>
                             <h1 className="text-[2.5rem] sm:text-5xl lg:text-6xl font-[1000] italic tracking-tighter uppercase text-slate-900 leading-[0.9] mb-4">
-                                Find Your <br /> 
+                                Find Your <br />
                                 <span className="text-indigo-600 bg-linear-to-r from-indigo-600 to-indigo-500 bg-clip-text">
                                     Perfect Workspace.
                                 </span>
@@ -236,7 +236,7 @@ const SpaceIndex = () => {
                                 onChange={(e) => setSearch(e.target.value)}
                             />
                         </div>
-                        
+
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
@@ -246,7 +246,7 @@ const SpaceIndex = () => {
                                 Filters
                                 {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             </button>
-                            
+
                             <div className="flex bg-slate-100 rounded-xl p-1">
                                 <button
                                     onClick={() => setViewMode('grid')}
@@ -282,8 +282,8 @@ const SpaceIndex = () => {
                                             onClick={() => setSelectedDistrict('All')}
                                             className={cn(
                                                 "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
-                                                selectedDistrict === 'All' 
-                                                    ? "bg-indigo-600 text-white shadow-md" 
+                                                selectedDistrict === 'All'
+                                                    ? "bg-indigo-600 text-white shadow-md"
                                                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                                             )}
                                         >
@@ -295,8 +295,8 @@ const SpaceIndex = () => {
                                                 onClick={() => setSelectedDistrict(district.name)}
                                                 className={cn(
                                                     "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
-                                                    selectedDistrict === district.name 
-                                                        ? "bg-indigo-600 text-white shadow-md" 
+                                                    selectedDistrict === district.name
+                                                        ? "bg-indigo-600 text-white shadow-md"
                                                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                                                 )}
                                             >
@@ -316,8 +316,8 @@ const SpaceIndex = () => {
                                                 onClick={() => setSortBy(option.value)}
                                                 className={cn(
                                                     "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1",
-                                                    sortBy === option.value 
-                                                        ? "bg-indigo-600 text-white shadow-md" 
+                                                    sortBy === option.value
+                                                        ? "bg-indigo-600 text-white shadow-md"
                                                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                                                 )}
                                             >
@@ -381,13 +381,13 @@ const SpaceIndex = () => {
                         {/* Grid/List View */}
                         <div className={cn(
                             "grid gap-6",
-                            viewMode === 'grid' 
-                                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
+                            viewMode === 'grid'
+                                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                                 : "grid-cols-1"
                         )}>
                             {spaces.map((space, index) => (
-                                <div 
-                                    key={space._id} 
+                                <div
+                                    key={space._id}
                                     ref={index === spaces.length - 1 ? lastSpaceRef : null}
                                     onClick={() => handleSpaceClick(space._id)}
                                     className={cn(
@@ -400,9 +400,9 @@ const SpaceIndex = () => {
                                         "relative rounded-2xl bg-slate-100 overflow-hidden",
                                         viewMode === 'list' ? "w-48 h-32 shrink-0" : "h-44 mb-4"
                                     )}>
-                                        <img 
-                                            src={getPrimaryImage(space)} 
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                        <img
+                                            src={getPrimaryImage(space)}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                             alt={space.name}
                                             onError={(e) => { e.target.src = '/placeholder.jpg'; }}
                                         />
@@ -418,17 +418,18 @@ const SpaceIndex = () => {
                                     </div>
 
                                     {/* Content */}
-                                    <div className={cn("flex-1", viewMode === 'list' ? "flex flex-col" : "")}>
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <h3 className="text-slate-900 font-[1000] text-base tracking-tight line-clamp-1">
+                                    <div className={cn("flex-1 min-w-0", viewMode === 'list' ? "flex flex-col" : "")}>
+                                        <div className="flex justify-between items-start gap-2 mb-2">
+                                            <div className="flex-1 min-w-0"> {/* Add min-w-0 to allow truncation */}
+                                                <h3 className="text-slate-900 font-[1000] text-base tracking-tight truncate">
                                                     {space.name}
                                                 </h3>
-                                                <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1 mt-0.5">
-                                                    <MapPin size={10} /> {space.location}
+                                                <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1 mt-0.5 truncate">
+                                                    <MapPin size={10} className="shrink-0" />
+                                                    <span className="truncate">{space.location || space.area || 'Location not set'}</span>
                                                 </p>
                                             </div>
-                                            <div className="text-right">
+                                            <div className="text-right shrink-0">
                                                 <p className="text-lg font-black text-indigo-600">₱{space.rate_hour}</p>
                                                 <p className="text-[8px] text-slate-400 -mt-1">/hour</p>
                                             </div>
@@ -438,12 +439,12 @@ const SpaceIndex = () => {
                                         {getDisplayAmenities(space.amenities).length > 0 && (
                                             <div className="flex flex-wrap gap-1.5 mt-2">
                                                 {getDisplayAmenities(space.amenities).map((amenity, idx) => (
-                                                    <span key={idx} className="px-2 py-0.5 bg-slate-100 rounded-full text-[8px] text-slate-600 font-bold uppercase tracking-wider">
+                                                    <span key={idx} className="px-2 py-0.5 bg-slate-100 rounded-full text-[8px] text-slate-600 font-bold uppercase tracking-wider whitespace-nowrap">
                                                         {amenity}
                                                     </span>
                                                 ))}
                                                 {space.amenities?.length > 3 && (
-                                                    <span className="px-2 py-0.5 bg-slate-100 rounded-full text-[8px] text-slate-400 font-bold">
+                                                    <span className="px-2 py-0.5 bg-slate-100 rounded-full text-[8px] text-slate-400 font-bold whitespace-nowrap">
                                                         +{space.amenities.length - 3}
                                                     </span>
                                                 )}
@@ -451,21 +452,21 @@ const SpaceIndex = () => {
                                         )}
 
                                         {/* Quick Stats */}
-                                        <div className="flex items-center gap-4 mt-3 text-[9px] text-slate-500">
+                                        <div className="flex items-center gap-4 mt-3 text-[9px] text-slate-500 flex-wrap">
                                             {space.capacity > 0 && (
                                                 <div className="flex items-center gap-1">
-                                                    <Users size={10} />
+                                                    <Users size={10} className="shrink-0" />
                                                     <span>{space.capacity} seats</span>
                                                 </div>
                                             )}
                                             <div className="flex items-center gap-1">
-                                                <Clock size={10} />
-                                                <span>{getTodayHours(space)}</span>
+                                                <Clock size={10} className="shrink-0" />
+                                                <span className="truncate">{getTodayHours(space)}</span>
                                             </div>
                                         </div>
 
                                         {/* Action Button */}
-                                        <button 
+                                        <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleSpaceClick(space._id);

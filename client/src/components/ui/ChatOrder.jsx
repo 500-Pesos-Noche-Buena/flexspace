@@ -151,7 +151,7 @@ const ChatOrder = ({ onClose, onOrderComplete }) => {
     const calculateTotal = () => calculateSubtotal() + calculateTax();
 
     const handleCheckout = () => {
-        console.log('Checkout clicked - activeSpace:', activeSpace, 'cart length:', cart.length);
+        // console.log('Checkout clicked - activeSpace:', activeSpace, 'cart length:', cart.length);
         
         if (!activeSpace) {
             showToast({ icon: 'warning', title: 'No Active Session', text: 'You need an active booking to order food.' });
@@ -161,7 +161,7 @@ const ChatOrder = ({ onClose, onOrderComplete }) => {
             showToast({ icon: 'warning', title: 'Cart is empty', text: 'Please add items to your cart first.' });
             return;
         }
-        console.log('Opening payment modal');
+        // console.log('Opening payment modal');
         setPaymentModal(true);
     };
 

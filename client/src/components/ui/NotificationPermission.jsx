@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Volume2, VolumeX, CheckCircle, XCircle } from 'lucide-react';
+import { Bell, Volume2, VolumeX, CheckCircle, XCircle, X } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 
 const NotificationPermission = ({ onPermissionGranted }) => {
     const [permission, setPermission] = useState(Notification.permission);
     const [audioAllowed, setAudioAllowed] = useState(false);
+    const [visible, setVisible] = useState(true);
 
     useEffect(() => {
         // Check if notification permission is already granted
@@ -12,7 +13,7 @@ const NotificationPermission = ({ onPermissionGranted }) => {
             setPermission('granted');
             onPermissionGranted?.(true);
         }
-    }, []);
+    }, [onPermissionGranted]);
 
     const requestNotificationPermission = async () => {
         try {
@@ -33,6 +34,9 @@ const NotificationPermission = ({ onPermissionGranted }) => {
                     icon: '/favicon.ico',
                     silent: true
                 });
+                
+                // Hide the notification banner after permission is granted
+                setVisible(false);
             } else {
                 showToast({
                     icon: 'warning',
@@ -61,14 +65,28 @@ const NotificationPermission = ({ onPermissionGranted }) => {
         }
     };
 
-    if (permission === 'granted') {
+    const handleLater = () => {
+        setVisible(false);
+    };
+
+    const handleClose = () => {
+        setVisible(false);
+    };
+
+    if (permission === 'granted' || !visible) {
         return null;
     }
 
     return (
-        <div className="fixed bottom-24 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-500">
-            <div className="bg-[#111114] rounded-2xl border border-white/10 p-4 shadow-2xl max-w-sm">
-                <div className="flex items-start gap-3">
+        <div className="fixed bottom-24 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-500">
+            <div className="bg-[#111114] rounded-2xl border border-white/10 p-4 shadow-2xl max-w-sm relative">
+                <button
+                    onClick={handleClose}
+                    className="absolute top-3 right-3 text-slate-500 hover:text-white transition-colors"
+                >
+                    <X size={14} />
+                </button>
+                <div className="flex items-start gap-3 pr-4">
                     <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
                         <Bell size={20} className="text-indigo-400" />
                     </div>
@@ -80,17 +98,13 @@ const NotificationPermission = ({ onPermissionGranted }) => {
                         <div className="flex gap-2 mt-3">
                             <button
                                 onClick={requestNotificationPermission}
-                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white text-xs font-bold"
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white text-xs font-bold transition-all"
                             >
                                 Allow Notifications
                             </button>
                             <button
-                                onClick={() => {
-                                    const container = document.querySelector('.animate-in');
-                                    container?.classList.add('animate-out');
-                                    setTimeout(() => container?.remove(), 300);
-                                }}
-                                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 text-xs font-bold"
+                                onClick={handleLater}
+                                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 text-xs font-bold transition-all"
                             >
                                 Later
                             </button>

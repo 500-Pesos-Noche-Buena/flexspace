@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/button';
-import { Copy, Download, ExternalLink, Loader2, CheckCircle, X, CreditCard, Smartphone, Landmark, Banknote, Wallet } from 'lucide-react';
+import { Copy, Download, ExternalLink, Loader2, CheckCircle, CreditCard, Smartphone, Landmark, Wallet } from 'lucide-react';
 import { apiGet, apiPost } from '@/utils/Api';
 import { showToast } from '@/components/ui/SweetAlert2';
 
-const PaymentQRModal = ({ 
+export const PaymentQRModal = ({ 
     isOpen, 
     onClose, 
-    orderId, 
     orderNumber, 
     amount, 
     paymentLink,
@@ -30,154 +28,136 @@ const PaymentQRModal = ({
         if (isOpen) {
             fetchPaymentMethods();
         }
+        return () => {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+        };
     }, [isOpen]);
 
     const fetchPaymentMethods = async () => {
-    setLoadingMethods(true);
-    try {
-        const res = await apiGet('/space/payment-methods');
-        if (res.success && res.data) {
-            setPaymentMethods(res.data);
-            if (res.data.length > 0) {
-                setSelectedMethod(res.data[0].value);
+        setLoadingMethods(true);
+        try {
+            const res = await apiGet('/space/payment-methods');
+            if (res.success && res.data) {
+                // Filter out cash payment methods
+                const onlineMethods = res.data.filter(method => method.value !== 'cash');
+                setPaymentMethods(onlineMethods);
+                if (onlineMethods.length > 0) {
+                    setSelectedMethod(onlineMethods[0].value);
+                }
+            } else {
+                useFallbackMethods();
             }
-        } else {
-            // Use fallback methods
+        } catch (err) {
+            console.error('Failed to fetch payment methods:', err);
             useFallbackMethods();
+        } finally {
+            setLoadingMethods(false);
         }
-    } catch (err) {
-        console.error('Failed to fetch payment methods:', err);
-        useFallbackMethods();
-    } finally {
-        setLoadingMethods(false);
-    }
-};
+    };
 
-const useFallbackMethods = () => {
-    setPaymentMethods([
-        { id: 'gcash', name: 'GCash', value: 'gcash', icon: 'smartphone', color: 'emerald' },
-        { id: 'maya', name: 'Maya', value: 'maya', icon: 'smartphone', color: 'blue' },
-        { id: 'credit_card', name: 'Credit/Debit Card', value: 'card', icon: 'credit-card', color: 'purple' },
-    ]);
-    setSelectedMethod('gcash');
-};
-    // Get icon component based on icon name
+    const useFallbackMethods = () => {
+        const fallbackMethods = [
+            { id: 'gcash', name: 'GCash', value: 'gcash', icon: 'smartphone', color: 'emerald' },
+            { id: 'maya', name: 'Maya', value: 'maya', icon: 'smartphone', color: 'blue' },
+            { id: 'credit_card', name: 'Credit/Debit Card', value: 'card', icon: 'credit-card', color: 'purple' },
+        ];
+        setPaymentMethods(fallbackMethods);
+        setSelectedMethod('gcash');
+    };
+
     const getIcon = (iconName) => {
         switch(iconName) {
             case 'smartphone': return <Smartphone size={24} />;
             case 'credit-card': return <CreditCard size={24} />;
             case 'landmark': return <Landmark size={24} />;
             case 'wallet': return <Wallet size={24} />;
-            case 'banknote': return <Banknote size={24} />;
             default: return <CreditCard size={24} />;
         }
     };
 
-    // Get color classes based on color name
     const getColorClasses = (colorName) => {
-        switch(colorName) {
-            case 'emerald':
-                return {
-                    bg: 'bg-emerald-500/20',
-                    border: 'border-emerald-500',
-                    shadow: 'shadow-emerald-900/20',
-                    text: 'text-emerald-400',
-                    hover: 'hover:border-emerald-500/50'
-                };
-            case 'blue':
-                return {
-                    bg: 'bg-blue-500/20',
-                    border: 'border-blue-500',
-                    shadow: 'shadow-blue-900/20',
-                    text: 'text-blue-400',
-                    hover: 'hover:border-blue-500/50'
-                };
-            case 'purple':
-                return {
-                    bg: 'bg-purple-500/20',
-                    border: 'border-purple-500',
-                    shadow: 'shadow-purple-900/20',
-                    text: 'text-purple-400',
-                    hover: 'hover:border-purple-500/50'
-                };
-            case 'indigo':
-                return {
-                    bg: 'bg-indigo-500/20',
-                    border: 'border-indigo-500',
-                    shadow: 'shadow-indigo-900/20',
-                    text: 'text-indigo-400',
-                    hover: 'hover:border-indigo-500/50'
-                };
-            case 'amber':
-                return {
-                    bg: 'bg-amber-500/20',
-                    border: 'border-amber-500',
-                    shadow: 'shadow-amber-900/20',
-                    text: 'text-amber-400',
-                    hover: 'hover:border-amber-500/50'
-                };
+        const colors = {
+            emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500', shadow: 'shadow-emerald-900/20', text: 'text-emerald-400', hover: 'hover:border-emerald-500/50' },
+            blue: { bg: 'bg-blue-500/20', border: 'border-blue-500', shadow: 'shadow-blue-900/20', text: 'text-blue-400', hover: 'hover:border-blue-500/50' },
+            purple: { bg: 'bg-purple-500/20', border: 'border-purple-500', shadow: 'shadow-purple-900/20', text: 'text-purple-400', hover: 'hover:border-purple-500/50' },
+            indigo: { bg: 'bg-indigo-500/20', border: 'border-indigo-500', shadow: 'shadow-indigo-900/20', text: 'text-indigo-400', hover: 'hover:border-indigo-500/50' },
+            amber: { bg: 'bg-amber-500/20', border: 'border-amber-500', shadow: 'shadow-amber-900/20', text: 'text-amber-400', hover: 'hover:border-amber-500/50' },
+        };
+        return colors[colorName] || colors.purple;
+    };
+
+   const generatePaymentLink = async () => {
+    setIsGenerating(true);
+    try {
+        const isBooking = orderNumber && (orderNumber.startsWith('FLX') || orderNumber.startsWith('WK'));
+        const endpoint = isBooking ? '/landing/payment/create-link' : '/space/payment/create-link';
+        
+        // Map payment method to correct PayMongo values
+        let paymentMethodValue;
+        switch(selectedMethod) {
+            case 'gcash':
+                paymentMethodValue = 'gcash';
+                break;
+            case 'maya':
+                paymentMethodValue = 'paymaya';  // Try 'paymaya' or 'maya'
+                break;
+            case 'credit_card':
+                paymentMethodValue = 'card';
+                break;
+            case 'bank_transfer':
+                paymentMethodValue = 'bank_transfer';
+                break;
+            case 'paypal':
+                paymentMethodValue = 'paypal';
+                break;
             default:
-                return {
-                    bg: 'bg-purple-500/20',
-                    border: 'border-purple-500',
-                    shadow: 'shadow-purple-900/20',
-                    text: 'text-purple-400',
-                    hover: 'hover:border-purple-500/50'
-                };
+                paymentMethodValue = selectedMethod;
         }
-    };
-
-  // Update generatePaymentLink to include spaceId
-    const generatePaymentLink = async () => {
-        setIsGenerating(true);
-        try {
-            const isBooking = orderNumber && (orderNumber.startsWith('FLX') || orderNumber.startsWith('WK'));
-            const endpoint = isBooking ? '/landing/payment/create-link' : '/space/payment/create-link';
-            
-            const payload = {
-                amount: amount,
-                order_number: orderNumber,
-                customer_name: 'Customer',
-                payment_method: selectedMethod === 'credit_card' ? 'card' : selectedMethod
-            };
-            
-            // Add spaceId for bookings
-            if (isBooking && spaceId) {
-                payload.space_id = spaceId;
-            }
-            
-            const res = await apiPost(endpoint, payload);
-            
-            if (res.success && res.data.checkout_url) {
-                setGeneratedLink(res.data.checkout_url);
-                const method = paymentMethods.find(m => m.value === selectedMethod);
-                showToast({ icon: 'success', title: `${method?.name || selectedMethod} payment link generated` });
-            } else {
-                showToast({ icon: 'error', title: res.message || 'Failed to generate payment link' });
-            }
-        } catch (err) {
-            console.error('Failed to generate payment link:', err);
-            showToast({ icon: 'error', title: err.message || 'Failed to generate payment link' });
-        } finally {
-            setIsGenerating(false);
+        
+        const payload = {
+            amount: amount,
+            order_number: orderNumber,
+            customer_name: 'Customer',
+            payment_method: paymentMethodValue
+        };
+        
+        if (isBooking && spaceId) {
+            payload.space_id = spaceId;
         }
-    };
+        
+        console.log('Sending payment request:', payload); // Debug log
+        
+        const res = await apiPost(endpoint, payload);
+        
+        if (res.success && res.data.checkout_url) {
+            setGeneratedLink(res.data.checkout_url);
+            const method = paymentMethods.find(m => m.value === selectedMethod);
+            showToast({ icon: 'success', title: `${method?.name || selectedMethod} payment link generated` });
+        } else {
+            showToast({ icon: 'error', title: res.message || 'Failed to generate payment link' });
+        }
+    } catch (err) {
+        console.error('Failed to generate payment link:', err);
+        showToast({ icon: 'error', title: err.message || 'Failed to generate payment link' });
+    } finally {
+        setIsGenerating(false);
+    }
+};
 
-    // Update generated link when paymentLink prop changes
     useEffect(() => {
         if (paymentLink && !generatedLink) {
             setGeneratedLink(paymentLink);
         }
     }, [paymentLink]);
 
-    // Regenerate when method changes and modal is open
     useEffect(() => {
         if (isOpen && orderNumber && amount && selectedMethod) {
             generatePaymentLink();
         }
     }, [selectedMethod, isOpen]);
 
-    // Copy payment link
     const copyPaymentLink = () => {
         if (generatedLink) {
             navigator.clipboard.writeText(generatedLink);
@@ -185,7 +165,6 @@ const useFallbackMethods = () => {
         }
     };
 
-    // Download QR code
     const downloadQRCode = () => {
         const canvas = document.getElementById('payment-qr-canvas');
         if (canvas) {
@@ -196,50 +175,47 @@ const useFallbackMethods = () => {
         }
     };
 
-   // Check payment status - try both endpoints
-const checkPaymentStatus = async () => {
-    if (!orderNumber) return;
-    
-    try {
-        // First try space orders endpoint
-        let res = await apiGet(`/space/orders`);
-        if (res.success) {
-            const order = res.data.find(o => o.order_number === orderNumber);
-            if (order && (order.status === 'confirmed' || order.payment_status === 'paid')) {
-                handlePaymentSuccess();
-                return;
+    const checkPaymentStatus = async () => {
+        if (!orderNumber) return;
+        
+        try {
+            let res = await apiGet(`/space/orders`);
+            if (res.success) {
+                const order = res.data.find(o => o.order_number === orderNumber);
+                if (order && (order.status === 'confirmed' || order.payment_status === 'paid')) {
+                    handlePaymentSuccess();
+                    return;
+                }
             }
+            
+            const fallbackRes = await apiGet(`/landing/payment/status/${orderNumber}`);
+            if (fallbackRes.success && (fallbackRes.data.is_paid || fallbackRes.data.status === 'confirmed')) {
+                handlePaymentSuccess();
+            }
+        } catch (err) {
+            console.error('Failed to check payment status:', err);
+        }
+    };
+
+    const handlePaymentSuccess = () => {
+        setPaymentConfirmed(true);
+        setIsPolling(false);
+        
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            setPollingInterval(null);
         }
         
-        // Try landing payment status endpoint as fallback
-        const fallbackRes = await apiGet(`/landing/payment/status/${orderNumber}`);
-        if (fallbackRes.success && (fallbackRes.data.is_paid || fallbackRes.data.status === 'confirmed')) {
-            handlePaymentSuccess();
+        if (onPaymentComplete) {
+            onPaymentComplete(orderNumber);
         }
-    } catch (err) {
-        console.error('Failed to check payment status:', err);
-    }
-};
+        
+        setTimeout(() => {
+            onClose();
+            showToast({ icon: 'success', title: 'Payment confirmed!', text: `Order ${orderNumber} is now being prepared.` });
+        }, 2000);
+    };
 
-const handlePaymentSuccess = () => {
-    setPaymentConfirmed(true);
-    setIsPolling(false);
-    
-    if (pollingInterval) {
-        clearInterval(pollingInterval);
-        setPollingInterval(null);
-    }
-    
-    if (onPaymentComplete) {
-        onPaymentComplete(orderNumber);
-    }
-    
-    setTimeout(() => {
-        onClose();
-        showToast({ icon: 'success', title: 'Payment confirmed!', text: `Order ${orderNumber} is now being prepared.` });
-    }, 2000);
-};
-    // Start polling when modal opens
     useEffect(() => {
         if (isOpen && orderNumber && generatedLink && !paymentConfirmed) {
             setIsPolling(true);
@@ -251,15 +227,6 @@ const handlePaymentSuccess = () => {
             };
         }
     }, [isOpen, orderNumber, generatedLink]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-            }
-        };
-    }, [pollingInterval]);
 
     const selectedMethodData = paymentMethods.find(m => m.value === selectedMethod);
     const colorClasses = getColorClasses(selectedMethodData?.color || 'purple');
@@ -302,7 +269,7 @@ const handlePaymentSuccess = () => {
                                                          method.value === 'maya' ? 'Pay with Maya' :
                                                          method.value === 'credit_card' ? 'Visa, Mastercard' :
                                                          method.value === 'bank_transfer' ? 'Direct transfer' :
-                                                         method.value === 'paypal' ? 'PayPal account' : 'Pay in cash'}
+                                                         method.value === 'paypal' ? 'PayPal account' : 'Pay online'}
                                                     </span>
                                                 </div>
                                             </button>
@@ -318,9 +285,9 @@ const handlePaymentSuccess = () => {
                                 <Loader2 size={40} className="animate-spin text-purple-500 mx-auto mb-4" />
                                 <p className="text-sm text-slate-400">Generating payment link...</p>
                             </div>
-                        ) : generatedLink && selectedMethod !== 'cash' ? (
+                        ) : generatedLink ? (
                             <>
-                                {/* QR Code - Only for online methods */}
+                                {/* QR Code */}
                                 <div className="mb-4">
                                     <p className={`text-[10px] ${colorClasses.text} font-black uppercase tracking-wider`}>
                                         Scan to Pay with {selectedMethodData?.name}
@@ -386,9 +353,7 @@ const handlePaymentSuccess = () => {
                                         <Download size={14} /> Download QR
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            window.open(generatedLink, '_blank');
-                                        }}
+                                        onClick={() => window.open(generatedLink, '_blank')}
                                         className="flex-1 py-2 bg-purple-600/20 text-purple-400 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 hover:bg-purple-600 hover:text-white transition-colors"
                                     >
                                         <ExternalLink size={14} /> Open Link
@@ -399,25 +364,6 @@ const handlePaymentSuccess = () => {
                                     Customer scans QR code or opens link to complete payment via {selectedMethodData?.name}
                                 </p>
                             </>
-                        ) : selectedMethod === 'cash' ? (
-                            <div className="py-8">
-                                <div className="w-16 h-16 mx-auto bg-amber-500/20 rounded-full flex items-center justify-center mb-4">
-                                    <Banknote size={32} className="text-amber-400" />
-                                </div>
-                                <h3 className="text-white font-black text-lg mb-2">Cash on Pickup</h3>
-                                <p className="text-slate-400 text-sm mb-4">
-                                    Customer will pay ₱{amount?.toFixed(2)} in cash when picking up the order.
-                                </p>
-                                <button
-                                    onClick={() => {
-                                        onClose();
-                                        showToast({ icon: 'success', title: 'Cash order placed!', text: `Order ${orderNumber} is now being prepared.` });
-                                    }}
-                                    className="px-6 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold"
-                                >
-                                    Confirm Cash Order
-                                </button>
-                            </div>
                         ) : (
                             <div className="py-8">
                                 <p className="text-slate-500 text-sm">Failed to generate payment link</p>

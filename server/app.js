@@ -128,12 +128,20 @@ const ALLOWED_ORIGIN = process.env.VITE_API_URL || NETWORK_URL;
 
 app.use(morgan('dev'));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.set('trust proxy', 1);
-app.use(antiDdos.detectAttack);
-app.use(antiDdos.gatekeeper);
-app.use(antiDdos.globalLimiter);
-app.use(antiDdos.responseMonitor);
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+const ENABLE_DDOS = process.env.NODE_ENV === 'production';
+
+if (ENABLE_DDOS) {
+    console.log('🛡️ Anti-DDoS protection enabled');
+    app.use(antiDdos.detectAttack);
+    app.use(antiDdos.gatekeeper);
+    app.use(antiDdos.globalLimiter);
+    app.use(antiDdos.responseMonitor);
+} else {
+    console.log('🔧 Anti-DDoS protection disabled for development');
+}
 
 app.use(
     cors({

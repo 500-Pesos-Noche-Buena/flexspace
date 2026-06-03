@@ -50,6 +50,9 @@ import Income from '@/pages/Space/Pos/Income';
 import Orders from '@/pages/Space/Pos/Orders';
 import Products from '@/pages/Space/Pos/Products';
 import PaymentSettings from '@/pages/Space/PaymentSettings/Index';
+import CreateSpace from '@/pages/Space/MySpaces/Create';
+import EditSpace from '@/pages/Space/MySpaces/Edit';
+
 // Regular User Pages
 import UserDashboard from '@/pages/User/Dashboard/Index';
 import UserSpace from '@/pages/User/Space/Index';
@@ -134,6 +137,8 @@ export const AppRoutes = () => {
                     <Route path="orders" element={<Orders />} />
                     <Route path="products" element={<Products />} />
                     <Route path="payment-settings" element={<PaymentSettings />} />
+                    <Route path="my-spaces/create" element={<CreateSpace />} />
+                    <Route path="my-spaces/edit/:id" element={<EditSpace />} />
                 </Route>
             </Route>
 

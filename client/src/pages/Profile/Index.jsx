@@ -109,7 +109,7 @@ const ProfileIndex = () => {
         e.preventDefault();
         setSaving(true);
         try {
-            await apiPost('/auth/profile/update', formData);
+            await apiPut('/auth/profile/update', formData);
             showToast({ icon: 'success', title: 'Profile Updated' });
             await fetchProfile(false);
         } catch {

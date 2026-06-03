@@ -11,7 +11,7 @@ import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
-import PaymentQRModal from '@/components/PaymentQRModal';
+import PaymentQRModal from '@/components/modal/PaymentQRModal';
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';

@@ -21,20 +21,39 @@ class SpaceController {
         return userId?.toString();
     };
 
-    index = async (req, res, next) => {
-        try {
+  // In SpaceController.js
+index = async (req, res, next) => {
+    try {
+        const userId = req.user?.sub || req.user?._id || req.user?.id;
+        const userRole = req.user?.role;
+        
+        let query = {};
+        
+        // Staff can only see their assigned space
+        if (userRole === 'staff') {
+            const staffRecord = await User.findById(userId).select('space_id');
+            if (staffRecord?.space_id) {
+                query._id = staffRecord.space_id;
+            } else {
+                return res.status(HTTP_STATUS.OK).json({ success: true, data: [] });
+            }
+        } 
+        // Space owner sees all their spaces
+        else {
             const ownerId = await this.getOwnerId(req);
             if (!ownerId) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Session expired.');
-
-            const spaces = await Space.find({ user_id: ownerId })
-                .populate('district_id', 'name')
-                .sort({ created_at: -1 });
-
-            return res.status(HTTP_STATUS.OK).json({ success: true, data: spaces });
-        } catch (error) {
-            next(error);
+            query.user_id = ownerId;
         }
-    };
+        
+        const spaces = await Space.find(query)
+            .populate('district_id', 'name')
+            .sort({ created_at: -1 });
+        
+        return res.status(HTTP_STATUS.OK).json({ success: true, data: spaces });
+    } catch (error) {
+        next(error);
+    }
+};
 
     store = async (req, res, next) => {
         try {
@@ -48,8 +67,8 @@ class SpaceController {
 
             let imageUrls = [];
             if (req.cloudinaryUrls) {
-                imageUrls = Array.isArray(req.cloudinaryUrls) 
-                    ? req.cloudinaryUrls 
+                imageUrls = Array.isArray(req.cloudinaryUrls)
+                    ? req.cloudinaryUrls
                     : req.cloudinaryUrls.images || [];
             }
 
@@ -85,6 +104,28 @@ class SpaceController {
         }
     };
 
+    // ADD THIS METHOD
+    show = async (req, res, next) => {
+        try {
+            const userId = this.getUserId(req);
+            const { id } = req.params;
+
+            const space = await Space.findOne({ _id: id, user_id: userId })
+                .populate('district_id', 'name');
+
+            if (!space) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
+            }
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: space
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     update = async (req, res, next) => {
         try {
             const userId = this.getUserId(req);
@@ -101,38 +142,38 @@ class SpaceController {
             delete updates.created_at;
             delete updates.updated_at;
 
-           // Handle amenities
-        if (updates.amenities) {
-            try {
-                updates.amenities = typeof updates.amenities === 'string' 
-                    ? JSON.parse(updates.amenities) 
-                    : updates.amenities;
-            } catch (e) {
-                console.error('Failed to parse amenities:', e);
-                updates.amenities = [];
-            }
-        }
-
-              // Handle hours_json - with error handling
-        if (updates.hours_json) {
-            try {
-                // Check if it's a valid JSON object
-                if (typeof updates.hours_json === 'string') {
-                    // If it's a string like "WiFi,Airco", that's NOT hours_json!
-                    // That's probably amenities. Skip it.
-                    if (updates.hours_json.includes(',') && !updates.hours_json.includes('{')) {
-                        console.warn('hours_json appears to be amenities string, skipping:', updates.hours_json);
-                        delete updates.hours_json;
-                    } else {
-                        updates.hours_json = JSON.parse(updates.hours_json);
-                    }
+            // Handle amenities
+            if (updates.amenities) {
+                try {
+                    updates.amenities = typeof updates.amenities === 'string'
+                        ? JSON.parse(updates.amenities)
+                        : updates.amenities;
+                } catch (e) {
+                    console.error('Failed to parse amenities:', e);
+                    updates.amenities = [];
                 }
-            } catch (e) {
-                console.error('Failed to parse hours_json:', e, 'Value:', updates.hours_json);
-                // Keep existing hours_json instead of breaking
-                delete updates.hours_json;
             }
-        }
+
+            // Handle hours_json - with error handling
+            if (updates.hours_json) {
+                try {
+                    // Check if it's a valid JSON object
+                    if (typeof updates.hours_json === 'string') {
+                        // If it's a string like "WiFi,Airco", that's NOT hours_json!
+                        // That's probably amenities. Skip it.
+                        if (updates.hours_json.includes(',') && !updates.hours_json.includes('{')) {
+                            console.warn('hours_json appears to be amenities string, skipping:', updates.hours_json);
+                            delete updates.hours_json;
+                        } else {
+                            updates.hours_json = JSON.parse(updates.hours_json);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to parse hours_json:', e, 'Value:', updates.hours_json);
+                    // Keep existing hours_json instead of breaking
+                    delete updates.hours_json;
+                }
+            }
 
 
             // Handle district_id
@@ -152,10 +193,10 @@ class SpaceController {
 
             // Handle new image uploads from Cloudinary - DELETE OLD IMAGES
             if (req.cloudinaryUrls) {
-                const newImages = Array.isArray(req.cloudinaryUrls) 
-                    ? req.cloudinaryUrls 
+                const newImages = Array.isArray(req.cloudinaryUrls)
+                    ? req.cloudinaryUrls
                     : req.cloudinaryUrls.images || [];
-                
+
                 if (newImages.length > 0) {
                     // 🔥 DELETE OLD IMAGES FROM CLOUDINARY
                     const oldImages = space.images || [];
@@ -165,14 +206,14 @@ class SpaceController {
                             console.log(`🗑️ Deleted old image: ${oldImage}`);
                         }
                     }
-                    
+
                     // Set new images
                     updates.images = newImages;
                     updates.image = newImages[0];
                 }
             }
 
-            const updatedSpace = await Space.findByIdAndUpdate(id, updates, { 
+            const updatedSpace = await Space.findByIdAndUpdate(id, updates, {
                 new: true,
                 runValidators: true
             });
@@ -227,8 +268,8 @@ class SpaceController {
 
             let newImages = [];
             if (req.cloudinaryUrls) {
-                newImages = Array.isArray(req.cloudinaryUrls) 
-                    ? req.cloudinaryUrls 
+                newImages = Array.isArray(req.cloudinaryUrls)
+                    ? req.cloudinaryUrls
                     : req.cloudinaryUrls.images || [];
             }
 
@@ -237,7 +278,7 @@ class SpaceController {
             }
 
             const updatedImages = [...(space.images || []), ...newImages].slice(0, 10);
-            
+
             const updatedSpace = await Space.findByIdAndUpdate(
                 id,
                 {
@@ -249,10 +290,10 @@ class SpaceController {
                 { new: true, runValidators: false }
             );
 
-            return res.status(HTTP_STATUS.OK).json({ 
-                success: true, 
-                message: `${newImages.length} image(s) added`, 
-                images: updatedSpace.images 
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: `${newImages.length} image(s) added`,
+                images: updatedSpace.images
             });
         } catch (error) {
             console.error('Add images error:', error);
@@ -261,57 +302,57 @@ class SpaceController {
     };
 
     removeImage = async (req, res, next) => {
-    try {
-        const userId = this.getUserId(req);
-        const { id } = req.params;
-        const { image } = req.body;
+        try {
+            const userId = this.getUserId(req);
+            const { id } = req.params;
+            const { image } = req.body;
 
-        if (!image) {
-            throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Image URL is required');
-        }
-
-        const space = await Space.findOne({ _id: id, user_id: userId });
-        if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
-
-        // 🔥 DELETE FROM CLOUDINARY
-        if (image && image.includes('cloudinary')) {
-            const deleted = await deleteFileByUrl(image);
-            if (deleted) {
-                console.log(`✅ Deleted image from Cloudinary: ${image}`);
-            } else {
-                console.log(`⚠️ Failed to delete from Cloudinary: ${image}`);
+            if (!image) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Image URL is required');
             }
-        }
 
-        // Remove from database
-        const updatedImages = space.images.filter(img => img !== image);
-        
-        let newPrimaryImage = space.image;
-        if (space.image === image) {
-            newPrimaryImage = updatedImages[0] || null;
-        }
+            const space = await Space.findOne({ _id: id, user_id: userId });
+            if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
 
-        const updatedSpace = await Space.findByIdAndUpdate(
-            id,
-            {
-                $set: {
-                    images: updatedImages,
-                    image: newPrimaryImage
+            // 🔥 DELETE FROM CLOUDINARY
+            if (image && image.includes('cloudinary')) {
+                const deleted = await deleteFileByUrl(image);
+                if (deleted) {
+                    console.log(`✅ Deleted image from Cloudinary: ${image}`);
+                } else {
+                    console.log(`⚠️ Failed to delete from Cloudinary: ${image}`);
                 }
-            },
-            { new: true, runValidators: false }
-        );
+            }
 
-        return res.status(HTTP_STATUS.OK).json({ 
-            success: true, 
-            message: 'Image removed successfully',
-            images: updatedSpace.images
-        });
-    } catch (error) {
-        console.error('Remove image error:', error);
-        next(error);
-    }
-};
+            // Remove from database
+            const updatedImages = space.images.filter(img => img !== image);
+
+            let newPrimaryImage = space.image;
+            if (space.image === image) {
+                newPrimaryImage = updatedImages[0] || null;
+            }
+
+            const updatedSpace = await Space.findByIdAndUpdate(
+                id,
+                {
+                    $set: {
+                        images: updatedImages,
+                        image: newPrimaryImage
+                    }
+                },
+                { new: true, runValidators: false }
+            );
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Image removed successfully',
+                images: updatedSpace.images
+            });
+        } catch (error) {
+            console.error('Remove image error:', error);
+            next(error);
+        }
+    };
 
     setPrimaryImage = async (req, res, next) => {
         try {
@@ -336,8 +377,8 @@ class SpaceController {
                 { new: true, runValidators: false }
             );
 
-            return res.status(HTTP_STATUS.OK).json({ 
-                success: true, 
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
                 message: 'Primary image updated',
                 image: updatedSpace.image
             });

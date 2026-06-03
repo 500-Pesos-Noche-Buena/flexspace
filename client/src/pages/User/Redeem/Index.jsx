@@ -27,7 +27,7 @@ const StatCard = ({ label, value, icon: Icon, color, subtitle }) => (
 );
 
 const PointsCard = ({ points }) => (
-    <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 sm:p-6 rounded-2xl sm:rounded-4xl border border-amber-100">
+    <div className="bg-linear-to-r from-amber-50 to-orange-50 p-4 sm:p-6 rounded-2xl sm:rounded-4xl border border-amber-100">
         <div className="flex items-center gap-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
                 <Coins size={20} className="text-amber-600" />
@@ -42,7 +42,7 @@ const PointsCard = ({ points }) => (
 );
 
 const EmptyState = ({ icon: Icon, title, message }) => (
-    <div className="py-16 sm:py-24 text-center border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl bg-gradient-to-b from-slate-50 to-white">
+    <div className="py-16 sm:py-24 text-center border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl bg-linear-to-b from-slate-50 to-white">
         <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
             <Icon size={28} className="text-slate-300" />
         </div>
@@ -83,7 +83,7 @@ const VoucherCard = ({ voucher, userPoints, onRedeem, isRedeeming, minPointsToRe
         )}>
             {/* Header */}
             <div className="flex items-start justify-between mb-4 gap-2 flex-wrap">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
                     <Gift size={18} className="text-white" />
                 </div>
 
@@ -131,7 +131,7 @@ const VoucherCard = ({ voucher, userPoints, onRedeem, isRedeeming, minPointsToRe
                     </div>
                     <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div 
-                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                            className="h-full rounded-full bg-linear-to-r from-indigo-500 to-purple-500 transition-all duration-500"
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
@@ -192,7 +192,7 @@ const VoucherCard = ({ voucher, userPoints, onRedeem, isRedeeming, minPointsToRe
                 className={cn(
                     "mt-auto w-full py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
                     canRedeem
-                        ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg active:scale-95"
+                        ? "bg-linear-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg active:scale-95"
                         : alreadyRedeemed
                             ? "bg-indigo-50 text-indigo-400 cursor-not-allowed"
                             : "bg-slate-100 text-slate-400 cursor-not-allowed"
@@ -220,7 +220,7 @@ const MyVoucherCard = ({ voucher }) => {
             {/* Gradient Border */}
             <div className={cn(
                 "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl",
-                isGlobal ? "bg-gradient-to-r from-violet-500 to-purple-500" : "bg-gradient-to-r from-emerald-500 to-teal-500"
+                isGlobal ? "bg-linear-to-r from-violet-500 to-purple-500" : "bg-linear-to-r from-emerald-500 to-teal-500"
             )} style={{ padding: '2px', mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)', WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)', WebkitMaskComposite: 'xor', maskComposite: 'exclude' }} />
             
             <div className="relative bg-white rounded-2xl p-4 sm:p-5">
@@ -229,7 +229,7 @@ const MyVoucherCard = ({ voucher }) => {
                     <div className="flex items-center gap-2 min-w-0">
                         <div className={cn(
                             "w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0",
-                            isGlobal ? "bg-gradient-to-br from-violet-500 to-purple-600" : "bg-gradient-to-br from-emerald-500 to-teal-600"
+                            isGlobal ? "bg-linear-to-br from-violet-500 to-purple-600" : "bg-linear-to-br from-emerald-500 to-teal-600"
                         )}>
                             {isGlobal ? <Globe size={14} className="text-white" /> : <MapPin size={14} className="text-white" />}
                         </div>
@@ -237,7 +237,7 @@ const MyVoucherCard = ({ voucher }) => {
                             <p className={cn("text-[7px] sm:text-[8px] font-black uppercase tracking-wider", isGlobal ? "text-violet-600" : "text-emerald-600")}>
                                 {isGlobal ? 'Global' : 'Space Specific'}
                             </p>
-                            <p className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-700 mt-0.5 truncate max-w-[120px] sm:max-w-none">
+                            <p className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-700 mt-0.5 truncate max-w-30 sm:max-w-none">
                                 {voucher.code}
                             </p>
                         </div>
@@ -474,7 +474,7 @@ const UserRedeem = () => {
                         </p>
                     </div>
                     
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-indigo-100 shrink-0">
+                    <div className="bg-linear-to-r from-indigo-50 to-purple-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-indigo-100 shrink-0">
                         <div className="flex items-center gap-2 sm:gap-3">
                             <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-indigo-100 flex items-center justify-center">
                                 <Coins size={12} className="text-indigo-600" />

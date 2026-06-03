@@ -14,9 +14,54 @@ import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { getSpaceImage, getImageUrl } from '@/utils/imageHelper';
+import { UserBookingModal, UserLightboxModal } from '@/components/modal';
 
 const getPHDateString = () => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+};
+
+// Helper function to check if space is open on a specific date
+const isSpaceOpenOnDate = (space, dateStr) => {
+    if (!space?.hours_json) return true;
+
+    const date = new Date(dateStr);
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayOfWeek = days[date.getDay()];
+
+    const daySchedule = space.hours_json[dayOfWeek];
+    return daySchedule?.active === true;
+};
+
+// Helper function to check if time is within operating hours
+const isWithinOperatingHours = (space, dateStr, startTime, endTime) => {
+    if (!space?.hours_json) return true;
+
+    const date = new Date(dateStr);
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayOfWeek = days[date.getDay()];
+
+    const daySchedule = space.hours_json[dayOfWeek];
+
+    if (!daySchedule?.active) return false;
+
+    const timeToMinutes = (timeStr) => {
+        if (!timeStr) return 0;
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
+    };
+
+    const openMinutes = timeToMinutes(daySchedule.open);
+    const closeMinutes = timeToMinutes(daySchedule.close);
+
+    // For open time booking, just check if today is open
+    if (!startTime || !endTime) {
+        return true;
+    }
+
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+
+    return startMinutes >= openMinutes && endMinutes <= closeMinutes;
 };
 
 const SpaceDetails = () => {
@@ -69,10 +114,8 @@ const SpaceDetails = () => {
         }
     }, [bookingData.date, bookingData.start_time, bookingData.end_time, isOpenTime, selectedBookableType]);
 
-    // Update this useEffect to also trigger when date changes
     useEffect(() => {
         if (selectedBookableType === 'room' && selectedRoom && bookingData.date) {
-            // Clear previous availability when date/time changes
             if (selectedRoom) {
                 setRoomAvailability(prev => ({
                     ...prev,
@@ -110,7 +153,6 @@ const SpaceDetails = () => {
             const res = await apiGet(`/landing/spaces/${id}/rooms`);
             if (res.success) {
                 setRooms(res.data);
-                // Initialize availability state for each room
                 const initialAvailability = {};
                 for (const room of res.data) {
                     initialAvailability[room._id] = { is_available: true, checking: false };
@@ -158,6 +200,19 @@ const SpaceDetails = () => {
 
     const checkRoomAvailability = async () => {
         if (!selectedRoom || !bookingData.date) return;
+
+        // Don't check availability if space is closed on selected date
+        if (!isSpaceOpenOnDate(space, bookingData.date)) {
+            setRoomAvailability(prev => ({
+                ...prev,
+                [selectedRoom._id]: {
+                    is_available: false,
+                    checking: false,
+                    conflicting_bookings: []
+                }
+            }));
+            return;
+        }
 
         setCheckingAvailability(true);
         try {
@@ -341,6 +396,34 @@ const SpaceDetails = () => {
         return 0;
     };
 
+    const isSpaceClosedOnSelectedDate = () => {
+        return !isSpaceOpenOnDate(space, bookingData.date);
+    };
+
+    const isTimeOutsideHours = () => {
+        if (isOpenTime) return false;
+        if (!bookingData.start_time || !bookingData.end_time) return false;
+        return !isWithinOperatingHours(space, bookingData.date, bookingData.start_time, bookingData.end_time);
+    };
+
+    const isBookingDisabled = () => {
+        if (isBooking) return true;
+
+        // Check if space is closed on selected date
+        if (isSpaceClosedOnSelectedDate()) return true;
+
+        // Check if time is outside operating hours
+        if (isTimeOutsideHours()) return true;
+
+        if (!isOpenTime && (!bookingData.start_time || !bookingData.end_time)) return true;
+
+        if (selectedBookableType === 'room' && (!selectedRoom || !roomAvailable)) return true;
+
+        if (selectedBookableType === 'space' && !spaceAvailable) return true;
+
+        return false;
+    };
+
     const handleConfirmBooking = async () => {
         if (!isOpenTime && (!bookingData.start_time || !bookingData.end_time)) {
             showToast({ icon: 'warning', title: 'Please select start and end time' });
@@ -352,7 +435,18 @@ const SpaceDetails = () => {
             return;
         }
 
-        // Double-check availability before booking
+        // Check if space is closed on selected date
+        if (isSpaceClosedOnSelectedDate()) {
+            showToast({ icon: 'error', title: 'Space is closed on this date' });
+            return;
+        }
+
+        // Check if time is outside operating hours
+        if (isTimeOutsideHours()) {
+            showToast({ icon: 'error', title: 'Selected time is outside operating hours' });
+            return;
+        }
+
         if (selectedBookableType === 'space' && !isSpaceAvailable()) {
             showToast({ icon: 'error', title: 'No available seats for the selected time' });
             return;
@@ -425,6 +519,8 @@ const SpaceDetails = () => {
     const estimatedPrice = calculateEstimatedPrice();
     const roomAvailable = isRoomAvailable();
     const spaceAvailable = isSpaceAvailable();
+    const isClosedOnSelectedDate = isSpaceClosedOnSelectedDate();
+    const isOutsideHours = isTimeOutsideHours();
 
     if (loading) {
         return (
@@ -461,7 +557,7 @@ const SpaceDetails = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 py-8">
-                {/* Shopee-style Image Gallery */}
+                {/* Image Gallery - same as before */}
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-8">
                     <div className="hidden md:flex md:flex-col gap-2 order-2 md:order-1">
                         {images.slice(0, 5).map((img, idx) => (
@@ -469,8 +565,8 @@ const SpaceDetails = () => {
                                 key={idx}
                                 onClick={() => setCurrentImageIndex(idx)}
                                 className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${currentImageIndex === idx
-                                        ? 'border-indigo-500 ring-2 ring-indigo-200'
-                                        : 'border-transparent hover:border-indigo-300'
+                                    ? 'border-indigo-500 ring-2 ring-indigo-200'
+                                    : 'border-transparent hover:border-indigo-300'
                                     }`}
                             >
                                 <img
@@ -541,8 +637,8 @@ const SpaceDetails = () => {
                                         key={idx}
                                         onClick={() => setCurrentImageIndex(idx)}
                                         className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${currentImageIndex === idx
-                                                ? 'border-indigo-500'
-                                                : 'border-transparent'
+                                            ? 'border-indigo-500'
+                                            : 'border-transparent'
                                             }`}
                                     >
                                         <img
@@ -562,8 +658,11 @@ const SpaceDetails = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2">
                         <div className="border-b border-slate-100 pb-4 mb-4">
-                            <h1 className="text-2xl md:text-3xl font-black text-slate-900">{space.name}</h1>
-                            <div className="flex flex-wrap items-center gap-3 mt-2">
+                            <h1 className="text-2xl md:text-3xl font-black text-slate-900 wrap-break-word">
+                                {space.name && space.name.length > 60
+                                    ? space.name.substring(0, 57) + '...'
+                                    : space.name}
+                            </h1>                            <div className="flex flex-wrap items-center gap-3 mt-2">
                                 <div className="flex items-center gap-1">
                                     <MapPin size={14} className="text-slate-400" />
                                     <span className="text-sm text-slate-600">{space.area || space.district_id?.name || 'Iloilo City'}</span>
@@ -574,8 +673,8 @@ const SpaceDetails = () => {
                                     <span className="text-slate-400 text-sm">({space.review_count || 0} reviews)</span>
                                 </div>
                                 <div className={`px-2 py-0.5 rounded-full text-xs font-bold ${space.status === 'Open Now'
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : 'bg-slate-100 text-slate-500'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-slate-100 text-slate-500'
                                     }`}>
                                     {space.status}
                                 </div>
@@ -589,7 +688,7 @@ const SpaceDetails = () => {
                             </div>
                         </div>
 
-                        {/* Rooms Section - Disabled if already booked */}
+                        {/* Rooms Section */}
                         {hasRooms && (
                             <div className="mb-6">
                                 <div className="flex items-center gap-2 mb-3">
@@ -605,8 +704,8 @@ const SpaceDetails = () => {
                                             <div
                                                 key={room._id}
                                                 className={`border rounded-xl p-3 transition-all ${isAvailable
-                                                        ? 'border-slate-100 hover:shadow-md cursor-pointer hover:border-indigo-200'
-                                                        : 'border-red-200 bg-red-50/50 opacity-60 cursor-not-allowed'
+                                                    ? 'border-slate-100 hover:shadow-md cursor-pointer hover:border-indigo-200'
+                                                    : 'border-red-200 bg-red-50/50 opacity-60 cursor-not-allowed'
                                                     }`}
                                                 onClick={() => {
                                                     if (isAvailable) {
@@ -617,7 +716,7 @@ const SpaceDetails = () => {
                                                         showToast({
                                                             icon: 'info',
                                                             title: 'Room Not Available',
-                                                            text: 'This room is already booked for the selected date. Please choose another room or date.'
+                                                            text: 'This room is already booked for the selected date.'
                                                         });
                                                     }
                                                 }}
@@ -777,303 +876,45 @@ const SpaceDetails = () => {
                 </div>
             </div>
 
-            {/* Booking Modal */}
-            <Modal open={openBookingModal} onClose={() => setOpenBookingModal(false)} title="Confirm Booking" size="xl" variant="light">
-                {space && (
-                    <div className="space-y-5 py-2">
-                        {/* Space/Room Selection Toggle */}
-                        {hasRooms && (
-                            <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl">
-                                <button
-                                    onClick={() => {
-                                        setSelectedBookableType('space');
-                                        setSelectedRoom(null);
-                                    }}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all ${selectedBookableType === 'space'
-                                            ? 'bg-indigo-600 text-white shadow-lg'
-                                            : 'text-slate-500 hover:text-slate-700'
-                                        }`}
-                                >
-                                    <Sofa size={16} />
-                                    <span className="text-xs font-bold">Hot Desk / Open Area</span>
-                                </button>
-                                <button
-                                    onClick={() => setSelectedBookableType('room')}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all ${selectedBookableType === 'room'
-                                            ? 'bg-indigo-600 text-white shadow-lg'
-                                            : 'text-slate-500 hover:text-slate-700'
-                                        }`}
-                                >
-                                    <DoorOpen size={16} />
-                                    <span className="text-xs font-bold">Private Room</span>
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Room Selection with Availability Status */}
-                        {selectedBookableType === 'room' && rooms.length > 0 && (
-                            <div className="space-y-2">
-                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">
-                                    Select a Room
-                                </label>
-                                <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                                    {rooms.map((room) => {
-                                        const availability = roomAvailability[room._id];
-                                        const isAvailable = availability?.is_available !== false;
-
-                                        return (
-                                            <button
-                                                key={room._id}
-                                                onClick={() => {
-                                                    if (isAvailable) {
-                                                        setSelectedRoom(room);
-                                                    } else {
-                                                        showToast({
-                                                            icon: 'info',
-                                                            title: 'Room Not Available',
-                                                            text: 'This room is already booked for the selected time.'
-                                                        });
-                                                    }
-                                                }}
-                                                disabled={!isAvailable}
-                                                className={`p-3 rounded-xl border-2 text-left transition-all ${selectedRoom?._id === room._id
-                                                        ? 'border-indigo-500 bg-indigo-50'
-                                                        : !isAvailable
-                                                            ? 'border-red-200 bg-red-50 opacity-60 cursor-not-allowed'
-                                                            : 'border-slate-100 hover:border-slate-200'
-                                                    }`}
-                                            >
-                                                <div className="flex justify-between items-start">
-                                                    <p className="font-bold text-sm text-slate-900">{room.name}</p>
-                                                    {!isAvailable && (
-                                                        <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                                                            Booked
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <Users size={10} className="text-slate-400" />
-                                                    <span className="text-[10px] text-slate-500">Up to {room.capacity}</span>
-                                                </div>
-                                                <p className="text-xs font-bold text-indigo-600 mt-1">₱{room.rate_hour}/hr</p>
-                                                <div className="flex gap-1 mt-1">
-                                                    {room.is_airconditioned && (
-                                                        <span className="text-[8px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
-                                                            Aircon
-                                                        </span>
-                                                    )}
-                                                    {room.has_window && (
-                                                        <span className="text-[8px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded">
-                                                            Window
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Selected item info */}
-                        <div className={`rounded-2xl p-4 ${selectedBookableType === 'room' && selectedRoom && !roomAvailable
-                                ? 'bg-red-50 border border-red-200'
-                                : selectedBookableType === 'space' && !spaceAvailable
-                                    ? 'bg-red-50 border border-red-200'
-                                    : 'bg-linear-to-r from-indigo-50 to-purple-50'
-                            }`}>
-                            <h3 className="font-[1000] uppercase text-sm text-slate-900">{getBookableName()}</h3>
-                            <div className="flex items-center gap-3 mt-1">
-                                <p className="text-[10px] text-slate-500">₱{getRatePerHour()}/hour</p>
-                                <div className="flex items-center gap-1">
-                                    <Users size={10} className="text-slate-400" />
-                                    <p className="text-[10px] text-slate-500">Capacity: {getBookableCapacity()}</p>
-                                </div>
-                            </div>
-
-                            {/* Space availability warning */}
-                            {selectedBookableType === 'space' && (
-                                <>
-                                    {!spaceAvailable && (
-                                        <div className="mt-2 flex items-center gap-1 text-red-600">
-                                            <AlertCircle size={12} />
-                                            <p className="text-[9px] font-bold">No available seats for this time</p>
-                                        </div>
-                                    )}
-                                    {spaceAvailable && bookingData.date && (
-                                        <div className="mt-2 flex items-center gap-1 text-emerald-600">
-                                            <CheckCircle size={10} />
-                                            <p className="text-[8px] font-bold">{spaceAvailability.available} seats available for this time</p>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-
-                            {/* Room availability warning */}
-                            {selectedBookableType === 'room' && selectedRoom && !roomAvailable && (
-                                <div className="mt-2 flex items-center gap-1 text-red-600">
-                                    <AlertCircle size={12} />
-                                    <p className="text-[9px] font-bold">This room is already booked for the selected time</p>
-                                </div>
-                            )}
-                            {selectedBookableType === 'room' && selectedRoom && roomAvailable && bookingData.date && (
-                                <div className="mt-2 flex items-center gap-1 text-emerald-600">
-                                    <CheckCircle size={10} />
-                                    <p className="text-[8px] font-bold">Available for your selected time</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Open Time Toggle */}
-                        <div
-                            onClick={() => setIsOpenTime(!isOpenTime)}
-                            className={`flex items-center gap-4 p-5 rounded-3xl cursor-pointer transition-all border-2 ${isOpenTime ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 border-transparent text-slate-600'
-                                }`}
-                        >
-                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${isOpenTime ? 'bg-indigo-500' : 'bg-white border border-slate-200'}`}>
-                                {isOpenTime && <Check size={14} className="text-white" />}
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest italic">Open Time Booking</p>
-                                <p className="text-[9px] font-bold opacity-60 uppercase">I will scan in/out whenever I arrive.</p>
-                            </div>
-                        </div>
-
-                        {/* Date Picker */}
-                        <div>
-                            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Booking Date</label>
-                            <input
-                                type="date"
-                                min={getPHDateString()}
-                                value={bookingData.date}
-                                onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
-                                className="w-full mt-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:border-indigo-500 outline-none text-sm font-bold text-slate-900"
-                            />
-                        </div>
-
-                        {/* Time Selection */}
-                        {!isOpenTime && (
-                            <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-300">
-                                <div>
-                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Start Time</label>
-                                    <input
-                                        type="time"
-                                        value={bookingData.start_time}
-                                        onChange={(e) => setBookingData({ ...bookingData, start_time: e.target.value })}
-                                        className="w-full mt-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:border-indigo-500 outline-none text-sm font-bold text-slate-900"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">End Time</label>
-                                    <input
-                                        type="time"
-                                        value={bookingData.end_time}
-                                        onChange={(e) => setBookingData({ ...bookingData, end_time: e.target.value })}
-                                        className="w-full mt-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:border-indigo-500 outline-none text-sm font-bold text-slate-900"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Loading indicator */}
-                        {(checkingAvailability || checkingSpaceAvailability) && selectedBookableType === 'room' && (
-                            <div className="flex items-center justify-center gap-2 p-2">
-                                <Loader2 size={14} className="animate-spin text-indigo-500" />
-                                <span className="text-[8px] text-slate-500">Checking availability...</span>
-                            </div>
-                        )}
-
-                        {/* Notes */}
-                        <div>
-                            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Special Notes</label>
-                            <textarea
-                                placeholder="Optional notes..."
-                                value={bookingData.notes}
-                                onChange={(e) => setBookingData({ ...bookingData, notes: e.target.value })}
-                                className="w-full mt-2 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:border-indigo-500 min-h-20 text-slate-900"
-                            />
-                        </div>
-
-                        {/* Price Summary */}
-                        {estimatedPrice > 0 && (
-                            <div className="bg-slate-50 p-4 rounded-2xl space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[10px] font-black uppercase text-slate-500">Estimated Total</span>
-                                    <span className="text-sm font-bold text-slate-900">₱{estimatedPrice.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                                    <span className="text-xs font-black uppercase text-slate-900">Total to Pay</span>
-                                    <span className="text-xl font-[1000] italic text-indigo-600">₱{estimatedPrice.toFixed(2)}</span>
-                                </div>
-                                <p className="text-[8px] text-slate-400 text-center mt-2">
-                                    Final amount will be calculated based on actual time spent
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-3 pt-4">
-                            <button
-                                onClick={() => setOpenBookingModal(false)}
-                                className="flex-1 py-4 text-[10px] font-black uppercase text-slate-500 hover:text-slate-700 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleConfirmBooking}
-                                disabled={isBooking ||
-                                    (!isOpenTime && (!bookingData.start_time || !bookingData.end_time)) ||
-                                    (selectedBookableType === 'room' && (!selectedRoom || !roomAvailable)) ||
-                                    (selectedBookableType === 'space' && !spaceAvailable)}
-                                className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase shadow-lg shadow-indigo-900/20 hover:bg-indigo-500 flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                {isBooking ? <Loader2 size={14} className="animate-spin" /> : 'Confirm Booking'}
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </Modal>
+            <UserBookingModal
+                isOpen={openBookingModal}
+                onClose={() => setOpenBookingModal(false)}
+                space={space}
+                rooms={rooms}
+                selectedBookableType={selectedBookableType}
+                setSelectedBookableType={setSelectedBookableType}
+                selectedRoom={selectedRoom}
+                setSelectedRoom={setSelectedRoom}
+                bookingData={bookingData}
+                setBookingData={setBookingData}
+                isOpenTime={isOpenTime}
+                setIsOpenTime={setIsOpenTime}
+                isClosedOnSelectedDate={isClosedOnSelectedDate}
+                isOutsideHours={isOutsideHours}
+                spaceAvailable={spaceAvailable}
+                roomAvailable={roomAvailable}
+                checkingAvailability={checkingAvailability}
+                checkingSpaceAvailability={checkingSpaceAvailability}
+                estimatedPrice={estimatedPrice}
+                isBooking={isBooking}
+                handleConfirmBooking={handleConfirmBooking}
+                isBookingDisabled={isBookingDisabled}
+                hasRooms={hasRooms}
+                roomAvailability={roomAvailability}
+                spaceAvailability={spaceAvailability}
+                getPHDateString={getPHDateString}
+            />
 
             {/* Lightbox Modal */}
-            <Modal open={lightboxOpen} onClose={() => setLightboxOpen(false)} size="full" variant="dark">
-                <div className="relative w-full h-screen flex items-center justify-center bg-black/95">
-                    <button
-                        onClick={() => setLightboxOpen(false)}
-                        className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
-                    >
-                        <X size={24} />
-                    </button>
-                    {images.length > 0 && (
-                        <>
-                            <img
-                                src={getImageUrl(images[lightboxIndex])}
-                                alt={space.name}
-                                className="max-w-full max-h-full object-contain"
-                                onError={(e) => e.target.src = '/placeholders/space.jpg'}
-                            />
-                            {images.length > 1 && (
-                                <>
-                                    <button
-                                        onClick={prevLightbox}
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
-                                    >
-                                        <ChevronLeft size={24} />
-                                    </button>
-                                    <button
-                                        onClick={nextLightbox}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
-                                    >
-                                        <ChevronRight size={24} />
-                                    </button>
-                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
-                                        {lightboxIndex + 1} / {images.length}
-                                    </div>
-                                </>
-                            )}
-                        </>
-                    )}
-                </div>
-            </Modal>
+            <UserLightboxModal
+                isOpen={lightboxOpen}
+                onClose={() => setLightboxOpen(false)}
+                images={images}
+                currentIndex={lightboxIndex}
+                onPrev={prevLightbox}
+                onNext={nextLightbox}
+                spaceName={space?.name}
+            />
         </div>
     );
 };

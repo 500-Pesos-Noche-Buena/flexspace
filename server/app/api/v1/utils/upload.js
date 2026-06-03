@@ -23,11 +23,10 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage,
     limits: { 
-        fileSize: 5 * 1024 * 1024,
+        fileSize: 50 * 1024 * 1024,
         files: 10
     },
     fileFilter: (req, file, cb) => {
-        // Define allowed mimetypes
         const allowedTypes = [
             'image/jpeg', 
             'image/png', 
@@ -37,9 +36,8 @@ const upload = multer({
         ];
 
         if (allowedTypes.includes(file.mimetype)) {
-            cb(null, true); // Accept the file
+            cb(null, true);
         } else {
-            // Reject the file
             const error = new Error('Invalid file type. Only images and PDFs are allowed.');
             error.code = 'LIMIT_FILE_TYPES';
             cb(error, false);
@@ -49,54 +47,107 @@ const upload = multer({
 
 const processUploadedFiles = async (req, res, next) => {
     try {
-        if (!req.files || Object.keys(req.files).length === 0) {
+        console.log('📸 req.files:', req.files);
+        console.log('Type of req.files:', typeof req.files);
+        console.log('Is array:', Array.isArray(req.files));
+        
+        // Check if files exist
+        if (!req.files) {
+            console.log('No files found');
             req.cloudinaryUrls = {};
             return next();
         }
 
         const cloudinaryUrls = {};
 
-        for (const [fieldName, files] of Object.entries(req.files)) {
-            cloudinaryUrls[fieldName] = [];
+        // Handle array format (from upload.array)
+        if (Array.isArray(req.files)) {
+            console.log(`Processing ${req.files.length} files from array`);
+            cloudinaryUrls.images = [];
             
-            for (const file of files) {
+            for (const file of req.files) {
                 // Read file as Buffer
                 const fileBuffer = fs.readFileSync(file.path);
                 
-                console.log(`📤 Queueing ${fieldName}: ${file.originalname}, buffer size: ${fileBuffer.length}`);
+                console.log(`📤 Uploading: ${file.originalname}, size: ${fileBuffer.length} bytes`);
                 
-                // ✅ FIXED: Match the structure expected by cloudinaryProcessor
+                // Add to queue
                 const job = await cloudinaryQueue.add('upload', {
                     action: 'upload',
-                    data: {  // <-- ADD THIS NESTED DATA OBJECT
+                    data: {
                         fileBuffer: fileBuffer,
-                        folder: `coworking/${fieldName}`,
+                        folder: `coworking/images`,
                         filename: file.filename,
                         originalname: file.originalname,
-                        fieldname: fieldName,
+                        fieldname: 'images',
                         mimetype: file.mimetype
                     }
                 });
                 
-                console.log(`📤 Queued ${fieldName} upload, job ID: ${job.id}`);
+                // Wait for job to complete
+                const result = await job.finished();
                 
-                cloudinaryUrls[fieldName].push({
-                    jobId: job.id,
-                    status: 'queued',
-                    filename: file.originalname
-                });
+                console.log(`✅ Uploaded: ${result.url}`);
+                
+                cloudinaryUrls.images.push(result.url);
                 
                 // Clean up temp file
                 try {
                     fs.unlinkSync(file.path);
                 } catch (err) {
-                    // Ignore cleanup errors
+                    console.error('Failed to delete temp file:', err);
                 }
             }
+        } 
+        // Handle object format (from upload.fields)
+        else if (typeof req.files === 'object' && req.files !== null) {
+            console.log('Processing object with fields:', Object.keys(req.files));
+            
+            for (const [fieldName, files] of Object.entries(req.files)) {
+                if (Array.isArray(files) && files.length > 0) {
+                    cloudinaryUrls[fieldName] = [];
+                    
+                    for (const file of files) {
+                        const fileBuffer = fs.readFileSync(file.path);
+                        
+                        console.log(`📤 Uploading ${fieldName}: ${file.originalname}, size: ${fileBuffer.length} bytes`);
+                        
+                        const job = await cloudinaryQueue.add('upload', {
+                            action: 'upload',
+                            data: {
+                                fileBuffer: fileBuffer,
+                                folder: `coworking/${fieldName}`,
+                                filename: file.filename,
+                                originalname: file.originalname,
+                                fieldname: fieldName,
+                                mimetype: file.mimetype
+                            }
+                        });
+                        
+                        const result = await job.finished();
+                        
+                        console.log(`✅ Uploaded ${fieldName}: ${result.url}`);
+                        
+                        cloudinaryUrls[fieldName].push(result.url);
+                        
+                        try {
+                            fs.unlinkSync(file.path);
+                        } catch (err) {
+                            console.error('Failed to delete temp file:', err);
+                        }
+                    }
+                }
+            }
+        } else {
+            console.log('Unknown req.files format:', req.files);
+            req.cloudinaryUrls = {};
+            return next();
         }
-
+        
+        console.log('✅ All files uploaded successfully:', cloudinaryUrls);
         req.cloudinaryUrls = cloudinaryUrls;
         next();
+        
     } catch (error) {
         console.error('Process upload error:', error);
         next(error);

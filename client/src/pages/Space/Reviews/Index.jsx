@@ -1,6 +1,6 @@
-// pages/space/reviews/index.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/Api';
+import { EditReplyModal } from '@/components/modal';
 import { 
     Star, StarOff, ThumbsUp, MessageCircle, Calendar, User, Loader2, 
     Reply, Edit2, Trash2, X, Send, Filter, ChevronDown, AlertCircle
@@ -28,6 +28,7 @@ const SpaceReviewList = () => {
     const [replyText, setReplyText] = useState('');
     const [editingReply, setEditingReply] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
 
     const fetchReviews = useCallback(async () => {
         setLoading(true);
@@ -107,6 +108,7 @@ const SpaceReviewList = () => {
             
             if (response.success) {
                 showToast({ icon: 'success', title: 'Reply updated successfully' });
+                setShowEditModal(false);
                 setEditingReply(null);
                 setReplyText('');
                 fetchReviews();
@@ -132,6 +134,12 @@ const SpaceReviewList = () => {
                 showToast({ icon: 'error', title: 'Failed to delete reply' });
             }
         }
+    };
+
+    const openEditModal = (reviewId, currentReplyText) => {
+        setEditingReply(reviewId);
+        setReplyText(currentReplyText);
+        setShowEditModal(true);
     };
 
     const StarRating = ({ rating, size = 16 }) => (
@@ -356,10 +364,7 @@ const SpaceReviewList = () => {
                                         </p>
                                         <div className="flex gap-2">
                                             <button
-                                                onClick={() => {
-                                                    setEditingReply(review._id);
-                                                    setReplyText(review.reply.text);
-                                                }}
+                                                onClick={() => openEditModal(review._id, review.reply.text)}
                                                 className="p-1 hover:bg-amber-500/20 rounded transition-colors"
                                             >
                                                 <Edit2 size={14} className="text-amber-400" />
@@ -448,49 +453,18 @@ const SpaceReviewList = () => {
             )}
 
             {/* Edit Reply Modal */}
-            {editingReply && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#111114] border border-white/10 rounded-2xl p-6 max-w-md w-full">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-bold text-white">Edit Reply</h3>
-                            <button
-                                onClick={() => {
-                                    setEditingReply(null);
-                                    setReplyText('');
-                                }}
-                                className="p-1 hover:bg-white/10 rounded-lg transition"
-                            >
-                                <X size={20} className="text-slate-400" />
-                            </button>
-                        </div>
-                        <textarea
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            rows="4"
-                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-amber-500 outline-none resize-none"
-                            placeholder="Edit your reply..."
-                        />
-                        <div className="flex gap-3 mt-4">
-                            <button
-                                onClick={() => handleUpdateReply(editingReply)}
-                                disabled={submitting}
-                                className="flex-1 py-2 bg-amber-500 text-white rounded-xl font-bold disabled:opacity-50 hover:bg-amber-600 transition"
-                            >
-                                {submitting ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Update Reply'}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setEditingReply(null);
-                                    setReplyText('');
-                                }}
-                                className="flex-1 py-2 bg-white/5 text-slate-400 rounded-xl font-bold hover:bg-white/10 transition"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <EditReplyModal
+                isOpen={showEditModal}
+                onClose={() => {
+                    setShowEditModal(false);
+                    setEditingReply(null);
+                    setReplyText('');
+                }}
+                replyText={replyText}
+                setReplyText={setReplyText}
+                onSubmit={() => handleUpdateReply(editingReply)}
+                isSubmitting={submitting}
+            />
         </div>
     );
 };

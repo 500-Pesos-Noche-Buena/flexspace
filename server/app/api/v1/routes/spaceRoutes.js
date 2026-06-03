@@ -47,6 +47,7 @@ class SpaceRoutes {
         // ============ SPACE MANAGEMENT ============
         this.router.get('/spaces', auth, (req, res, next) => SpaceController.index(req, res, next));
         this.router.post('/spaces', auth, uploadArray, processUploadedFiles, (req, res, next) => SpaceController.store(req, res, next));
+        this.router.get('/spaces/:id', auth, (req, res, next) => SpaceController.show(req, res, next));
         this.router.post('/spaces/:id/update', auth, uploadArray, processUploadedFiles, (req, res, next) => SpaceController.update(req, res, next));
         this.router.post('/spaces/:id/delete', auth, (req, res, next) => SpaceController.delete(req, res, next));
         this.router.post('/spaces/:id/add-images', auth, uploadArray, processUploadedFiles, (req, res, next) => SpaceController.addImages(req, res, next));
@@ -69,7 +70,6 @@ class SpaceRoutes {
         this.router.post('/bookings/:id/apply-voucher', auth, (req, res, next) => BookingController.applyVoucher(req, res, next));
         this.router.post('/bookings/:id/:action', auth, (req, res, next) => BookingController.updateStatus(req, res, next));
 
-        // In spaceRoutes.js - update the webhook
         this.router.post('/payment-webhook', async (req, res, next) => {
             try {
                 console.log('📢 Payment webhook received:', JSON.stringify(req.body, null, 2));
@@ -148,6 +148,7 @@ class SpaceRoutes {
                 next(error);
             }
         });
+
         // ============ WALK-INS ============
         this.router.get('/walkins', auth, (req, res, next) => WalkinController.index(req, res, next));
         this.router.post('/walkins/store', auth, (req, res, next) => WalkinController.store(req, res, next));

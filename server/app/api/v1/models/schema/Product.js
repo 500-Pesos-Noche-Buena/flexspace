@@ -4,7 +4,8 @@ const productSchema = new mongoose.Schema({
     space_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Space', required: true },
     name: { type: String, required: true },
     description: { type: String, default: null },
-    price: { type: Number, required: true },
+    purchase_price: { type: Number, default: 0 },
+    price: { type: Number, required: true }, // Selling price
     category: { 
         type: String, 
         enum: ['food', 'beverage', 'snacks', 'merch'], 

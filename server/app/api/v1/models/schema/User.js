@@ -1,4 +1,3 @@
-// app/api/v1/models/schema/User.js
 const mongoose = require('mongoose');
 const { logsActivity } = require('@/api/v1/utils/logsActivity');
 
@@ -8,13 +7,18 @@ const userSchema = new mongoose.Schema({
         ref: 'SpaceRequest',
         default: null 
     },
+    space_id: { // - For staff, which space/branch they belong to
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Space',
+        default: null 
+    },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     
     // Make password optional for Google OAuth users
     password: { 
         type: String, 
-        required: false,  // ← Changed to false
+        required: false,
         default: null 
     },
     
@@ -46,7 +50,7 @@ const userSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true },
     isVerified: { 
         type: Boolean, 
-        default: false  // Google users will be auto-verified
+        default: false
     },
     status: { type: String, enum: ['pending', 'approved', 'rejected'] },
     business_permit: { type: String },

@@ -6,9 +6,8 @@ class UserService {
         const user = await User.findOne({ email });
 
         if (user) {
-            // Check if user is a Google OAuth user (no password)
             if (user.authProvider === 'google' && !user.password) {
-                return null; // Google users can't login with password
+                return null;
             }
 
             const isMatch = await comparePassword(password, user.password);
@@ -66,7 +65,6 @@ class UserService {
     }
 
     async isEmailTaken(email) {
-        // Use lean() + select() for minimum data transfer
         const [user, pending] = await Promise.all([
             User.findOne({ email }).select('_id').lean(),
             SpaceRequest.findOne({ email }).select('_id').lean()
@@ -79,19 +77,28 @@ class UserService {
 
         const hashedPassword = await hashPassword(data.password);
 
+        console.log('Creating staff with data:', {
+            name: data.name,
+            email: data.email,
+            parent_id: data.parent_id,
+            space_id: data.space_id  // Debug log
+        });
+
         return await User.create({
             name: data.name,
             email: data.email,
             password: hashedPassword,
             role: 'staff',
             parent_id: data.parent_id,
+            space_id: data.space_id || null,  // ← ADD THIS LINE
             isActive: true,
-            business_payment_qr: data.business_payment_qr || null,  // ✅ Added for staff
-            payment_methods: data.payment_methods || ['cash']       // ✅ Added for staff
+            isVerified: true,
+            authProvider: 'local',
+            business_payment_qr: data.business_payment_qr || null,
+            payment_methods: data.payment_methods || ['cash']
         });
     }
 
-    // ✅ NEW: Method to update payment details for existing user
     async updatePaymentDetails(userId, paymentData) {
         const user = await User.findById(userId);
         if (!user) {
@@ -110,7 +117,6 @@ class UserService {
         return user;
     }
 
-    // ✅ NEW: Method to get payment details for a user
     async getPaymentDetails(userId) {
         const user = await User.findById(userId).select('business_payment_qr payment_methods name email');
         if (!user) {
@@ -125,18 +131,15 @@ class UserService {
     }
 
     async findOrCreateGoogleUser(profile) {
-        // Try to find by googleId first
         let user = await User.findOne({ googleId: profile.id });
 
         if (user) {
             return user;
         }
 
-        // Try to find by email
         user = await User.findOne({ email: profile.emails[0].value });
 
         if (user) {
-            // Link Google account to existing user
             user.googleId = profile.id;
             user.authProvider = 'google';
             user.avatar = profile.photos?.[0]?.value || user.avatar;
@@ -145,7 +148,6 @@ class UserService {
             return user;
         }
 
-        // Create new user
         user = await User.create({
             googleId: profile.id,
             email: profile.emails[0].value,
@@ -155,13 +157,12 @@ class UserService {
             authProvider: 'google',
             isVerified: true,
             isActive: true,
-            password: null  // No password for Google users
+            password: null
         });
 
         return user;
     }
 
-    // Check if user has password (for Google users)
     async hasPassword(userId) {
         const user = await User.findById(userId);
         return user && user.password !== null && user.password !== undefined;
