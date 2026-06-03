@@ -6,12 +6,14 @@ import {
     Filter, ChevronDown, X, Archive, RefreshCw, TrendingDown, Receipt, Building2
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
-import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from "@/lib/utils";
+import { ProductModal, DeleteConfirmModal } from '@/components/modal';
+import { useTheme } from '@/hooks/useTheme';
 
 const Inventory = () => {
+    const { themeColor } = useTheme();
     const [products, setProducts] = useState([]);
     const [spaces, setSpaces] = useState([]);
     const [selectedSpaceId, setSelectedSpaceId] = useState('');
@@ -21,6 +23,7 @@ const Inventory = () => {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         purchase_price: '',
@@ -30,6 +33,9 @@ const Inventory = () => {
         description: '',
         is_available: true
     });
+    const [touched, setTouched] = useState({});
+    const [errors, setErrors] = useState({});
+
 
     const categories = [
         { value: 'all', label: 'All Items', icon: Boxes },
@@ -38,6 +44,18 @@ const Inventory = () => {
         { value: 'snacks', label: 'Snacks', icon: Package },
         { value: 'merch', label: 'Merchandise', icon: Tag }
     ];
+
+    const getThemeColorClass = () => {
+        const colors = {
+            indigo: 'indigo',
+            emerald: 'emerald',
+            purple: 'purple',
+            blue: 'blue',
+            rose: 'rose',
+            amber: 'amber',
+        };
+        return colors[themeColor] || 'indigo';
+    };
 
     // Fetch spaces first
     useEffect(() => {
@@ -54,7 +72,6 @@ const Inventory = () => {
     const fetchSpaces = async () => {
         try {
             const res = await apiGet('/space/spaces');
-            console.log('Spaces available to user:', res.data);
             if (res.success && res.data.length > 0) {
                 setSpaces(res.data);
                 setSelectedSpaceId(res.data[0]._id);
@@ -68,7 +85,6 @@ const Inventory = () => {
         setLoading(true);
         try {
             const res = await apiGet(`/space/products?space_id=${selectedSpaceId}`);
-            console.log(`Products for space ${selectedSpaceId}:`, res.data);
             if (res.success) {
                 setProducts(res.data);
             }
@@ -79,13 +95,64 @@ const Inventory = () => {
         }
     };
 
+    const handleBlur = (e) => {
+        const { name } = e.target;
+        setTouched(prev => ({ ...prev, [name]: true }));
+    };
+
+   // Add validation function
+const validateForm = () => {
+    const newErrors = {};
+    
+    // Name validation
+    if (!formData.name || !formData.name.trim()) {
+        newErrors.name = 'Product name is required';
+    } else if (formData.name.length > 50) {
+        newErrors.name = 'Product name cannot exceed 50 characters';
+    }
+    
+    // Selling price validation
+    if (!formData.price && formData.price !== 0) {
+        newErrors.price = 'Selling price is required';
+    } else if (parseFloat(formData.price) < 0) {
+        newErrors.price = 'Selling price cannot be negative';
+    } else if (parseFloat(formData.price) === 0) {
+        newErrors.price = 'Selling price must be greater than 0';
+    } else if (isNaN(parseFloat(formData.price))) {
+        newErrors.price = 'Selling price must be a valid number';
+    }
+    
+    // Purchase price validation (optional but must be valid if provided)
+    if (formData.purchase_price && formData.purchase_price !== '') {
+        if (parseFloat(formData.purchase_price) < 0) {
+            newErrors.purchase_price = 'Purchase price cannot be negative';
+        } else if (isNaN(parseFloat(formData.purchase_price))) {
+            newErrors.purchase_price = 'Purchase price must be a valid number';
+        }
+    }
+    
+    // Stock validation (optional but must be valid if provided)
+    if (formData.stock && formData.stock !== '') {
+        if (parseInt(formData.stock) < 0) {
+            newErrors.stock = 'Stock cannot be negative';
+        } else if (isNaN(parseInt(formData.stock))) {
+            newErrors.stock = 'Stock must be a valid number';
+        }
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+};
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validateForm()) return;
         if (!selectedSpaceId) {
             showToast({ icon: 'warning', title: 'Please select a branch first' });
             return;
         }
 
+        setIsSubmitting(true);
         try {
             const submitData = {
                 ...formData,
@@ -108,6 +175,8 @@ const Inventory = () => {
             fetchProducts();
         } catch (err) {
             showToast({ icon: 'error', title: err.message || 'Operation failed' });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -170,34 +239,36 @@ const Inventory = () => {
         }, 0)
     };
 
+    const color = getThemeColorClass();
+
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
             <div className="mb-8">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Inventory Management</h1>
-                        <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest italic">
+                        <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">Inventory Management</h1>
+                        <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest italic">
                             Manage products across all your branches
                         </p>
                     </div>
 
                     {/* Branch Selector */}
                     <div className="relative">
-                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-2">
-                            <Building2 size={16} className="text-indigo-400" />
+                        <div className="flex items-center gap-2 bg-muted border border-border rounded-2xl px-4 py-2">
+                            <Building2 size={16} className="text-primary" />
                             <select
                                 value={selectedSpaceId}
                                 onChange={(e) => setSelectedSpaceId(e.target.value)}
-                                className="bg-transparent text-white text-sm font-bold outline-none pr-8 cursor-pointer"
+                                className="bg-transparent text-foreground text-sm font-bold outline-none pr-8 cursor-pointer"
                             >
                                 {spaces.map(space => (
-                                    <option key={space._id} value={space._id} className="bg-[#111114]">
+                                    <option key={space._id} value={space._id} className="bg-background text-foreground">
                                         {space.name}
                                     </option>
                                 ))}
                             </select>
-                            <ChevronDown size={14} className="text-slate-500" />
+                            <ChevronDown size={14} className="text-muted-foreground" />
                         </div>
                     </div>
                 </div>
@@ -205,64 +276,64 @@ const Inventory = () => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-                <Card className="bg-indigo-500/5 border-indigo-500/10">
+                <Card className="bg-primary/5 border-primary/10">
                     <CardContent className="p-5 flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                            <Building2 size={20} />
+                        <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center">
+                            <Building2 size={20} className="text-primary" />
                         </div>
                         <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Current Branch</p>
-                            <p className="text-lg font-[1000] text-white italic tracking-tighter truncate max-w-37.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Current Branch</p>
+                            <p className="text-lg font-[1000] text-foreground italic tracking-tighter truncate max-w-37.5">
                                 {getCurrentSpaceName()}
                             </p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-indigo-500/5 border-indigo-500/10">
+                <Card className="bg-primary/5 border-primary/10">
                     <CardContent className="p-5 flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                            <Package size={20} />
+                        <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center">
+                            <Package size={20} className="text-primary" />
                         </div>
                         <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Total Products</p>
-                            <p className="text-xl font-[1000] text-white italic tracking-tighter">{stats.total}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total Products</p>
+                            <p className="text-xl font-[1000] text-foreground italic tracking-tighter">{stats.total}</p>
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card className="bg-amber-500/5 border-amber-500/10">
                     <CardContent className="p-5 flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                            <AlertCircle size={20} />
+                        <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                            <AlertCircle size={20} className="text-amber-600 dark:text-amber-400" />
                         </div>
                         <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Low Stock</p>
-                            <p className="text-xl font-[1000] text-amber-400 italic tracking-tighter">{stats.lowStock}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Low Stock</p>
+                            <p className="text-xl font-[1000] text-amber-600 dark:text-amber-400 italic tracking-tighter">{stats.lowStock}</p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-red-500/5 border-red-500/10">
+                <Card className="bg-rose-500/5 border-rose-500/10">
                     <CardContent className="p-5 flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500">
-                            <XCircle size={20} />
+                        <div className="w-11 h-11 rounded-2xl bg-rose-500/10 flex items-center justify-center">
+                            <XCircle size={20} className="text-rose-600 dark:text-rose-400" />
                         </div>
                         <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Out of Stock</p>
-                            <p className="text-xl font-[1000] text-red-400 italic tracking-tighter">{stats.outOfStock}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Out of Stock</p>
+                            <p className="text-xl font-[1000] text-rose-600 dark:text-rose-400 italic tracking-tighter">{stats.outOfStock}</p>
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card className="bg-emerald-500/5 border-emerald-500/10">
                     <CardContent className="p-5 flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                            <TrendingUp size={20} />
+                        <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                            <TrendingUp size={20} className="text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Inventory Value</p>
-                            <p className="text-xl font-[1000] text-emerald-400 italic tracking-tighter">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Inventory Value</p>
+                            <p className="text-xl font-[1000] text-emerald-600 dark:text-emerald-400 italic tracking-tighter">
                                 ₱{stats.totalCost.toLocaleString()}
                             </p>
                         </div>
@@ -275,13 +346,13 @@ const Inventory = () => {
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                     {/* Search */}
                     <div className="relative flex-1 sm:w-80">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                         <input
                             type="text"
                             placeholder="Search products..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 outline-none transition-all"
+                            className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-2xl text-foreground text-sm placeholder:text-muted-foreground focus:border-primary outline-none transition-all"
                         />
                     </div>
 
@@ -290,15 +361,15 @@ const Inventory = () => {
                         <select
                             value={selectedCategory}
                             onChange={(e) => setSelectedCategory(e.target.value)}
-                            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-white text-sm appearance-none cursor-pointer focus:border-indigo-500 outline-none"
+                            className="px-4 py-2.5 bg-background border border-border rounded-2xl text-foreground text-sm appearance-none cursor-pointer focus:border-primary outline-none"
                         >
                             {categories.map(cat => (
-                                <option key={cat.value} value={cat.value} className="bg-[#111114]">
+                                <option key={cat.value} value={cat.value} className="bg-background text-foreground">
                                     {cat.label}
                                 </option>
                             ))}
                         </select>
-                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
                 </div>
 
@@ -308,7 +379,7 @@ const Inventory = () => {
                         setFormData({ name: '', purchase_price: '', price: '', category: 'beverage', stock: '', description: '', is_available: true });
                         setModalOpen(true);
                     }}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest px-5 py-2.5 h-auto shadow-lg shadow-indigo-900/20"
+                    className={`bg-${color}-600 hover:bg-${color}-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest px-5 py-2.5 h-auto shadow-lg`}
                 >
                     <Plus size={14} className="mr-2" /> Add Product to {getCurrentSpaceName()}
                 </Button>
@@ -317,13 +388,13 @@ const Inventory = () => {
             {/* Products Grid */}
             {loading ? (
                 <div className="flex justify-center py-20">
-                    <Loader2 size={40} className="animate-spin text-indigo-500" />
+                    <Loader2 size={40} className="animate-spin text-primary" />
                 </div>
             ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-20">
-                    <Package size={48} className="text-slate-600 mx-auto mb-4" />
-                    <p className="text-slate-500 font-black uppercase tracking-widest text-sm">No products found</p>
-                    <p className="text-[10px] text-slate-600 mt-1">
+                    <Package size={48} className="text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground font-black uppercase tracking-widest text-sm">No products found</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">
                         Add your first product to {getCurrentSpaceName()}
                     </p>
                 </div>
@@ -337,7 +408,7 @@ const Inventory = () => {
                             <Card
                                 key={product._id}
                                 className={cn(
-                                    "bg-[#111114] border border-white/10 hover:border-indigo-500/30 transition-all duration-300 group",
+                                    "bg-card border-border hover:border-primary/30 transition-all duration-300 group",
                                     !product.is_available && "opacity-60"
                                 )}
                             >
@@ -345,14 +416,14 @@ const Inventory = () => {
                                     {/* Header */}
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                                                <Package size={18} className="text-indigo-400" />
+                                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                                                <Package size={18} className="text-primary" />
                                             </div>
                                             <div>
-                                                <h3 className="text-sm font-black text-white italic tracking-tighter">
+                                                <h3 className="text-sm font-black text-foreground italic tracking-tighter">
                                                     {product.name}
                                                 </h3>
-                                                <span className="text-[8px] text-slate-500 uppercase tracking-wider">
+                                                <span className="text-[8px] text-muted-foreground uppercase tracking-wider">
                                                     {product.category}
                                                 </span>
                                             </div>
@@ -360,19 +431,19 @@ const Inventory = () => {
 
                                         {/* Status Badge */}
                                         {!product.is_available ? (
-                                            <span className="text-[8px] bg-red-500/20 text-red-400 px-2 py-1 rounded-full font-black uppercase">
+                                            <span className="text-[8px] bg-rose-500/20 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-full font-black uppercase">
                                                 Hidden
                                             </span>
                                         ) : product.stock === 0 ? (
-                                            <span className="text-[8px] bg-red-500/20 text-red-400 px-2 py-1 rounded-full font-black uppercase">
+                                            <span className="text-[8px] bg-rose-500/20 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-full font-black uppercase">
                                                 Out of Stock
                                             </span>
                                         ) : product.stock <= 10 ? (
-                                            <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full font-black uppercase">
+                                            <span className="text-[8px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-1 rounded-full font-black uppercase">
                                                 Low Stock
                                             </span>
                                         ) : (
-                                            <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full font-black uppercase">
+                                            <span className="text-[8px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-full font-black uppercase">
                                                 In Stock
                                             </span>
                                         )}
@@ -382,32 +453,32 @@ const Inventory = () => {
                                     <div className="space-y-2 mb-3">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-1.5">
-                                                <DollarSign size={12} className="text-emerald-400" />
-                                                <span className="text-[10px] text-slate-500">Selling Price</span>
+                                                <DollarSign size={12} className="text-emerald-600 dark:text-emerald-400" />
+                                                <span className="text-[10px] text-muted-foreground">Selling Price</span>
                                             </div>
-                                            <span className="text-sm font-black text-emerald-400 italic">
+                                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 italic">
                                                 ₱{product.price}
                                             </span>
                                         </div>
 
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-1.5">
-                                                <TrendingDown size={12} className="text-amber-400" />
-                                                <span className="text-[10px] text-slate-500">Purchase Price</span>
+                                                <TrendingDown size={12} className="text-amber-600 dark:text-amber-400" />
+                                                <span className="text-[10px] text-muted-foreground">Purchase Price</span>
                                             </div>
-                                            <span className="text-sm font-black text-amber-400 italic">
+                                            <span className="text-sm font-black text-amber-600 dark:text-amber-400 italic">
                                                 ₱{product.purchase_price || 0}
                                             </span>
                                         </div>
 
-                                        <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                                        <div className="flex items-center justify-between pt-1 border-t border-border">
                                             <div className="flex items-center gap-1.5">
-                                                <TrendingUp size={12} className={isProfitable ? "text-emerald-400" : "text-red-400"} />
-                                                <span className="text-[10px] text-slate-500">Profit per unit</span>
+                                                <TrendingUp size={12} className={isProfitable ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"} />
+                                                <span className="text-[10px] text-muted-foreground">Profit per unit</span>
                                             </div>
                                             <span className={cn(
                                                 "text-sm font-black italic",
-                                                isProfitable ? "text-emerald-400" : "text-red-400"
+                                                isProfitable ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                                             )}>
                                                 ₱{(product.price - (product.purchase_price || 0)).toFixed(2)}
                                                 <span className="text-[8px] ml-1">
@@ -418,13 +489,13 @@ const Inventory = () => {
 
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-1.5">
-                                                <Boxes size={12} className="text-indigo-400" />
-                                                <span className="text-[10px] text-slate-500">Stock</span>
+                                                <Boxes size={12} className="text-primary" />
+                                                <span className="text-[10px] text-muted-foreground">Stock</span>
                                             </div>
                                             <span className={cn(
                                                 "text-sm font-black italic",
-                                                product.stock === 0 ? "text-red-400" :
-                                                    product.stock <= 10 ? "text-amber-400" : "text-white"
+                                                product.stock === 0 ? "text-rose-600 dark:text-rose-400" :
+                                                    product.stock <= 10 ? "text-amber-600 dark:text-amber-400" : "text-foreground"
                                             )}>
                                                 {product.stock || 0} units
                                             </span>
@@ -433,20 +504,20 @@ const Inventory = () => {
 
                                     {/* Description */}
                                     {product.description && (
-                                        <p className="text-[9px] text-slate-500 leading-relaxed mb-4 line-clamp-2">
+                                        <p className="text-[9px] text-muted-foreground leading-relaxed mb-4 line-clamp-2">
                                             {product.description}
                                         </p>
                                     )}
 
                                     {/* Actions */}
-                                    <div className="flex gap-2 pt-2 border-t border-white/10">
+                                    <div className="flex gap-2 pt-2 border-t border-border">
                                         <button
                                             onClick={() => handleToggleAvailability(product)}
                                             className={cn(
                                                 "flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all",
                                                 product.is_available
-                                                    ? "bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white"
-                                                    : "bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white"
+                                                    ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-600 hover:text-white"
+                                                    : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white"
                                             )}
                                         >
                                             {product.is_available ? 'Hide' : 'Show'}
@@ -457,13 +528,13 @@ const Inventory = () => {
                                                 setFormData(product);
                                                 setModalOpen(true);
                                             }}
-                                            className="flex-1 py-2 bg-indigo-600/20 text-indigo-400 rounded-xl text-[9px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all"
+                                            className={`flex-1 py-2 bg-${color}-500/20 text-${color}-400 rounded-xl text-[9px] font-black uppercase hover:bg-${color}-600 hover:text-white transition-all`}
                                         >
                                             <Edit2 size={12} className="inline mr-1" /> Edit
                                         </button>
                                         <button
                                             onClick={() => setShowDeleteConfirm(product)}
-                                            className="py-2 px-3 bg-red-600/20 text-red-400 rounded-xl hover:bg-red-600 hover:text-white transition-all"
+                                            className="py-2 px-3 bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-600 hover:text-white transition-all"
                                         >
                                             <Trash2 size={12} />
                                         </button>
@@ -475,147 +546,29 @@ const Inventory = () => {
                 </div>
             )}
 
-            {/* Add/Edit Modal */}
-            <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingProduct ? 'Edit Product' : 'New Product'} size="md" variant="dark">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-3 mb-2">
-                        <p className="text-[8px] text-indigo-400 font-black uppercase tracking-wider">Branch</p>
-                        <p className="text-sm font-black text-white">{getCurrentSpaceName()}</p>
-                    </div>
-
-                    <div>
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Product Name</label>
-                        <input
-                            type="text"
-                            placeholder="e.g., Iced Caramel Macchiato"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            required
-                            className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 outline-none transition-all"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Purchase Price (₱)</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={formData.purchase_price}
-                                onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })}
-                                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Selling Price (₱)</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={formData.price}
-                                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                required
-                                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Stock Quantity</label>
-                            <input
-                                type="number"
-                                placeholder="0"
-                                value={formData.stock}
-                                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Category</label>
-                            <select
-                                value={formData.category}
-                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 outline-none"
-                            >
-                                <option value="food">Food</option>
-                                <option value="beverage">Beverage</option>
-                                <option value="snacks">Snacks</option>
-                                <option value="merch">Merchandise</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Description (Optional)</label>
-                        <textarea
-                            placeholder="Describe the product..."
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            rows="3"
-                            className="w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white focus:border-indigo-500 outline-none resize-none"
-                        />
-                    </div>
-
-                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl p-3">
-                        <p className="text-[8px] text-purple-400 font-black uppercase tracking-wider">Profit Preview</p>
-                        <div className="flex justify-between items-center mt-2">
-                            <span className="text-[9px] text-slate-400">Profit per unit:</span>
-                            <span className="text-sm font-black text-purple-400">
-                                ₱{(parseFloat(formData.price) - (parseFloat(formData.purchase_price) || 0)).toFixed(2)}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-[9px] text-slate-400">Profit margin:</span>
-                            <span className="text-sm font-black text-purple-400">
-                                {formData.price > 0 ? (((parseFloat(formData.price) - (parseFloat(formData.purchase_price) || 0)) / parseFloat(formData.price)) * 100).toFixed(1) : 0}%
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-2xl">
-                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Available for sale</span>
-                        <input
-                            type="checkbox"
-                            checked={formData.is_available !== false}
-                            onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
-                            className="w-5 h-5 accent-indigo-500"
-                        />
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                        <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
-                            Cancel
-                        </button>
-                        <button type="submit" className="flex-1 py-3 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-indigo-500 transition-all">
-                            {editingProduct ? <RefreshCw size={14} /> : <Plus size={14} />}
-                            {editingProduct ? 'Update Product' : `Add to ${getCurrentSpaceName()}`}
-                        </button>
-                    </div>
-                </form>
-            </Modal>
+            {/* Product Modal */}
+            <ProductModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleSubmit}
+                editingProduct={editingProduct}
+                formData={formData}
+                setFormData={setFormData}
+                spaceName={getCurrentSpaceName()}
+                isSubmitting={isSubmitting}
+                touched={touched}
+                errors={errors}
+                onBlur={handleBlur}
+            />
 
             {/* Delete Confirmation Modal */}
-            <Modal open={!!showDeleteConfirm} onClose={() => setShowDeleteConfirm(null)} title="Delete Product" size="sm" variant="dark">
-                <div className="text-center py-4">
-                    <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
-                        <Trash2 size={28} className="text-red-400" />
-                    </div>
-                    <h3 className="text-lg font-black text-white mb-2">Delete {showDeleteConfirm?.name}?</h3>
-                    <p className="text-[10px] text-slate-500 mb-6">
-                        This action cannot be undone. The product will be permanently removed from {getCurrentSpaceName()}'s inventory.
-                    </p>
-                    <div className="flex gap-3">
-                        <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 py-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
-                            Cancel
-                        </button>
-                        <button onClick={() => handleDelete(showDeleteConfirm._id)} className="flex-1 py-3 rounded-2xl bg-red-600 text-white font-black text-[10px] uppercase hover:bg-red-500 transition-all">
-                            Delete Permanently
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+            <DeleteConfirmModal
+                isOpen={!!showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(null)}
+                onConfirm={() => handleDelete(showDeleteConfirm?._id)}
+                productName={showDeleteConfirm?.name}
+                spaceName={getCurrentSpaceName()}
+            />
         </div>
     );
 };

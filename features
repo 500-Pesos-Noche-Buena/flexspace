@@ -31,6 +31,7 @@ PART 1: WHAT USERS SEE AND USE (Frontend)
    - Rate spaces you've visited
    - Leave written feedback
    - Upload photos with your review
+   - QR code on receipt to leave review after booking
 
 5. LOYALTY POINTS & VOUCHERS
    - Earn points every time you book (₱20 = 1 point)
@@ -85,16 +86,166 @@ PART 1: WHAT USERS SEE AND USE (Frontend)
     - View platform information before signing up
 
 ================================================================================
-PART 2: SYSTEM BACKGROUND SERVICES (Behind the Scenes)
+PART 2: POINT OF SALE (POS) SYSTEM
 ================================================================================
 
-11. ACTIVITY TRACKING
+11. WALK-IN MANAGEMENT
+    - Create walk-in bookings without prior reservation
+    - Select space or private room for walk-in
+    - Choose between open time (all day) or fixed hourly schedule
+    - Auto-calculate bill based on actual time spent
+    - Support for open time (unlimited hours) or hourly rates
+    - Real-time check-in and check-out tracking
+
+12. POS PAYMENT PROCESSING
+    - Calculate bill instantly based on time spent
+    - Apply discount vouchers before checkout
+    - Process cash payments with change calculation
+    - Generate QR code for GCash/Maya payments
+    - Print receipt after successful payment
+    - Send email receipt to customer
+
+13. INVENTORY MANAGEMENT
+    - Track product inventory for coworking spaces
+    - Add products (food, drinks, merchandise) to sell
+    - Update stock levels automatically when sold
+    - Low stock alerts and warnings
+    - Categorize products for easy organization
+
+14. CUSTOMER ORDERS
+    - Create customer orders for products
+    - Add multiple items to a single order
+    - Calculate order totals with tax
+    - Process order payments separately from bookings
+    - Track order status (pending, preparing, completed)
+    - View order history per customer
+
+15. STAFF POS ACCESS
+    - Staff can process walk-in bookings
+    - Staff can handle product sales
+    - Staff cannot access financial reports
+    - All staff actions are logged for audit
+
+================================================================================
+PART 3: PAYMENT & EARNINGS SYSTEM
+================================================================================
+
+16. PAYMENT METHODS
+    - Cash (walk-in payments only)
+    - GCash (via PayMongo/PayBridge)
+    - Maya (via PayMongo/PayBridge)
+    - Credit/Debit Cards (via PayMongo)
+    - Bank Transfer (via PayMongo)
+    - PayPal (via PayMongo)
+    - Loyalty Points (redeem for vouchers)
+
+17. ONLINE PAYMENT FLOW
+    - Customer books space/room online
+    - Redirected to secure payment page
+    - Choose payment method (GCash, Maya, Card, etc.)
+    - Complete payment on payment provider's page
+    - Redirected back to success page
+    - Booking auto-confirmed after successful payment
+    - Email receipt automatically sent
+
+18. PLATFORM FEE SYSTEM
+    - Configurable platform fee percentage (default: 2-10%)
+    - Fee automatically calculated per booking
+    - Separate tracking for online vs walk-in payments
+    - Space owners see pending fees in dashboard
+    - Red badge notification for unpaid fees
+    - One-click pay platform fees via GCash/Maya
+    - Fee status: 'pending' or 'collected'
+    - Monthly breakdown of fees and earnings
+
+19. EARNINGS TRACKER
+    - Combined view of booking earnings + POS sales
+    - Gross revenue vs net earnings after fees
+    - Platform commission tracking
+    - Export reports to CSV or PDF
+    - Filter by date range (today, week, month, year)
+    - Search transaction history
+    - Voucher discount tracking
+    - Walk-in vs online booking breakdown
+
+20. PAYMENT SECURITY
+    - PayMongo API keys encrypted before storage
+    - PayBridge middleware for secure key handling
+    - HTTPS for all payment-related endpoints
+    - Webhook signature verification
+    - Idempotency prevents duplicate payments
+    - No plain-text API keys stored
+
+================================================================================
+PART 4: BOOKING MANAGEMENT SYSTEM
+================================================================================
+
+21. BOOKING TYPES
+    - Online bookings (pre-paid via payment gateway)
+    - Walk-in bookings (pay at counter)
+    - Open time bookings (all day access)
+    - Fixed schedule bookings (specific hours)
+
+22. BOOKING WORKFLOW
+    - Pending → Confirmed → Active → Completed
+    - Or Pending → Rejected/Cancelled
+    - Active status when customer checks in via QR
+    - Completed when payment is processed
+
+23. QR CODE SYSTEM
+    - Unique QR code generated per booking
+    - QR code for check-in (scan at space)
+    - QR code for review (scan after completion)
+    - QR code for payment (GCash/Maya)
+
+24. ROOM BOOKING
+    - Book specific rooms within a space
+    - Room capacity tracking
+    - Room availability calendar
+    - Different rates per room
+    - Room amenities displayed
+
+================================================================================
+PART 5: DASHBOARD & ANALYTICS
+================================================================================
+
+25. SPACE OWNER DASHBOARD
+    - Real-time occupancy monitoring
+    - Today's revenue (gross and net)
+    - Active sessions counter
+    - Walk-ins vs online breakdown
+    - Live traffic (who's currently in the space)
+    - Revenue trends (daily/weekly/monthly/yearly)
+    - Voucher performance metrics
+    - Customer loyalty analytics
+
+26. ADMIN DASHBOARD
+    - Platform-wide occupancy rate
+    - Total platform revenue (fees collected)
+    - Top performing spaces
+    - User growth tracking
+    - Revenue trends across all spaces
+    - Struggling spaces (low occupancy alert)
+    - Thriving spaces (high occupancy highlight)
+
+27. FINANCIAL REPORTS
+    - Booking earnings report
+    - POS sales report
+    - Combined financial summary
+    - Platform fee collection report
+    - CSV and PDF export
+
+================================================================================
+PART 6: SYSTEM BACKGROUND SERVICES (Behind the Scenes)
+================================================================================
+
+28. ACTIVITY TRACKING
     - Every user action is automatically recorded
     - Admins can see who did what and when
     - IP addresses are tracked for security
     - Helps resolve disputes and catch problems
 
-12. SECURITY & PROTECTION
+29. SECURITY & PROTECTION
     - Passwords are securely encrypted (not stored as plain text)
     - Bot protection on login/register screens
     - Automatic temporary bans for too many requests
@@ -103,10 +254,10 @@ PART 2: SYSTEM BACKGROUND SERVICES (Behind the Scenes)
     - Automatic attack detection (protection kicks in during traffic spikes)
     - Error tracking (too many errors = temporary ban)
 
-13. REAL-TIME NOTIFICATIONS
+30. REAL-TIME NOTIFICATIONS
     - Live updates without refreshing the page
 
-14. EMAIL NOTIFICATIONS (automatic)
+31. EMAIL NOTIFICATIONS (automatic)
     - Welcome email when you sign up
     - Booking confirmation email
     - Booking completion email (after check out)
@@ -116,39 +267,41 @@ PART 2: SYSTEM BACKGROUND SERVICES (Behind the Scenes)
     - Space approval email (for space owners)
     - Space rejection email (with reason)
     - Voucher redemption email
+    - Payment receipt email
 
-15. IMAGE UPLOADS
+32. IMAGE UPLOADS
     - Space photos are uploaded to cloud storage
     - Business permits and registration documents are also uploaded here
     - Payment QR codes are stored here
+    - Product images for inventory
 
-16. QUEUE SYSTEM (keeps things fast)
+33. QUEUE SYSTEM (keeps things fast)
     - Emails and image uploads happen in the background
     - You don't have to wait for them to finish
     - If something fails, the system tries again up to 3 times
     - If the queue system fails, things still work (just slower)
 
-17. LOCATION FEATURES
+34. LOCATION FEATURES
     - Spaces are stored with latitude/longitude coordinates
     - The system can find spaces near you
     - Districts help organize spaces by area (Molo, Jaro, etc.)
 
-18. AUTOMATIC BAN SYSTEM
+35. AUTOMATIC BAN SYSTEM
     - Automatic IP blocking after too many violations
     - Temporary bans last 5 minutes by default
     - Permanent bans for repeat offenders
     - Admins can manually block or unblock anyone
 
-19. API VERSIONING
+36. API VERSIONING
     - The system supports multiple API versions (v1 and v2)
     - Allows new features to be added without breaking old ones
 
-20. MULTI-ENVIRONMENT SUPPORT
+37. MULTI-ENVIRONMENT SUPPORT
     - The system can run in different modes: Local (testing), Staging (preview), Production (live)
     - Each environment has its own settings
 
 ================================================================================
-PART 3: AI CHATBOT CAPABILITIES (Flex Support)
+PART 7: AI CHATBOT CAPABILITIES (Flex Support)
 ================================================================================
 
 Flex Support can:
@@ -165,7 +318,7 @@ Flex Support can:
 - Understand and answer follow-up questions
 
 ================================================================================
-PART 4: SECURITY FEATURES SUMMARY
+PART 8: SECURITY FEATURES SUMMARY
 ================================================================================
 
 - JWT tokens (secure session management)
@@ -177,19 +330,22 @@ PART 4: SECURITY FEATURES SUMMARY
 - IP blocklist with permanent and temporary options
 - Role-based access (User, Staff, Space Owner, Admin)
 - Auto-logger for audit trails (everything is recorded)
+- PayMongo API key encryption
+- Webhook signature verification
 
 ================================================================================
-PART 5: TECHNOLOGY STACK (For Reference)
+PART 9: TECHNOLOGY STACK (For Reference)
 ================================================================================
 
-Frontend: React, Vite, Tailwind CSS, Leaflet maps
-Backend: Node.js, Express, MongoDB
+Frontend: React, Vite, Tailwind CSS, Leaflet maps, Framer Motion
+Backend: Node.js, Express, MongoDB, Mongoose
 AI: Google Gemini API
 Real-time: Socket.io
 Security: JWT, Bcrypt, Cloudflare Turnstile
 Queue: Bull, Redis
 Storage: Cloudinary (images), MongoDB (data)
 Email: Nodemailer, Gmail SMTP
+Payments: PayMongo API, PayBridge Middleware
 Container: Docker
 Deployment: Vercel (frontend), Render (backend)
 

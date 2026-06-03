@@ -2,26 +2,37 @@ import React, { useState, useRef, useEffect } from 'react';
 import { apiGet } from '@/utils/Api';
 import { Eye, Building2, MapPin, ShieldCheck, ShieldAlert, Globe, Edit3, Trash2 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
-import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
-import MapExplorer from '@/pages/Landing/MapExplorer';
 import { cn } from "@/lib/utils";
 import { getSpaceImage } from '@/utils/imageHelper';
 import { formatNumber } from '@/utils/formatNumber';
+import { SpaceDetailsModal } from '@/components/modal';
+import { useTheme } from '@/hooks/useTheme';
 
 const SpaceManagement = () => {
+    const { themeColor } = useTheme();
     const [spaces, setSpaces] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
     const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
     const [openModal, setOpenModal] = useState(false);
     const [selectedSpace, setSelectedSpace] = useState(null);
-    const [showMap, setShowMap] = useState(false);
 
-    // Fix: Removed 'setCurrentParams' warning by using the state directly in refs
     const [currentParams] = useState({ page: 1, search: '' });
     const paramsRef = useRef(currentParams);
     const lastDataFingerprint = useRef("");
+
+    const getThemeColorClass = () => {
+        const colors = {
+            indigo: 'indigo',
+            emerald: 'emerald',
+            purple: 'purple',
+            blue: 'blue',
+            rose: 'rose',
+            amber: 'amber',
+        };
+        return colors[themeColor] || 'indigo';
+    };
 
     // FETCH DATA
     const fetchData = async (params = paramsRef.current, isInitial = false) => {
@@ -57,12 +68,14 @@ const SpaceManagement = () => {
         return () => clearInterval(interval);
     }, []);
 
+    const color = getThemeColorClass();
+
     const columns = [
         {
             header: "Hub / Space",
             cell: (space) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-border flex items-center justify-center overflow-hidden shrink-0">
                         {space.image ? (
                             <img 
                                 src={getSpaceImage(space)} 
@@ -70,11 +83,11 @@ const SpaceManagement = () => {
                                 alt={space.name}
                                 onError={(e) => e.target.src = '/placeholders/space.jpg'}
                             />
-                        ) : <Building2 className="text-indigo-500" size={18} />}
+                        ) : <Building2 className="text-primary" size={18} />}
                     </div>
                     <div>
-                        <p className="font-black text-white leading-none uppercase italic tracking-tighter">{space.name}</p>
-                        <p className="text-[10px] text-slate-500 mt-1 font-bold uppercase flex items-center gap-1"><MapPin size={10} /> {space.area}</p>
+                        <p className="font-black text-foreground leading-none uppercase italic tracking-tighter">{space.name}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase flex items-center gap-1"><MapPin size={10} /> {space.area}</p>
                     </div>
                 </div>
             )
@@ -83,24 +96,24 @@ const SpaceManagement = () => {
             header: "Host",
             cell: (space) => (
                 <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-slate-800 border border-white/5 flex items-center justify-center text-[10px] font-black text-indigo-400">
+                    <div className="w-7 h-7 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-black text-primary">
                         {space.user_id?.name?.charAt(0).toUpperCase() || '?'}
                     </div>
-                    <p className="text-[11px] font-bold text-slate-200">{space.user_id?.name || 'Unknown'}</p>
+                    <p className="text-[11px] font-bold text-foreground">{space.user_id?.name || 'Unknown'}</p>
                 </div>
             )
         },
         {
             header: "Pricing",
             cell: (space) => (
-                <span className="text-xs font-black text-white italic">₱{formatNumber(space.rate_hour)}<span className="text-[9px] text-slate-500 not-italic">/hr</span></span>
+                <span className="text-xs font-black text-foreground italic">₱{formatNumber(space.rate_hour)}<span className="text-[9px] text-muted-foreground not-italic">/hr</span></span>
             )
         },
         {
             header: "Status",
             cell: (space) => (
                 <div className={cn("px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border inline-block",
-                    space.status === "Open Now" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                    space.status === "Open Now" ? `bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20` : `bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20`
                 )}>{space.status}</div>
             )
         },
@@ -108,7 +121,7 @@ const SpaceManagement = () => {
             header: "Actions",
             cell: (space) => (
                 <div className="flex justify-end">
-                    <button onClick={() => { setSelectedSpace(space); setOpenModal(true); setShowMap(false); }} className="w-10 h-10 flex items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500 transition-all">
+                    <button onClick={() => { setSelectedSpace(space); setOpenModal(true); }} className={`w-10 h-10 flex items-center justify-center rounded-xl bg-${color}-600 text-white shadow-lg hover:bg-${color}-500 transition-all`}>
                         <Eye size={16} />
                     </button>
                 </div>
@@ -117,33 +130,39 @@ const SpaceManagement = () => {
     ];
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             <div className="mb-8">
-                <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Hub Management</h1>
-                <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Global hub monitoring system</p>
+                <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">Hub Management</h1>
+                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">Global hub monitoring system</p>
             </div>
 
-            {/* STATISTICS GRID - FORMATTED NUMBERS */}
+            {/* STATISTICS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-indigo-500/20 transition-all">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20"><Building2 size={20} /></div>
+                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-primary/20 transition-all">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                        <Building2 size={20} className="text-primary" />
+                    </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total Registered</p>
-                        <p className="text-2xl font-black text-white italic">{formatNumber(stats.total)}</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Registered</p>
+                        <p className="text-2xl font-black text-foreground italic">{formatNumber(stats.total)}</p>
                     </div>
                 </div>
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-emerald-500/20 transition-all">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20"><ShieldCheck size={20} /></div>
+                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-primary/20 transition-all">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                        <ShieldCheck size={20} className="text-emerald-600 dark:text-emerald-400" />
+                    </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Currently Active</p>
-                        <p className="text-2xl font-black text-white italic">{formatNumber(stats.active)}</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Currently Active</p>
+                        <p className="text-2xl font-black text-foreground italic">{formatNumber(stats.active)}</p>
                     </div>
                 </div>
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-rose-500/20 transition-all">
-                    <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20"><ShieldAlert size={20} /></div>
+                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-4 shadow-xl hover:border-primary/20 transition-all">
+                    <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+                        <ShieldAlert size={20} className="text-rose-600 dark:text-rose-400" />
+                    </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Inactive / Closed</p>
-                        <p className="text-2xl font-black text-white italic">{formatNumber(stats.inactive)}</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Inactive / Closed</p>
+                        <p className="text-2xl font-black text-foreground italic">{formatNumber(stats.inactive)}</p>
                     </div>
                 </div>
             </div>
@@ -155,50 +174,47 @@ const SpaceManagement = () => {
                 totalCount={totalCount}
                 onParamsChange={(p) => fetchData(p)}
                 renderMobileCard={(space) => (
-                    <div key={space._id} className="bg-[#111114] border border-white/5 p-5 rounded-[2.5rem] space-y-4 shadow-2xl">
-                        {/* --- TOP: VISUAL & BASE INFO --- */}
+                    <div key={space._id} className="bg-card border-border p-5 rounded-[2.5rem] space-y-4 shadow-2xl">
                         <div className="flex items-center gap-4">
-                            <div className="relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden border border-white/10">
+                            <div className="relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden border border-border">
                                 <img
                                     src={getSpaceImage(space)}
                                     className="w-full h-full object-cover"
                                     alt={space.name}
                                     onError={(e) => { e.target.src = '/placeholders/space.jpg'; }}
                                 />
-                                <div className="absolute top-0 right-0 bg-indigo-600 px-1.5 py-0.5 rounded-bl-lg text-[7px] font-black text-white">
+                                <div className={`absolute top-0 right-0 bg-${color}-600 px-1.5 py-0.5 rounded-bl-lg text-[7px] font-black text-white`}>
                                     ₱{formatNumber(space.rate_hour)}
                                 </div>
                             </div>
                             <div className="min-w-0 flex-1">
-                                <h3 className="text-sm font-black text-white leading-tight uppercase italic truncate tracking-tighter">
+                                <h3 className="text-sm font-black text-foreground leading-tight uppercase italic truncate tracking-tighter">
                                     {space.name}
                                 </h3>
-                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1 truncate">
+                                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1 truncate">
                                     {space.district_id?.name || 'Unknown District'}
                                 </p>
                                 <div className="flex items-center gap-2 mt-2">
-                                    <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-md ${space.status === 'Open Now' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                    <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-md ${space.status === 'Open Now' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
                                         {space.status}
                                     </span>
-                                    <span className="text-[7px] font-black text-slate-600 uppercase">
+                                    <span className="text-[7px] font-black text-muted-foreground uppercase">
                                         Seats: {formatNumber(space.capacity)}
                                     </span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* --- DIVIDER --- */}
-                        <div className="h-px w-full bg-white/5" />
+                        <div className="h-px w-full bg-border" />
 
-                        {/* --- BOTTOM: ACTIONS --- */}
                         <div className="flex items-center justify-between">
                             <div className="flex flex-col">
-                                <p className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Ownership</p>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase">{space.user_id?.name || 'N/A'}</p>
+                                <p className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Ownership</p>
+                                <p className="text-[9px] font-bold text-foreground uppercase">{space.user_id?.name || 'N/A'}</p>
                             </div>
 
                             <div className="flex gap-2">
-                                <button onClick={() => { setSelectedSpace(space); setOpenModal(true); setShowMap(false); }} className="w-10 h-10 flex items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500 transition-all">
+                                <button onClick={() => { setSelectedSpace(space); setOpenModal(true); }} className={`w-10 h-10 flex items-center justify-center rounded-xl bg-${color}-600 text-white shadow-lg hover:bg-${color}-500 transition-all`}>
                                     <Eye size={16} />
                                 </button>
                             </div>
@@ -206,73 +222,13 @@ const SpaceManagement = () => {
                     </div>
                 )}
             />
-            {/* VIEWER MODAL */}
-            <Modal open={openModal} onClose={() => setOpenModal(false)} title="Hub Specifications" size="lg">
-                {selectedSpace && (
-                    <div className="space-y-4 py-2">
-                        <div className="flex items-center justify-between p-5 bg-white/5 rounded-4xl border border-white/5">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/10">
-                                    <img
-                                        src={getSpaceImage(selectedSpace)}
-                                        className="w-full h-full object-cover"
-                                        alt={selectedSpace.name}
-                                        onError={(e) => { e.target.src = '/placeholders/space.jpg'; }}
-                                    />
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-black text-white uppercase italic">{selectedSpace.name}</h2>
-                                    <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">{selectedSpace.area}</p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-lg font-black text-white italic tracking-tighter">₱{formatNumber(selectedSpace.rate_hour)}<span className="text-[10px] text-slate-500 not-italic">/hr</span></p>
-                            </div>
-                        </div>
 
-                        <div className="bg-[#0c0c0e] rounded-4xl border border-white/5 overflow-hidden">
-                            <button onClick={() => setShowMap(!showMap)} className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-all">
-                                <div className="flex items-center gap-3">
-                                    <Globe size={16} className="text-indigo-500" />
-                                    <span className="text-[10px] font-black uppercase text-slate-300 tracking-widest">Interactive Location Map</span>
-                                </div>
-                                <span className="text-[10px] font-black text-indigo-500 uppercase">{showMap ? 'Close' : 'Open'}</span>
-                            </button>
-                            {showMap && (
-                                <div className="h-75 w-full animate-in slide-in-from-top-2 border-t border-white/5">
-                                    <MapExplorer
-                                        spaces={[selectedSpace]}
-                                        userLatLng={[selectedSpace.lat, selectedSpace.lng]}
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
-                                <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Seats</p>
-                                <p className="text-sm font-black text-white italic">{formatNumber(selectedSpace.capacity)}</p>
-                            </div>
-                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
-                                <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Rooms</p>
-                                <p className="text-sm font-black text-white italic">{formatNumber(selectedSpace.available_rooms)}</p>
-                            </div>
-                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
-                                <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Status</p>
-                                <p className="text-sm font-black text-emerald-500 uppercase tracking-tighter">{selectedSpace.status}</p>
-                            </div>
-                            <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-center">
-                                <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Rating</p>
-                                <p className="text-sm font-black text-yellow-500 italic">{selectedSpace.rating} / 5</p>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-2">
-                            <button onClick={() => setOpenModal(false)} className="text-[9px] font-black uppercase text-slate-500 hover:text-white transition-all tracking-widest">Dismiss View</button>
-                        </div>
-                    </div>
-                )}
-            </Modal>
+            {/* Space Details Modal */}
+            <SpaceDetailsModal
+                isOpen={openModal}
+                onClose={() => setOpenModal(false)}
+                space={selectedSpace}
+            />
         </div>
     );
 };

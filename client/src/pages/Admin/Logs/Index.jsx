@@ -10,12 +10,13 @@ import { showToast, showConfirm } from '@/components/ui/SweetAlert2';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/utils/cn';
 import { formatNumber } from '@/utils/formatNumber';
-import { Modal } from '@/components/ui/Modal';
+import { StatsModal } from '@/components/modal';
+import { useTheme } from '@/hooks/useTheme';
 
-// Maintained global polling instance
 let globalPollingInstance = null;
 
 const AdminLogs = () => {
+    const { themeColor } = useTheme();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -37,6 +38,18 @@ const AdminLogs = () => {
 
     const paramsRef = useRef({ filter, search: searchTerm, page: currentPage });
     const lastDataFingerprint = useRef("");
+
+    const getThemeColorClass = () => {
+        const colors = {
+            indigo: 'indigo',
+            emerald: 'emerald',
+            purple: 'purple',
+            blue: 'blue',
+            rose: 'rose',
+            amber: 'amber',
+        };
+        return colors[themeColor] || 'indigo';
+    };
 
     useEffect(() => {
         paramsRef.current = { filter, search: searchTerm, page: currentPage };
@@ -93,7 +106,6 @@ const AdminLogs = () => {
                 setDetailedStats(res.data);
                 setShowStatsModal(true);
             } else {
-                // Fallback mock data if endpoint not ready
                 setDetailedStats({
                     total: stats.total,
                     monthly: stats.recent * 4 || 0,
@@ -109,7 +121,6 @@ const AdminLogs = () => {
             }
         } catch (error) {
             console.error('Stats error:', error);
-            // Show modal with fallback data anyway
             setDetailedStats({
                 total: stats.total,
                 monthly: stats.recent * 4 || 0,
@@ -205,35 +216,35 @@ const AdminLogs = () => {
 
     const getActivityIcon = (type) => {
         const iconMap = {
-            user_login: <LogIn size={14} className="text-emerald-400" />,
-            user_logout: <LogOut size={14} className="text-slate-400" />,
-            user_register: <User size={14} className="text-blue-400" />,
-            user_update: <User size={14} className="text-indigo-400" />,
-            user_delete: <User size={14} className="text-red-400" />,
-            space_create: <MapPin size={14} className="text-purple-400" />,
-            space_update: <MapPin size={14} className="text-yellow-400" />,
-            space_delete: <MapPin size={14} className="text-red-400" />,
-            space_approve: <CheckCircle size={14} className="text-emerald-400" />,
-            space_reject: <XCircle size={14} className="text-red-400" />,
-            booking_create: <Calendar size={14} className="text-indigo-400" />,
-            booking_cancel: <XCircle size={14} className="text-red-400" />,
-            booking_complete: <CheckCircle size={14} className="text-emerald-400" />,
-            payment_made: <DollarSign size={14} className="text-emerald-400" />,
-            payment_failed: <XCircle size={14} className="text-red-400" />,
+            user_login: <LogIn size={14} className="text-emerald-600 dark:text-emerald-400" />,
+            user_logout: <LogOut size={14} className="text-muted-foreground" />,
+            user_register: <User size={14} className="text-blue-600 dark:text-blue-400" />,
+            user_update: <User size={14} className="text-primary" />,
+            user_delete: <User size={14} className="text-rose-600 dark:text-rose-400" />,
+            space_create: <MapPin size={14} className="text-purple-600 dark:text-purple-400" />,
+            space_update: <MapPin size={14} className="text-amber-600 dark:text-amber-400" />,
+            space_delete: <MapPin size={14} className="text-rose-600 dark:text-rose-400" />,
+            space_approve: <CheckCircle size={14} className="text-emerald-600 dark:text-emerald-400" />,
+            space_reject: <XCircle size={14} className="text-rose-600 dark:text-rose-400" />,
+            booking_create: <Calendar size={14} className="text-primary" />,
+            booking_cancel: <XCircle size={14} className="text-rose-600 dark:text-rose-400" />,
+            booking_complete: <CheckCircle size={14} className="text-emerald-600 dark:text-emerald-400" />,
+            payment_made: <DollarSign size={14} className="text-emerald-600 dark:text-emerald-400" />,
+            payment_failed: <XCircle size={14} className="text-rose-600 dark:text-rose-400" />,
         };
-        return iconMap[type] || <History size={14} className="text-slate-400" />;
+        return iconMap[type] || <History size={14} className="text-muted-foreground" />;
     };
 
     const getActivityColor = (type) => {
         if (type === 'user_login') return 'border-emerald-500/20 bg-emerald-500/5';
-        if (type === 'user_logout') return 'border-slate-500/20 bg-slate-500/5';
+        if (type === 'user_logout') return 'border-muted-foreground/20 bg-muted/5';
         if (type.includes('delete') || type.includes('cancel') || type.includes('reject') || type.includes('failed'))
-            return 'border-red-500/20 bg-red-500/5';
-        if (type.includes('update') || type.includes('edit')) return 'border-yellow-500/20 bg-yellow-500/5';
+            return 'border-rose-500/20 bg-rose-500/5';
+        if (type.includes('update') || type.includes('edit')) return 'border-amber-500/20 bg-amber-500/5';
         if (type.includes('create') || type.includes('approve') || type.includes('complete'))
             return 'border-emerald-500/20 bg-emerald-500/5';
         if (type.includes('register')) return 'border-blue-500/20 bg-blue-500/5';
-        return 'border-indigo-500/20 bg-indigo-500/5';
+        return 'border-primary/20 bg-primary/5';
     };
 
     const getActivityBadge = (type) => {
@@ -258,85 +269,87 @@ const AdminLogs = () => {
     };
 
     const StatCard = ({ title, value, icon, color }) => (
-        <div className="bg-[#111114] p-4 rounded-2xl border border-white/5 hover:border-indigo-500/30 transition-all">
+        <div className="bg-card p-4 rounded-2xl border border-border hover:border-primary/30 transition-all shadow-lg">
             <div className="flex items-center justify-between mb-2">
                 <div className={cn("p-2 rounded-xl", `bg-${color}-500/10`)}>{icon}</div>
             </div>
-            <p className="text-2xl font-black text-white mb-0.5">{formatNumber(value)}</p>
-            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{title}</p>
+            <p className="text-2xl font-black text-foreground mb-0.5">{formatNumber(value)}</p>
+            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">{title}</p>
         </div>
     );
+
+    const color = getThemeColorClass();
 
     if (loading && logs.length === 0) {
         return (
             <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
-                <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Loading Activity Logs...</p>
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Loading Activity Logs...</p>
             </div>
         );
     }
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
             <div className="mb-6 flex flex-row justify-between items-center gap-4 flex-wrap">
                 <div>
-                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-white uppercase italic">Activity Logs</h1>
-                    <p className="text-[10px] md:text-xs text-slate-500 font-medium uppercase tracking-widest">
+                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase italic">Activity Logs</h1>
+                    <p className="text-[10px] md:text-xs text-muted-foreground font-medium uppercase tracking-widest">
                         Real-time system activity & user actions
                     </p>
                 </div>
                 <div className="flex gap-2">
                     <button
                         onClick={fetchDetailedStats}
-                        className="p-3 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all active:scale-95 group"
+                        className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group"
                         title="View Detailed Stats"
                     >
-                        <BarChart3 size={16} className="text-purple-400" />
+                        <BarChart3 size={16} className="text-purple-600 dark:text-purple-400" />
                     </button>
                     <button
                         onClick={exportLogs}
                         disabled={exporting}
-                        className="p-3 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all active:scale-95 group disabled:opacity-50"
+                        className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group disabled:opacity-50"
                         title="Export Logs"
                     >
-                        <Download className={cn("w-4 h-4 text-emerald-400", exporting && "animate-pulse")} />
+                        <Download className={cn("w-4 h-4 text-emerald-600 dark:text-emerald-400", exporting && "animate-pulse")} />
                     </button>
                     <button
                         onClick={cleanupOldLogs}
                         disabled={cleaning}
-                        className="p-3 bg-white/5 rounded-2xl border border-white/5 hover:bg-red-500/10 transition-all active:scale-95 group disabled:opacity-50"
+                        className="p-3 bg-muted rounded-2xl border border-border hover:bg-rose-500/10 transition-all active:scale-95 group disabled:opacity-50"
                         title="Clean Old Logs"
                     >
-                        <Trash2 className={cn("w-4 h-4 text-red-400", cleaning && "animate-pulse")} />
+                        <Trash2 className={cn("w-4 h-4 text-rose-600 dark:text-rose-400", cleaning && "animate-pulse")} />
                     </button>
                     <button
                         onClick={refreshLogs}
                         disabled={refreshing}
-                        className="p-3 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all active:scale-95 group disabled:opacity-50"
+                        className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group disabled:opacity-50"
                         title="Refresh Logs"
                     >
-                        <RefreshCw className={cn("w-4 h-4 text-indigo-500", refreshing && "animate-spin")} />
+                        <RefreshCw className={cn("w-4 h-4 text-primary", refreshing && "animate-spin")} />
                     </button>
                 </div>
             </div>
 
-            {/* Stats Grid (same as before) */}
+            {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                <StatCard title="Total Activities" value={stats.total} icon={<History size={14} className="text-slate-400" />} color="slate" />
-                <StatCard title="User Actions" value={stats.user} icon={<User size={14} className="text-blue-400" />} color="blue" />
-                <StatCard title="Space Actions" value={stats.space} icon={<MapPin size={14} className="text-purple-400" />} color="purple" />
-                <StatCard title="Booking Actions" value={stats.booking} icon={<Calendar size={14} className="text-indigo-400" />} color="indigo" />
+                <StatCard title="Total Activities" value={stats.total} icon={<History size={14} className="text-muted-foreground" />} color="slate" />
+                <StatCard title="User Actions" value={stats.user} icon={<User size={14} className="text-blue-600 dark:text-blue-400" />} color="blue" />
+                <StatCard title="Space Actions" value={stats.space} icon={<MapPin size={14} className="text-purple-600 dark:text-purple-400" />} color="purple" />
+                <StatCard title="Booking Actions" value={stats.booking} icon={<Calendar size={14} className="text-primary" />} color="indigo" />
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-                <StatCard title="Logins" value={stats.login || 0} icon={<LogIn size={14} className="text-emerald-400" />} color="emerald" />
-                <StatCard title="Logouts" value={stats.logout || 0} icon={<LogOut size={14} className="text-slate-400" />} color="slate" />
-                <StatCard title="Last 7 Days" value={stats.recent || 0} icon={<Clock size={14} className="text-indigo-400" />} color="indigo" />
+                <StatCard title="Logins" value={stats.login || 0} icon={<LogIn size={14} className="text-emerald-600 dark:text-emerald-400" />} color="emerald" />
+                <StatCard title="Logouts" value={stats.logout || 0} icon={<LogOut size={14} className="text-muted-foreground" />} color="slate" />
+                <StatCard title="Last 7 Days" value={stats.recent || 0} icon={<Clock size={14} className="text-primary" />} color="indigo" />
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex flex-wrap gap-2 mb-4 border-b border-white/10 pb-3">
+            <div className="flex flex-wrap gap-2 mb-4 border-b border-border pb-3">
                 {[
                     { key: 'all', label: 'All Activities', icon: <History size={12} /> },
                     { key: 'user', label: 'User Actions', icon: <User size={12} /> },
@@ -351,8 +364,8 @@ const AdminLogs = () => {
                         className={cn(
                             "flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all",
                             filter === tab.key
-                                ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
-                                : "text-slate-500 hover:text-white"
+                                ? `bg-${color}-500/20 text-primary border border-primary/30`
+                                : "text-muted-foreground hover:text-foreground"
                         )}
                     >
                         {tab.icon}
@@ -363,16 +376,16 @@ const AdminLogs = () => {
 
             {/* Search Bar */}
             <div className="relative mb-6">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                     type="text"
                     placeholder="Search by user, action, or details..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2.5 bg-[#111114] border border-white/5 rounded-xl text-sm text-white placeholder:text-slate-500 focus:border-indigo-500/50 outline-none transition-all"
+                    className="w-full pl-9 pr-8 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 outline-none transition-all"
                 />
                 {searchTerm && (
-                    <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                    <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                         <X size={14} />
                     </button>
                 )}
@@ -385,8 +398,8 @@ const AdminLogs = () => {
                         <Card
                             key={log._id || idx}
                             className={cn(
-                                "bg-[#111114] border-white/5 hover:border-indigo-500/30 transition-all duration-300 cursor-pointer",
-                                expandedLog === idx && "border-indigo-500/30"
+                                "bg-card border-border hover:border-primary/30 transition-all duration-300 cursor-pointer shadow-lg",
+                                expandedLog === idx && "border-primary/30"
                             )}
                             onClick={() => setExpandedLog(expandedLog === idx ? null : idx)}
                         >
@@ -398,17 +411,17 @@ const AdminLogs = () => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap mb-1">
-                                                <p className="text-[11px] font-black text-white wrap-break-word">
+                                                <p className="text-[11px] font-black text-foreground wrap-break-word">
                                                     {log.description || log.message}
                                                 </p>
                                                 <span className={cn(
                                                     "text-[7px] px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0",
-                                                    getActivityColor(log.type).replace('bg-', 'text-').replace('/5', '')
+                                                    getActivityColor(log.type).replace('bg-', 'text-').replace('/5', '').replace('border-', '')
                                                 )}>
                                                     {getActivityBadge(log.type)}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-3 text-[8px] text-slate-500 flex-wrap">
+                                            <div className="flex items-center gap-3 text-[8px] text-muted-foreground flex-wrap">
                                                 {log.userName && (
                                                     <span className="flex items-center gap-1">
                                                         <User size={8} />
@@ -416,7 +429,7 @@ const AdminLogs = () => {
                                                     </span>
                                                 )}
                                                 {log.userEmail && (
-                                                    <span className="text-slate-600">{log.userEmail}</span>
+                                                    <span className="text-muted-foreground/60">{log.userEmail}</span>
                                                 )}
                                                 {log.spaceName && (
                                                     <span className="flex items-center gap-1">
@@ -432,36 +445,36 @@ const AdminLogs = () => {
 
                                             {/* Expanded Details */}
                                             {expandedLog === idx && (
-                                                <div className="mt-3 pt-3 border-t border-white/10">
+                                                <div className="mt-3 pt-3 border-t border-border">
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[9px]">
                                                         {log.ipAddress && (
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-slate-500">IP:</span>
-                                                                <code className="text-slate-300">{log.ipAddress}</code>
+                                                                <span className="text-muted-foreground">IP:</span>
+                                                                <code className="text-foreground">{log.ipAddress}</code>
                                                             </div>
                                                         )}
                                                         {log.userAgent && (
                                                             <div className="flex items-center gap-2 col-span-2">
-                                                                <span className="text-slate-500 shrink-0">Browser:</span>
-                                                                <span className="text-slate-300 truncate">{log.userAgent}</span>
+                                                                <span className="text-muted-foreground shrink-0">Browser:</span>
+                                                                <span className="text-foreground truncate">{log.userAgent}</span>
                                                             </div>
                                                         )}
                                                         {log.bookingId && (
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-slate-500">Booking ID:</span>
-                                                                <code className="text-slate-300">{log.bookingId}</code>
+                                                                <span className="text-muted-foreground">Booking ID:</span>
+                                                                <code className="text-foreground">{log.bookingId}</code>
                                                             </div>
                                                         )}
                                                         {log.amount && (
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-slate-500">Amount:</span>
-                                                                <span className="text-emerald-400 font-bold">₱{formatNumber(log.amount)}</span>
+                                                                <span className="text-muted-foreground">Amount:</span>
+                                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">₱{formatNumber(log.amount)}</span>
                                                             </div>
                                                         )}
                                                         {log.details && (
                                                             <div className="col-span-2">
-                                                                <span className="text-slate-500">Details:</span>
-                                                                <pre className="text-slate-300 mt-1 text-[8px] whitespace-pre-wrap overflow-x-auto">
+                                                                <span className="text-muted-foreground">Details:</span>
+                                                                <pre className="text-foreground mt-1 text-[8px] whitespace-pre-wrap overflow-x-auto">
                                                                     {JSON.stringify(log.details, null, 2)}
                                                                 </pre>
                                                             </div>
@@ -473,11 +486,11 @@ const AdminLogs = () => {
                                     </div>
                                     <div className="flex flex-col items-end gap-1 shrink-0">
                                         {log.status === 'success' ? (
-                                            <CheckCircle size={14} className="text-emerald-400" />
+                                            <CheckCircle size={14} className="text-emerald-600 dark:text-emerald-400" />
                                         ) : log.status === 'failed' ? (
-                                            <AlertCircle size={14} className="text-red-400" />
+                                            <AlertCircle size={14} className="text-rose-600 dark:text-rose-400" />
                                         ) : null}
-                                        <div className="text-[6px] text-slate-600">
+                                        <div className="text-[6px] text-muted-foreground">
                                             {expandedLog === idx ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                         </div>
                                     </div>
@@ -486,10 +499,10 @@ const AdminLogs = () => {
                         </Card>
                     ))
                 ) : (
-                    <div className="text-center py-12 bg-[#111114] rounded-2xl border border-white/5">
-                        <History size={32} className="text-slate-600 mx-auto mb-3" />
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">No activity logs found</p>
-                        <p className="text-[8px] text-slate-600 mt-1">Try changing your filters or search term</p>
+                    <div className="text-center py-12 bg-card rounded-2xl border border-border">
+                        <History size={32} className="text-muted-foreground mx-auto mb-3" />
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">No activity logs found</p>
+                        <p className="text-[8px] text-muted-foreground/60 mt-1">Try changing your filters or search term</p>
                     </div>
                 )}
             </div>
@@ -500,7 +513,7 @@ const AdminLogs = () => {
                     <button
                         onClick={loadMore}
                         disabled={loading}
-                        className="px-6 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-slate-400 uppercase tracking-wider hover:bg-white/10 transition-all disabled:opacity-50"
+                        className="px-6 py-2 bg-muted border border-border rounded-xl text-[9px] font-black text-muted-foreground uppercase tracking-wider hover:bg-muted/80 transition-all disabled:opacity-50"
                     >
                         {loading ? <Loader2 size={12} className="animate-spin inline mr-2" /> : null}
                         Load More
@@ -509,42 +522,16 @@ const AdminLogs = () => {
             )}
 
             {/* Stats Modal */}
-            <Modal
-                open={showStatsModal}
+            <StatsModal
+                isOpen={showStatsModal}
                 onClose={() => setShowStatsModal(false)}
-                title="Detailed Statistics"
-                size="2xl"
-                variant="dark"
-            >
-                <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                        <StatCard title="Total" value={detailedStats?.total} icon={<History size={14} />} color="slate" />
-                        <StatCard title="Monthly" value={detailedStats?.monthly || 0} icon={<Calendar size={14} />} color="indigo" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <StatCard title="Districts" value={detailedStats?.district || 0} icon={<MapPin size={14} />} color="purple" />
-                        <StatCard title="Reviews" value={detailedStats?.review || 0} icon={<Star size={14} />} color="yellow" />
-                        <StatCard title="Earnings" value={detailedStats?.earnings || 0} icon={<DollarSign size={14} />} color="emerald" />
-                        <StatCard title="Registrations" value={detailedStats?.register || 0} icon={<User size={14} />} color="blue" />
-                    </div>
-                    {detailedStats?.topUsers && detailedStats.topUsers.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Top Active Users</h3>
-                            <div className="space-y-2">
-                                {detailedStats.topUsers.map((user, idx) => (
-                                    <div key={idx} className="flex justify-between items-center p-2 bg-white/5 rounded-xl">
-                                        <span className="text-[11px] font-bold text-white">{user.name || user._id}</span>
-                                        <span className="text-[9px] text-indigo-400">{user.count} actions</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </Modal>
+                stats={stats}
+                detailedStats={detailedStats}
+            />
+
             {/* Footer */}
             <div className="mt-6 text-center">
-                <p className="text-[6px] text-slate-700 uppercase tracking-widest">
+                <p className="text-[6px] text-muted-foreground uppercase tracking-widest">
                     Showing {logs.length} of {totalCount} activities • Auto-refreshes every 10 seconds
                 </p>
             </div>

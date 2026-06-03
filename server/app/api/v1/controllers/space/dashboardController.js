@@ -1,4 +1,4 @@
-const { Space, Booking, User, Voucher } = require('@/api/v1/models');
+const { Space, Booking, User, Voucher, Earnings } = require('@/api/v1/models');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 
 class DashboardController {
@@ -21,17 +21,109 @@ class DashboardController {
             const { ownerId, isStaff } = await this.getOwnerId(req);
             const { period = 'daily' } = req.query;
 
+            console.log('Dashboard Request - Period:', period, 'OwnerId:', ownerId);
+
             const userSpaces = await Space.find({ user_id: ownerId }).distinct('_id');
 
             const now = new Date();
             let startDate = new Date();
+            
+            // Reset time to start of day for accurate daily filtering
             startDate.setHours(0, 0, 0, 0);
+            
+            if (period === 'weekly') {
+                startDate.setDate(now.getDate() - 7);
+                startDate.setHours(0, 0, 0, 0);
+            } else if (period === 'monthly') {
+                startDate.setMonth(now.getMonth() - 1);
+                startDate.setHours(0, 0, 0, 0);
+            } else if (period === 'yearly') {
+                startDate.setFullYear(now.getFullYear() - 1);
+                startDate.setHours(0, 0, 0, 0);
+            }
 
-            if (period === 'weekly') startDate.setDate(now.getDate() - 7);
-            else if (period === 'monthly') startDate.setMonth(now.getMonth() - 1);
-            else if (period === 'yearly') startDate.setFullYear(now.getFullYear() - 1);
+            console.log('Date range - Start:', startDate, 'End:', now);
 
-            const [stats, activeSessions, revenueData, voucherStats] = await Promise.all([
+            // Get GROSS revenue from Bookings (total amount before fees)
+            const grossRevenueData = await Booking.aggregate([
+                {
+                    $match: {
+                        space_id: { $in: userSpaces },
+                        status: 'completed',
+                        updated_at: { $gte: startDate, $lte: now }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: "$total_amount" }
+                    }
+                }
+            ]);
+
+            // Get NET revenue from Earnings (owner earnings after platform fees)
+            // Use created_at or collected_at based on what you want
+            const netRevenueData = await Earnings.aggregate([
+                {
+                    $match: {
+                        owner_id: ownerId,
+                        fee_status: 'collected',
+                        $or: [
+                            { createdAt: { $gte: startDate, $lte: now } },
+                            { collected_at: { $gte: startDate, $lte: now } }
+                        ]
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: '$owner_earnings' }
+                    }
+                }
+            ]);
+
+            // Get platform fees collected
+            const platformFeesData = await Earnings.aggregate([
+                {
+                    $match: {
+                        owner_id: ownerId,
+                        fee_status: 'collected',
+                        $or: [
+                            { createdAt: { $gte: startDate, $lte: now } },
+                            { collected_at: { $gte: startDate, $lte: now } }
+                        ]
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: '$platform_fee' }
+                    }
+                }
+            ]);
+
+            // Get pending platform fees (not yet collected) - no date filter for pending
+            const pendingFeesData = await Earnings.aggregate([
+                {
+                    $match: {
+                        owner_id: ownerId,
+                        fee_status: 'pending'
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: '$platform_fee' }
+                    }
+                }
+            ]);
+
+            console.log('Gross Revenue Data:', grossRevenueData);
+            console.log('Net Revenue Data:', netRevenueData);
+            console.log('Platform Fees Data:', platformFeesData);
+            console.log('Pending Fees Data:', pendingFeesData);
+
+            const [stats, activeSessions, voucherStats] = await Promise.all([
                 Promise.all([
                     isStaff ? null : Space.countDocuments({ user_id: ownerId }),
                     Booking.countDocuments({ space_id: { $in: userSpaces } }),
@@ -46,26 +138,9 @@ class DashboardController {
                     .populate('user_id', 'name')
                     .sort({ check_in_at: -1 })
                     .limit(5),
-                Booking.aggregate([
-                    {
-                        $match: {
-                            space_id: { $in: userSpaces },
-                            status: 'completed',
-                            updated_at: { $gte: startDate }
-                        }
-                    },
-                    {
-                        $group: {
-                            _id: null,
-                            total: { $sum: '$total_amount' }
-                        }
-                    }
-                ]),
                 // Voucher Stats
                 Promise.all([
-                    // Total vouchers created
                     Voucher.countDocuments({ space_id: { $in: userSpaces }, type: 'global' }),
-                    // Total redemptions (users who redeemed points for vouchers)
                     Voucher.aggregate([
                         {
                             $match: {
@@ -80,7 +155,6 @@ class DashboardController {
                             }
                         }
                     ]),
-                    // Total discount amount given out
                     Voucher.aggregate([
                         {
                             $match: {
@@ -95,13 +169,13 @@ class DashboardController {
                             }
                         }
                     ]),
-                    // Vouchers used (applied at checkout)
                     Booking.aggregate([
                         {
                             $match: {
                                 space_id: { $in: userSpaces },
                                 voucher_applied: { $ne: null },
-                                status: 'completed'
+                                status: 'completed',
+                                updated_at: { $gte: startDate }
                             }
                         },
                         {
@@ -128,6 +202,23 @@ class DashboardController {
                     : 'N/A'
             }));
 
+            const grossRevenue = grossRevenueData[0]?.total || 0;
+            const netRevenue = netRevenueData[0]?.total || 0;
+            const platformFees = platformFeesData[0]?.total || 0;
+            const pendingFees = pendingFeesData[0]?.total || 0;
+
+            let finalNetRevenue = netRevenue;
+            let finalPlatformFees = platformFees;
+            
+            if (grossRevenue > 0 && netRevenue === 0) {
+                const Settings = require('@/api/v1/models/schema/Settings');
+                const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+                const platformFeePercent = feeSetting?.value ?? 10;
+                finalPlatformFees = grossRevenue * (platformFeePercent / 100);
+                finalNetRevenue = grossRevenue - finalPlatformFees;
+                console.log('Calculated fallback values:', { grossRevenue, platformFeePercent, finalPlatformFees, finalNetRevenue });
+            }
+
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 isStaff,
@@ -135,7 +226,10 @@ class DashboardController {
                     spaces: isStaff ? null : stats[0],
                     bookings: stats[1],
                     walkins: stats[2],
-                    revenue: revenueData[0]?.total || 0
+                    grossRevenue: grossRevenue,
+                    netRevenue: finalNetRevenue,
+                    platformFees: finalPlatformFees,
+                    pendingFees: pendingFees
                 },
                 activeSessions: formattedSessions,
                 voucherStats: {

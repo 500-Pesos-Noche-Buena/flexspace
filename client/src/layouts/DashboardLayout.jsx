@@ -11,19 +11,100 @@ import {
 import { apiPost, apiGet } from "@/utils/Api";
 import { useAuth } from '@/context/AuthContext';
 import { showToast } from '@/components/ui/SweetAlert2';
+import { useTheme } from '@/hooks/useTheme';
+import { usePendingFees } from '@/hooks/usePendingFees'; // Add this
 
 export default function DashboardLayout() {
     const { user: authUser, isAuthenticated, logout } = useAuth();
+    const { themeColor } = useTheme();
     const location = useLocation();
     const navigate = useNavigate();
+        const { hasPendingFees, pendingFees } = usePendingFees(); // Add this
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // Load sidebar state from localStorage with default true
+    const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+        const saved = localStorage.getItem('sidebar_collapsed');
+        // If saved is 'true' then collapsed (false), else expanded (true)
+        return saved !== 'true';
+    });
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [parentName, setParentName] = useState(null);
     const dropdownRef = useRef(null);
 
     const userAvatar = authUser?.avatar || null;
+
+    // Save sidebar state to localStorage when it changes
+    useEffect(() => {
+        localStorage.setItem('sidebar_collapsed', (!isSidebarOpen).toString());
+    }, [isSidebarOpen]);
+
+    useEffect(() => {
+        // Only read from localStorage once on mount
+        const savedTheme = localStorage.getItem('theme_mode') || 'dark';
+        const savedColor = localStorage.getItem('theme_color') || 'indigo';
+
+        // Apply theme
+        const applyTheme = () => {
+            // Apply mode
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else if (savedTheme === 'system') {
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+
+            // Apply color
+            document.documentElement.style.setProperty('--theme-primary', `var(--${savedColor}-500)`);
+            document.documentElement.style.setProperty('--theme-primary-dark', `var(--${savedColor}-600)`);
+            document.documentElement.style.setProperty('--theme-primary-light', `var(--${savedColor}-400)`);
+        };
+
+        applyTheme();
+
+        // Listen for theme changes from Settings page
+        const handleThemeChange = () => {
+            const newTheme = localStorage.getItem('theme_mode');
+            const newColor = localStorage.getItem('theme_color');
+
+            if (newTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else if (newTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else if (newTheme === 'system') {
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+
+            if (newColor) {
+                document.documentElement.style.setProperty('--theme-primary', `var(--${newColor}-500)`);
+                document.documentElement.style.setProperty('--theme-primary-dark', `var(--${newColor}-600)`);
+                document.documentElement.style.setProperty('--theme-primary-light', `var(--${newColor}-400)`);
+            }
+        };
+
+        // Listen for storage events (when Settings page updates localStorage)
+        window.addEventListener('storage', handleThemeChange);
+
+        // Also listen for custom event from Settings page
+        window.addEventListener('theme-changed', handleThemeChange);
+
+        return () => {
+            window.removeEventListener('storage', handleThemeChange);
+            window.removeEventListener('theme-changed', handleThemeChange);
+        };
+    }, []);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -103,7 +184,8 @@ export default function DashboardLayout() {
         if (userAvatar) {
             return userAvatar;
         }
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=059669&color=fff&bold=true`;
+        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--theme-primary').trim();
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=${primaryColor.replace('#', '')}&color=fff&bold=true`;
     };
 
     const sidebarSections = useMemo(() => {
@@ -173,9 +255,6 @@ export default function DashboardLayout() {
             sections.push({
                 title: "Point of Sale",
                 items: [
-                    // ...(isActualOwner ? [
-                    //     { href: "/space/income", active: isRouteActive("/space/income"), icon: <DollarSign />, label: "Income Reports" },
-                    // ] : []),
                     { href: "/space/pos", active: isRouteActive("/space/pos"), icon: <ShoppingCart />, label: "Point of Sale" },
                     { href: "/space/inventory", active: isRouteActive("/space/inventory"), icon: <Package />, label: "Inventory" },
                     { href: "/space/orders", active: isRouteActive("/space/orders"), icon: <ClipboardList />, label: "Customer Orders" },
@@ -200,14 +279,14 @@ export default function DashboardLayout() {
     }
 
     return (
-        <div className="min-h-screen bg-[#09090b] text-slate-100 font-sans selection:bg-emerald-500/30">
+        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/30">
             {/* MOBILE OVERLAY */}
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
             )}
 
             {/* SIDEBAR */}
-            <aside className={`fixed top-0 left-0 z-50 h-screen transition-all duration-300 bg-[#111114] border-r border-white/5
+            <aside className={`fixed top-0 left-0 z-50 h-screen transition-all duration-300 bg-card border-r border-border
                 ${isMobileMenuOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0"}
                 ${isSidebarOpen ? "lg:w-64" : "lg:w-20"}`}
             >
@@ -215,19 +294,19 @@ export default function DashboardLayout() {
                     {/* LOGO */}
                     <div className="flex items-center justify-between mb-6 px-1 h-14">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-900/40">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: 'var(--theme-primary)' }}>
                                 <MapPin className="w-5 h-5" />
                             </div>
                             {(isSidebarOpen || isMobileMenuOpen) && (
                                 <div className="leading-tight animate-in fade-in duration-300">
                                     <div className="text-lg font-bold tracking-tight">FlexSpace</div>
-                                    <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
+                                    <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--theme-primary)' }}>
                                         {isAdmin ? "Admin Console" : isStaff ? "Staff Portal" : "Space Portal"}
                                     </div>
                                 </div>
                             )}
                         </div>
-                        <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 text-slate-400 hover:bg-white/5 rounded-xl">
+                        <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 text-muted-foreground hover:bg-accent rounded-xl">
                             <X className="w-6 h-6" />
                         </button>
                     </div>
@@ -236,7 +315,7 @@ export default function DashboardLayout() {
                     <div className="flex-1 overflow-y-auto no-scrollbar space-y-6">
                         {sidebarSections.map((section) => (
                             <div key={section.title}>
-                                <p className={`text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-3 ${!isSidebarOpen && !isMobileMenuOpen ? "lg:text-center" : ""}`}>
+                                <p className={`text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 px-3 ${!isSidebarOpen && !isMobileMenuOpen ? "lg:text-center" : ""}`}>
                                     {isSidebarOpen || isMobileMenuOpen ? section.title : "•"}
                                 </p>
                                 <nav className="space-y-1">
@@ -259,24 +338,24 @@ export default function DashboardLayout() {
 
             {/* MAIN CONTENT */}
             <div className={`transition-all duration-300 ${isSidebarOpen ? "lg:ml-64" : "lg:ml-20"}`}>
-                <header className="mb-5 px-4 lg:px-8 py-4 flex items-center justify-between sticky top-0 bg-[#09090b]/80 backdrop-blur-md z-40 border-b border-white/5">
+                <header className="mb-5 px-4 lg:px-8 py-4 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-md z-40 border-b border-border">
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2.5 bg-white/5 rounded-xl hover:bg-white/10 text-slate-100 transition-all">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2.5 bg-accent rounded-xl hover:bg-accent/80 text-foreground transition-all">
                             <Menu className="w-5 h-5" />
                         </button>
-                        <button onClick={() => setIsSidebarOpen((s) => !s)} className="hidden lg:flex p-2.5 bg-white/5 rounded-xl hover:bg-white/10 text-slate-400 transition-all">
+                        <button onClick={() => setIsSidebarOpen((s) => !s)} className="hidden lg:flex p-2.5 bg-accent rounded-xl hover:bg-accent/80 text-muted-foreground transition-all">
                             <ChevronLeft className={`w-5 h-5 transition-transform duration-300 ${!isSidebarOpen ? 'rotate-180' : ''}`} />
                         </button>
                         <div className="hidden md:flex flex-col ml-2 leading-none">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Live Status</span>
-                            <span className="text-xs font-bold text-slate-400">{new Date().toDateString()}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-primary">Live Status</span>
+                            <span className="text-xs font-bold text-muted-foreground">{new Date().toDateString()}</span>
                         </div>
                     </div>
 
                     <div className="relative flex items-center gap-3" ref={dropdownRef}>
                         <div className="text-right hidden sm:flex flex-col leading-tight mr-1">
-                            <p className="text-sm font-black tracking-tight text-white">{authUser?.name}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                            <p className="text-sm font-black tracking-tight text-foreground">{authUser?.name}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
                                 {authUser?.role === 'staff' && parentName
                                     ? `Staff of ${parentName}`
                                     : authUser?.role === 'google' ? 'Google User' : authUser?.role
@@ -285,60 +364,61 @@ export default function DashboardLayout() {
                         </div>
 
                         <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="relative flex items-center group focus:outline-none">
-                            <div className={`absolute -inset-1 bg-linear-to-tr from-emerald-600 to-emerald-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300 ${isProfileOpen ? 'opacity-60' : ''}`} />
+                            <div
+                                className={`absolute -inset-1 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300 ${isProfileOpen ? 'opacity-60' : ''} theme-gradient-bg`}
+                            />
                             <img
                                 src={getAvatarUrl()}
-                                className={`relative w-10 h-10 rounded-xl border-2 transition-all duration-300 object-cover ${isProfileOpen ? "border-emerald-500 scale-95" : "border-transparent"}`}
+                                className={`relative w-10 h-10 rounded-xl border-2 transition-all duration-300 object-cover ${isProfileOpen ? "scale-95" : "border-transparent"}`}
+                                style={isProfileOpen ? { borderColor: 'var(--theme-primary)' } : {}}
                                 alt="profile"
                                 onError={(e) => {
-                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=059669&color=fff&bold=true`;
+                                    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--theme-primary').trim();
+                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(authUser?.name || 'User')}&background=${primaryColor.replace('#', '')}&color=fff&bold=true`;
                                 }}
                             />
                         </button>
 
                         {isProfileOpen && (
-                            <div className="absolute right-0 top-full mt-4 w-60 bg-[#111114] rounded-4xl shadow-2xl border border-white/5 p-2 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
+                            <div className="absolute right-0 top-full mt-4 w-60 bg-card rounded-4xl shadow-2xl border border-border p-2 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
                                 <div className="px-4 py-3 mb-1">
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Account Session</p>
+                                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">Account Session</p>
                                 </div>
 
                                 <div className="flex flex-col gap-1">
                                     <button
                                         onClick={() => { navigate('/profile'); setIsProfileOpen(false); }}
-                                        className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 rounded-3xl transition-all text-left group"
+                                        className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-accent rounded-3xl transition-all text-left group"
                                     >
-                                        <div className="p-2 rounded-xl bg-white/5 group-hover:bg-indigo-500/20 group-hover:text-indigo-400 transition-all duration-300">
+                                        <div className="p-2 rounded-xl bg-accent group-hover:bg-primary/20 group-hover:text-primary transition-all duration-300">
                                             <User className="w-3.5 h-3.5" />
                                         </div>
                                         My Profile
                                     </button>
 
-                                    {/* Payment Settings - Only for space owners, not for staff */}
                                     {(authUser?.role === 'space') && (
                                         <button
                                             onClick={() => { navigate('/space/payment-settings'); setIsProfileOpen(false); }}
-                                            className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 rounded-3xl transition-all text-left group"
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-accent rounded-3xl transition-all text-left group"
                                         >
-                                            <div className="p-2 rounded-xl bg-white/5 group-hover:bg-purple-500/20 group-hover:text-purple-400 transition-all duration-300">
+                                            <div className="p-2 rounded-xl bg-accent group-hover:bg-primary/20 group-hover:text-primary transition-all duration-300">
                                                 <CreditCard className="w-3.5 h-3.5" />
                                             </div>
                                             Payment Settings
                                         </button>
                                     )}
 
-                                    {isAdmin && (
-                                        <button
-                                            onClick={() => { navigate('/admin/settings'); setIsProfileOpen(false); }}
-                                            className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/5 rounded-3xl transition-all text-left group"
-                                        >
-                                            <div className="p-2 rounded-xl bg-white/5 group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition-all duration-300">
-                                                <SettingsIcon className="w-3.5 h-3.5" />
-                                            </div>
-                                            System Settings
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={() => { navigate('/settings'); setIsProfileOpen(false); }}
+                                        className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-accent rounded-3xl transition-all text-left group"
+                                    >
+                                        <div className="p-2 rounded-xl bg-accent group-hover:bg-primary/20 group-hover:text-primary transition-all duration-300">
+                                            <SettingsIcon className="w-3.5 h-3.5" />
+                                        </div>
+                                        System Settings
+                                    </button>
 
-                                    <div className="h-px bg-white/5 mx-3 my-1" />
+                                    <div className="h-px bg-border mx-3 my-1" />
 
                                     <button
                                         onClick={handleLogout}
@@ -367,13 +447,25 @@ function NavLink({ to, active, label, icon, isOpen }) {
     return (
         <Link
             to={to}
-            className={`flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2.5
-            ${active ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/20" : "text-slate-400 hover:text-emerald-500 hover:bg-white/5"}`}
+            className={`relative flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2.5
+            ${active ? "text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-primary hover:bg-accent"}`}
+            style={active ? { backgroundColor: 'var(--theme-primary)', boxShadow: `0 10px 15px -3px ${'var(--theme-primary)'}20` } : {}}
         >
             <div className="shrink-0">
                 {React.cloneElement(icon, { size: 18, strokeWidth: active ? 3 : 2 })}
             </div>
             {isOpen && <span className="text-[13px] font-semibold whitespace-nowrap">{label}</span>}
+            
+            {/* Tooltip when sidebar is collapsed */}
+            {!isOpen && (
+                <>
+                    <div className="absolute left-full ml-3 px-3 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 shadow-xl bg-gray-900 dark:bg-gray-800 border border-gray-700">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-white">{label}</span>
+                        {/* Tooltip arrow */}
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-1.5 w-3 h-3 rotate-45 bg-gray-900 dark:bg-gray-800 border-l border-t border-gray-700"></div>
+                    </div>
+                </>
+            )}
         </Link>
     );
 }

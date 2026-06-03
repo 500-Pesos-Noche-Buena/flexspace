@@ -1,4 +1,4 @@
-const { Booking, Space, Payment, User, Review } = require('@/api/v1/models');
+const { Booking, Space, Payment, User, Review, Earnings } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const rewardService = require('@/api/v1/services/rewardService');
@@ -87,11 +87,15 @@ class BookingController {
             const { id, action } = req.params;
             const ownerId = await this.getOwnerId(req);
 
+            console.log(`🔍 updateStatus called - Booking ID: ${id}, Action: ${action}`);
+
             const booking = await Booking.findById(id).populate('space_id').populate('user_id');
 
             if (!booking || String(booking.space_id.user_id) !== String(ownerId)) {
                 throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Unauthorized access.');
             }
+
+            console.log(`📝 Booking found - Type: ${booking.booking_type}, Current Status: ${booking.status}, Action: ${action}`);
 
             const statusMap = { confirm: 'confirmed', reject: 'rejected', cancel: 'cancelled' };
             if (!statusMap[action]) throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Unknown action: ${action}`);
@@ -99,6 +103,60 @@ class BookingController {
             booking.status = statusMap[action];
             if (action === 'confirm') booking.notes = '';
             await booking.save();
+
+            console.log(`✅ Booking status updated to: ${booking.status}`);
+
+            // 🔥 CREATE EARNINGS FOR ONLINE BOOKINGS IMMEDIATELY WHEN CONFIRMED
+            if (action === 'confirm') {
+                console.log(`🎯 Attempting to create earnings for booking ${booking.ticket_number} (Type: ${booking.booking_type})`);
+
+                try {
+                    const Settings = require('@/api/v1/models/schema/Settings');
+
+                    // Check if earnings already exist
+                    const existingEarnings = await Earnings.findOne({ booking_id: booking._id });
+                    console.log(`Existing earnings check: ${existingEarnings ? 'YES - skipping' : 'NO - will create'}`);
+
+                    if (!existingEarnings) {
+                        // Get platform fee percentage from settings
+                        const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+                        const platformFeePercent = feeSetting?.value ?? 3;
+
+                        const platformFee = (booking.total_amount * platformFeePercent) / 100;
+                        const ownerEarnings = booking.total_amount - platformFee;
+                        const month = new Date(booking.start_time || booking.created_at).toISOString().slice(0, 7);
+                        const orderNumber = `ONL-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
+                        const earningsData = {
+                            owner_id: booking.space_id.user_id,
+                            space_id: booking.space_id._id,
+                            order_number: orderNumber,
+                            booking_id: booking._id,
+                            total_amount: booking.total_amount,
+                            platform_fee_percent: platformFeePercent,
+                            platform_fee: parseFloat(platformFee.toFixed(4)),
+                            owner_earnings: parseFloat(ownerEarnings.toFixed(4)),
+                            payment_method: 'online',
+                            payment_intent_id: booking.payment_intent_id || null,
+                            auto_collected: false, // ← CHANGE to false
+                            fee_status: 'pending', // ← CHANGE to pending (not collected)
+                            collected_at: null, // ← CHANGE to null
+                            booking_date: booking.start_time || booking.created_at,
+                            month: month,
+                            notes: `Platform fee pending collection from space owner`
+                        };
+
+                        console.log('📊 Earnings data to create:', earningsData);
+
+                        const newEarnings = await Earnings.create(earningsData);
+                        console.log(`✅✅✅ Earnings created for ONLINE booking ${booking.ticket_number}: ID ${newEarnings._id}, Platform fee: ₱${platformFee}`);
+                    }
+                } catch (earningsError) {
+                    console.error('❌ Failed to create earnings for online booking:', earningsError);
+                    console.error('Error details:', earningsError.message);
+                    // Don't fail the request - just log error
+                }
+            }
 
             // Send email when booking is confirmed
             if (action === 'confirm' && booking.user_id && booking.user_id.email) {
@@ -134,7 +192,6 @@ class BookingController {
                     console.log(`✅ Booking confirmation email sent to ${user.email}`);
                 } catch (emailError) {
                     console.error('❌ Failed to send confirmation email:', emailError.message);
-                    // Don't fail the request if email fails
                 }
             }
 
@@ -147,7 +204,6 @@ class BookingController {
             next(error);
         }
     };
-
     calculateBill = async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -300,6 +356,50 @@ class BookingController {
                 { new: true }
             ).populate('space_id').populate('user_id');
 
+            // 🔥 CREATE EARNINGS FOR BOTH WALK-IN AND ONLINE BOOKINGS
+            try {
+                const Settings = require('@/api/v1/models/schema/Settings'); // ← FIXED PATH
+                const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+                const platformFeePercent = feeSetting?.value ?? 3;
+
+                const platformFee = (totalDue * platformFeePercent) / 100;
+                const ownerEarnings = totalDue - platformFee;
+                const month = new Date().toISOString().slice(0, 7);
+
+                // Generate order number based on booking type
+                const prefix = completed.booking_type === 'online' ? 'ONL' : 'WLK';
+                const orderNumber = `${prefix}-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
+                // Check if earnings already exist for this booking
+                const existingEarnings = await Earnings.findOne({ booking_id: completed._id });
+                if (!existingEarnings) {
+                    await Earnings.create({
+                        owner_id: completed.space_id.user_id,
+                        space_id: completed.space_id._id,
+                        order_number: orderNumber,
+                        booking_id: completed._id,
+                        total_amount: totalDue,
+                        platform_fee_percent: platformFeePercent,
+                        platform_fee: parseFloat(platformFee.toFixed(4)),
+                        owner_earnings: parseFloat(ownerEarnings.toFixed(4)),
+                        payment_method: completed.booking_type === 'online' ? 'online' : payment_method,
+                        payment_intent_id: completed.payment_intent_id || paymentDoc._id.toString(),
+                        auto_collected: completed.booking_type === 'online' || payment_method !== 'cash',
+                        fee_status: 'pending', // ← CHANGE to pending (not collected)
+                        collected_at: null, // ← CHANGE to null
+                        booking_date: booking.start_time || booking.created_at,
+                        month: month,
+                        notes: `Platform fee pending collection from space owner`
+                    });
+                    console.log(`✅ Earnings created for ${completed.booking_type} booking ${completed.ticket_number}: ₱${platformFee} platform fee`);
+                } else {
+                    console.log(`Earnings already exist for booking ${completed._id}`);
+                }
+            } catch (earningsError) {
+                console.error('Failed to create earnings:', earningsError);
+                // Don't fail the checkout if earnings creation fails
+            }
+
             if (completed.user_id && totalDue > 0) {
                 await rewardService.awardPoints(completed.user_id, totalDue);
 
@@ -307,7 +407,6 @@ class BookingController {
                 const user = completed.user_id;
                 const space = completed.space_id;
 
-                // Format date and time
                 const bookingDate = new Date(completed.created_at).toLocaleDateString('en-PH', {
                     year: 'numeric',
                     month: 'long',
@@ -337,9 +436,7 @@ class BookingController {
                     receipt_number: paymentDoc._id.toString().slice(-8).toUpperCase()
                 };
 
-                // Send email receipt
                 await emailService.sendBookingCompletionEmail(user.email, user.name, bookingDetails);
-
                 console.log(`Booking completion email sent to ${user.email}`);
             }
 
@@ -353,6 +450,7 @@ class BookingController {
             next(error);
         }
     };
+
 
     // FIXED: applyVoucher - uses the already calculated total_amount from the booking
     applyVoucher = async (req, res, next) => {
@@ -763,6 +861,58 @@ class BookingController {
         } catch (error) {
             console.error('Get booking details error:', error);
             next(error);
+        }
+    };
+
+    // Add this method to track when bookings become completed
+    trackBookingCompletion = async (bookingId) => {
+        try {
+            const booking = await Booking.findById(bookingId).populate('space_id').populate('user_id');
+
+            if (!booking || booking.status !== 'completed') {
+                return;
+            }
+
+            // Check if earnings already exist
+            const existingEarnings = await Earnings.findOne({ booking_id: booking._id });
+            if (existingEarnings) {
+                console.log(`Earnings already exist for booking ${booking._id}`);
+                return;
+            }
+
+            const Settings = require('@/api/v1/models/schema/Settings');
+            const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+            const platformFeePercent = feeSetting?.value ?? 3;
+
+            const platformFee = (booking.total_amount * platformFeePercent) / 100;
+            const ownerEarnings = booking.total_amount - platformFee;
+            const month = new Date(booking.start_time || booking.created_at).toISOString().slice(0, 7);
+            const prefix = booking.booking_type === 'online' ? 'ONL' : 'WLK';
+            const orderNumber = `${prefix}-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
+            const earningsData = {
+                owner_id: booking.space_id.user_id,
+                space_id: booking.space_id._id,
+                order_number: orderNumber,
+                booking_id: booking._id,
+                total_amount: booking.total_amount,
+                platform_fee_percent: platformFeePercent,
+                platform_fee: parseFloat(platformFee.toFixed(4)),
+                owner_earnings: parseFloat(ownerEarnings.toFixed(4)),
+                payment_method: booking.booking_type === 'online' ? 'online' : (booking.payment_method || 'walkin'),
+                payment_intent_id: booking.payment_intent_id || null,
+                fee_status: 'pending', // ← CHANGE to pending (not collected)
+                collected_at: null, // ← CHANGE to null
+                booking_date: booking.start_time || booking.created_at,
+                month: month,
+                notes: `Platform fee pending collection from space owner`
+            };
+
+            await Earnings.create(earningsData);
+            console.log(`✅✅✅ Earnings created for ${booking.booking_type} booking ${booking.ticket_number}: ₱${platformFee} platform fee`);
+
+        } catch (error) {
+            console.error('Failed to track booking completion:', error);
         }
     };
 }

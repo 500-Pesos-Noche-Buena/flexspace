@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiGet, apiPost } from '@/utils/Api';
 import {
     Users,
@@ -16,7 +17,8 @@ import {
     BarChart3,
     Loader2,
     Activity,
-    Award
+    Award,
+    AlertCircle
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { useNavigate } from 'react-router-dom';
@@ -24,13 +26,39 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/utils/cn';
+import { useTheme } from '@/hooks/useTheme';
+
+// Animation variants
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.1,
+            delayChildren: 0.2
+        }
+    }
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: { duration: 0.5, ease: "easeOut" }
+    }
+};
 
 const SpaceDashboard = () => {
+    const { themeColor } = useTheme(); 
     const [stats, setStats] = useState({
         spaces: 0,
         bookings: 0,
         walkins: 0,
-        revenue: 0
+        grossRevenue: 0,
+        netRevenue: 0,
+        platformFees: 0,
+        pendingFees: 0
     });
     const [voucherStats, setVoucherStats] = useState({
         totalVouchers: 0,
@@ -61,7 +89,15 @@ const SpaceDashboard = () => {
             const res = await apiGet(`/space/dashboard?period=${period}`);
             if (res.success) {
                 setIsStaff(res.isStaff);
-                setStats(res.stats || { spaces: 0, bookings: 0, walkins: 0, revenue: 0 });
+                setStats(res.stats || { 
+                    spaces: 0, 
+                    bookings: 0, 
+                    walkins: 0, 
+                    grossRevenue: 0, 
+                    netRevenue: 0, 
+                    platformFees: 0, 
+                    pendingFees: 0 
+                });
                 setVoucherStats(res.voucherStats || {
                     totalVouchers: 0,
                     totalRedemptions: 0,
@@ -129,14 +165,14 @@ const SpaceDashboard = () => {
 
         const loadInitial = async () => {
             await fetchDashboardData(true);
-            await fetchAllAnalytics();  // ADD THIS LINE
+            await fetchAllAnalytics();
         };
         loadInitial();
 
         const interval = setInterval(() => {
             if (isMounted) {
                 fetchDashboardData(true);
-                fetchAllAnalytics();  // ADD THIS LINE
+                fetchAllAnalytics();
             }
         }, 15000);
 
@@ -144,7 +180,7 @@ const SpaceDashboard = () => {
             isMounted = false;
             clearInterval(interval);
         };
-    }, [fetchDashboardData, fetchAllAnalytics]);  // UPDATE DEPENDENCIES
+    }, [fetchDashboardData, fetchAllAnalytics]);
 
     const handleCheckout = async (sessionId) => {
         try {
@@ -163,449 +199,229 @@ const SpaceDashboard = () => {
         { id: 'yearly', label: 'Year' },
     ];
 
-    return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
+    // Get dynamic button color based on theme
+    const getButtonColor = () => {
+        const colors = {
+            indigo: 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40',
+            emerald: 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40',
+            purple: 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/40',
+            blue: 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/40',
+            rose: 'bg-rose-600 hover:bg-rose-500 shadow-rose-900/40',
+            amber: 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/40',
+        };
+        return colors[themeColor] || colors.indigo;
+    };
 
+    return (
+        <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+            className="px-4 md:px-0 pb-12"
+        >
             {/* --- HEADER & FILTERS --- */}
-            <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <motion.div variants={itemVariants} className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic">Hub Command</h1>
-                    <p className="text-[10px] text-slate-500 mt-1 font-bold uppercase tracking-[0.3em]">Operational Intelligence • Iloilo City</p>
+                    <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase italic">Hub Command</h1>
+                    <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-[0.3em]">Operational Intelligence • Iloilo City</p>
                 </div>
 
                 <Tabs value={period} onValueChange={setPeriod} className="w-auto">
-                    <TabsList className="bg-[#111114] border border-white/5 rounded-2xl p-1 shadow-2xl">
+                    <TabsList className="bg-card border border-border rounded-2xl p-1 shadow-2xl">
                         {periodFilters.map((f) => (
                             <TabsTrigger
                                 key={f.id}
                                 value={f.id}
-                                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-900/20 text-slate-500"
+                                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg text-muted-foreground transition-all"
+                                style={{ 
+                                    backgroundColor: period === f.id ? `var(--theme-primary)` : undefined,
+                                    color: period === f.id ? 'white' : undefined
+                                }}
                             >
                                 {f.label}
                             </TabsTrigger>
                         ))}
                     </TabsList>
                 </Tabs>
-            </div>
+            </motion.div>
 
             {/* --- PRIMARY STATS GRID --- */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-                {/* REVENUE CARD */}
-                <Card className="relative overflow-hidden bg-[#0a0a0c] border-white/3 hover:border-emerald-500/30 transition-all duration-500 shadow-2xl">
-                    <CardContent className="p-6 flex flex-col justify-between">
+            <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+                {/* GROSS REVENUE CARD */}
+                <Card className="relative overflow-hidden bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-2xl">
+                    <CardContent className="p-6">
                         <div className="flex justify-between items-start mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-all duration-500">
-                                <TrendingUp size={20} />
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 transition-all duration-500">
+                                <TrendingUp size={20} className="text-emerald-600 dark:text-emerald-400" />
                             </div>
-                            <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg uppercase tracking-tighter">Live</span>
+                            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg uppercase tracking-tighter">Live</span>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Revenue ({period})</p>
-                            <p className="text-3xl font-black text-white tracking-tighter">
-                                ₱{stats.revenue?.toLocaleString()}
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Gross Revenue ({period})</p>
+                            <p className="text-2xl font-black text-foreground tracking-tighter">
+                                ₱{stats.grossRevenue?.toLocaleString()}
                             </p>
+                            <div className="mt-3 pt-3 border-t border-border">
+                                <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-muted-foreground">Net Earnings:</span>
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">₱{stats.netRevenue?.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] mt-1">
+                                    <span className="text-muted-foreground">Platform Fees:</span>
+                                    <span className="font-bold text-amber-600 dark:text-amber-400">₱{stats.platformFees?.toLocaleString()}</span>
+                                </div>
+                                {stats.pendingFees > 0 && (
+                                    <div className="flex justify-between items-center text-[10px] mt-1">
+                                        <span className="text-muted-foreground flex items-center gap-1">
+                                            <AlertCircle size={10} className="text-red-500" />
+                                            Pending Fees:
+                                        </span>
+                                        <span className="font-bold text-red-600 dark:text-red-400 animate-pulse">₱{stats.pendingFees?.toLocaleString()}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* SPACES / ACTIVE LOAD */}
                 {!isStaff ? (
-                    <Card className="bg-[#0a0a0c] border-white/3 hover:border-indigo-500/30 transition-all duration-500 shadow-2xl">
+                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-2xl">
                         <CardContent className="p-6 flex flex-col justify-between">
-                            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20 mb-4">
-                                <MapPin size={20} />
+                            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 mb-4">
+                                <MapPin size={20} style={{ color: `var(--theme-primary)` }} />
                             </div>
                             <div>
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Your Spaces</p>
-                                <p className="text-3xl font-black text-white tracking-tighter">{stats.spaces}</p>
+                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Your Spaces</p>
+                                <p className="text-3xl font-black text-foreground tracking-tighter">{stats.spaces}</p>
                             </div>
                         </CardContent>
                     </Card>
                 ) : (
-                    <Card className="bg-[#0a0a0c] border-white/3 hover:border-sky-500/30 transition-all duration-500 shadow-2xl">
+                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-2xl">
                         <CardContent className="p-6 flex flex-col justify-between">
-                            <div className="w-12 h-12 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-500 border border-sky-500/20 mb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-600 dark:text-sky-400 border border-sky-500/20 mb-4">
                                 <Zap size={20} />
                             </div>
                             <div>
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Active Sessions</p>
-                                <p className="text-3xl font-black text-white tracking-tighter">{activeSessions.length}</p>
+                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Active Sessions</p>
+                                <p className="text-3xl font-black text-foreground tracking-tighter">{activeSessions.length}</p>
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
                 {/* TOTAL BOOKINGS */}
-                <Card className="bg-[#0a0a0c] border-white/3 hover:border-amber-500/30 transition-all duration-500 shadow-2xl">
+                <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-2xl">
                     <CardContent className="p-6 flex flex-col justify-between">
-                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 border border-amber-500/20 mb-4">
                             <Users size={20} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Total Bookings</p>
-                            <p className="text-3xl font-black text-white tracking-tighter">{stats.bookings}</p>
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Bookings</p>
+                            <p className="text-3xl font-black text-foreground tracking-tighter">{stats.bookings}</p>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* WALKINS */}
-                <Card className="bg-[#0a0a0c] border-white/3 hover:border-white/30 transition-all duration-500 shadow-2xl">
+                <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-2xl">
                     <CardContent className="p-6 flex flex-col justify-between">
-                        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white border border-white/10 mb-4">
-                            <Zap size={20} />
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 mb-4">
+                            <Zap size={20} className="text-muted-foreground" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Walk-ins Today</p>
-                            <p className="text-3xl font-black text-white tracking-tighter">{stats.walkins}</p>
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Walk-ins Today</p>
+                            <p className="text-3xl font-black text-foreground tracking-tighter">{stats.walkins}</p>
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </motion.div>
 
             {/* --- VOUCHER STATS SECTION --- */}
-            <div className="mb-10">
+            <motion.div variants={itemVariants} className="mb-10">
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                        <Ticket size={16} className="text-purple-400" />
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Ticket size={16} style={{ color: `var(--theme-primary)` }} />
                     </div>
-                    <h2 className="text-lg font-black text-white uppercase italic tracking-tighter">Voucher Performance</h2>
+                    <h2 className="text-lg font-black text-foreground uppercase italic tracking-tighter">Voucher Performance</h2>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <Card className="bg-[#111114] border-white/5">
+                    <Card className="bg-card border-border">
                         <CardContent className="p-5">
                             <div className="flex items-center gap-3 mb-3">
-                                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                                    <Ticket size={14} className="text-indigo-400" />
+                                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                                    <Ticket size={14} style={{ color: `var(--theme-primary)` }} />
                                 </div>
-                                <p className="text-[8px] font-black uppercase text-slate-500">Vouchers Created</p>
+                                <p className="text-[8px] font-black uppercase text-muted-foreground">Vouchers Created</p>
                             </div>
-                            <p className="text-2xl font-[1000] text-white">{voucherStats.totalVouchers}</p>
+                            <p className="text-2xl font-[1000] text-foreground">{voucherStats.totalVouchers}</p>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-[#111114] border-white/5">
+                    <Card className="bg-card border-border">
                         <CardContent className="p-5">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                                    <Coins size={14} className="text-amber-400" />
+                                    <Coins size={14} className="text-amber-600 dark:text-amber-400" />
                                 </div>
-                                <p className="text-[8px] font-black uppercase text-slate-500">Points Redeemed</p>
+                                <p className="text-[8px] font-black uppercase text-muted-foreground">Points Redeemed</p>
                             </div>
-                            <p className="text-2xl font-[1000] text-white">{voucherStats.totalRedemptions}</p>
-                            <p className="text-[8px] text-slate-500 mt-1">users exchanged points</p>
+                            <p className="text-2xl font-[1000] text-foreground">{voucherStats.totalRedemptions}</p>
+                            <p className="text-[8px] text-muted-foreground mt-1">users exchanged points</p>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-[#111114] border-white/5">
+                    <Card className="bg-card border-border">
                         <CardContent className="p-5">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                                    <Gift size={14} className="text-emerald-400" />
+                                    <Gift size={14} className="text-emerald-600 dark:text-emerald-400" />
                                 </div>
-                                <p className="text-[8px] font-black uppercase text-slate-500">Discount Given</p>
+                                <p className="text-[8px] font-black uppercase text-muted-foreground">Discount Given</p>
                             </div>
-                            <p className="text-2xl font-[1000] text-emerald-400">₱{voucherStats.totalDiscountGiven.toLocaleString()}</p>
-                            <p className="text-[8px] text-slate-500 mt-1">worth of vouchers redeemed</p>
+                            <p className="text-2xl font-[1000] text-emerald-600 dark:text-emerald-400">₱{voucherStats.totalDiscountGiven.toLocaleString()}</p>
+                            <p className="text-[8px] text-muted-foreground mt-1">worth of vouchers redeemed</p>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-[#111114] border-white/5">
+                    <Card className="bg-card border-border">
                         <CardContent className="p-5">
                             <div className="flex items-center gap-3 mb-3">
-                                <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                                    <Ticket size={14} className="text-purple-400" />
+                                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                                    <Ticket size={14} style={{ color: `var(--theme-primary)` }} />
                                 </div>
-                                <p className="text-[8px] font-black uppercase text-slate-500">Vouchers Used</p>
+                                <p className="text-[8px] font-black uppercase text-muted-foreground">Vouchers Used</p>
                             </div>
-                            <p className="text-2xl font-[1000] text-white">{voucherStats.vouchersUsed}</p>
-                            <p className="text-[8px] text-slate-500 mt-1">applied at checkout</p>
+                            <p className="text-2xl font-[1000] text-foreground">{voucherStats.vouchersUsed}</p>
+                            <p className="text-[8px] text-muted-foreground mt-1">applied at checkout</p>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-[#111114] border-white/5">
+                    <Card className="bg-card border-border">
                         <CardContent className="p-5">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                                    <TrendingUp size={14} className="text-emerald-400" />
+                                    <TrendingUp size={14} className="text-emerald-600 dark:text-emerald-400" />
                                 </div>
-                                <p className="text-[8px] font-black uppercase text-slate-500">Customer Savings</p>
+                                <p className="text-[8px] font-black uppercase text-muted-foreground">Customer Savings</p>
                             </div>
-                            <p className="text-2xl font-[1000] text-emerald-400">₱{voucherStats.totalSavedByCustomers.toLocaleString()}</p>
-                            <p className="text-[8px] text-slate-500 mt-1">total discount applied</p>
+                            <p className="text-2xl font-[1000] text-emerald-600 dark:text-emerald-400">₱{voucherStats.totalSavedByCustomers.toLocaleString()}</p>
+                            <p className="text-[8px] text-muted-foreground mt-1">total discount applied</p>
                         </CardContent>
                     </Card>
                 </div>
-            </div>
-
-
-            {/* ============ ADVANCED ANALYTICS SECTION ============ */}
-            <div className="mb-10">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                        <BarChart3 size={16} className="text-indigo-400" />
-                    </div>
-                    <h2 className="text-lg font-black text-white uppercase italic tracking-tighter">Performance Analytics</h2>
-                    {analyticsLoading && (
-                        <Loader2 size={14} className="text-slate-500 animate-spin ml-2" />
-                    )}
-                </div>
-
-                {/* Row 1: Occupancy + Peak Hours */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    {/* OCCUPANCY CARD */}
-                    <Card className="bg-[#111114] border-white/5 hover:border-emerald-500/30 transition-all duration-500">
-                        <CardContent className="p-6">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="flex items-center gap-2">
-                                    <Activity size={16} className="text-emerald-400" />
-                                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Live Occupancy</h3>
-                                </div>
-                                <span className={cn(
-                                    "text-[8px] font-black px-2 py-1 rounded-full uppercase",
-                                    occupancy.current.status === 'busy' && "bg-red-500/10 text-red-400",
-                                    occupancy.current.status === 'moderate' && "bg-yellow-500/10 text-yellow-400",
-                                    occupancy.current.status === 'quiet' && "bg-emerald-500/10 text-emerald-400"
-                                )}>
-                                    {occupancy.current.status === 'busy' ? '🔥 BUSY' : occupancy.current.status === 'moderate' ? '⚡ MODERATE' : '🌿 QUIET'}
-                                </span>
-                            </div>
-
-                            <div className="text-5xl font-black text-white mb-2">
-                                {occupancy.current.occupancyRate}%
-                            </div>
-                            <div className="w-full bg-slate-800 rounded-full h-2 mb-3">
-                                <div
-                                    className={cn(
-                                        "h-2 rounded-full transition-all duration-500",
-                                        occupancy.current.occupancyRate >= 80 ? "bg-red-500" :
-                                            occupancy.current.occupancyRate >= 40 ? "bg-yellow-500" : "bg-emerald-500"
-                                    )}
-                                    style={{ width: `${occupancy.current.occupancyRate}%` }}
-                                />
-                            </div>
-                            <p className="text-[10px] text-slate-400">
-                                {occupancy.current.occupiedSeats} of {occupancy.current.totalSeats} seats filled
-                            </p>
-
-                            {/* Space breakdown */}
-                            {occupancy.spaces.length > 0 && (
-                                <div className="mt-4 pt-4 border-t border-white/5">
-                                    <p className="text-[8px] text-slate-500 uppercase tracking-wider mb-2">Per Space</p>
-                                    <div className="space-y-2">
-                                        {occupancy.spaces.slice(0, 3).map((space, idx) => (
-                                            <div key={idx} className="flex justify-between text-[9px]">
-                                                <span className="text-slate-400">{space.name}</span>
-                                                <span className="text-white font-bold">{space.capacity} seats</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* PEAK HOURS CARD */}
-                    <Card className="bg-[#111114] border-white/5 hover:border-indigo-500/30 transition-all duration-500">
-                        <CardContent className="p-6">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Clock size={16} className="text-indigo-400" />
-                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Peak Hours ({period})</h3>
-                            </div>
-
-                            {peakHours.bestHour && (
-                                <div className="mb-4 p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
-                                    <p className="text-[8px] text-indigo-400 uppercase tracking-wider">Best Time</p>
-                                    <p className="text-xl font-black text-white">{peakHours.bestHour.label}</p>
-                                    <p className="text-[9px] text-slate-400">{peakHours.bestHour.bookings} bookings</p>
-                                </div>
-                            )}
-
-                            {/* Hourly heatmap bars */}
-                            <div className="flex items-end gap-1 h-24">
-                                {peakHours.hours.filter((_, i) => i % 3 === 0 || i === 12 || i === 18).map((hour) => (
-                                    <div key={hour.hour} className="flex-1 flex flex-col items-center">
-                                        <div
-                                            className="w-full bg-indigo-500/30 rounded-t-lg transition-all duration-300 hover:bg-indigo-500 cursor-pointer"
-                                            style={{ height: `${Math.max(4, hour.percentage * 0.6)}px` }}
-                                        >
-                                            <div
-                                                className="w-full bg-indigo-500 rounded-t-lg opacity-70 hover:opacity-100 transition-all"
-                                                style={{ height: `${hour.percentage * 0.6}px` }}
-                                            />
-                                        </div>
-                                        <span className="text-[7px] text-slate-500 mt-1">{hour.label}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="mt-4 pt-3 border-t border-white/5">
-                                <p className="text-[8px] text-slate-500 uppercase">
-                                    Total: {peakHours.totalBookings || 0} bookings this {period}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Row 2: Customer Loyalty + Revenue Trend */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* CUSTOMER LOYALTY CARD */}
-                    <Card className="bg-[#111114] border-white/5 hover:border-purple-500/30 transition-all duration-500">
-                        <CardContent className="p-6">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Award size={16} className="text-purple-400" />
-                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Customer Loyalty</h3>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="text-center p-3 bg-purple-500/5 rounded-xl">
-                                    <p className="text-2xl font-black text-purple-400">{customerLoyalty.summary.returnRate}%</p>
-                                    <p className="text-[8px] text-slate-500 uppercase">Return Rate</p>
-                                </div>
-                                <div className="text-center p-3 bg-emerald-500/5 rounded-xl">
-                                    <p className="text-2xl font-black text-emerald-400">{customerLoyalty.summary.totalCustomers || 0}</p>
-                                    <p className="text-[8px] text-slate-500 uppercase">Total Customers</p>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-between text-[9px] mb-3">
-                                <span className="text-slate-500">Returning: {customerLoyalty.summary.returningCustomers || 0}</span>
-                                <span className="text-slate-500">New (30d): {customerLoyalty.summary.newCustomersLast30Days || 0}</span>
-                            </div>
-
-                            {/* Top Customers */}
-                            {customerLoyalty.topCustomers.length > 0 && (
-                                <div className="mt-3 pt-3 border-t border-white/5">
-                                    <p className="text-[8px] text-slate-500 uppercase tracking-wider mb-2">🏆 Top Customers</p>
-                                    <div className="space-y-2">
-                                        {customerLoyalty.topCustomers.slice(0, 3).map((customer, idx) => (
-                                            <div key={idx} className="flex justify-between items-center">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-[9px] font-black text-purple-400">
-                                                        {idx + 1}
-                                                    </div>
-                                                    <span className="text-[10px] text-white font-medium truncate max-w-30">
-                                                        {customer.name}
-                                                    </span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-[9px] text-emerald-400 font-bold">₱{customer.totalSpent.toLocaleString()}</p>
-                                                    <p className="text-[7px] text-slate-500">{customer.totalBookings} visits</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                   {/* REVENUE TREND CARD - FIXED VERSION */}
-<Card className="bg-[#111114] border-white/5 hover:border-emerald-500/30 transition-all duration-500">
-    <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-4">
-            <div className="flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-400" />
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Revenue Trend ({period})</h3>
-            </div>
-            {revenueTrend.growth !== 0 && revenueTrend.growth !== undefined && (
-                <span className={cn(
-                    "text-[8px] font-black px-2 py-1 rounded-full",
-                    revenueTrend.growth > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
-                )}>
-                    {revenueTrend.growth > 0 ? "↑" : "↓"} {Math.abs(revenueTrend.growth)}% vs last
-                </span>
-            )}
-        </div>
-        
-        {/* Bar chart - handles single or multiple data points */}
-        <div className="flex items-end gap-2 h-32 mb-3">
-            {revenueTrend.trend && revenueTrend.trend.length > 0 ? (
-                (() => {
-                    const displayData = [...revenueTrend.trend].slice(-7);
-                    const maxRevenue = Math.max(...displayData.map(t => t.revenue), 1);
-                    
-                    return displayData.map((item, idx) => {
-                        const heightPercent = (item.revenue / maxRevenue) * 100;
-                        const barHeight = Math.max(8, heightPercent);
-                        
-                        // Format date nicely
-                        let dateLabel = item._id;
-                        if (period === 'daily' || period === 'weekly') {
-                            const parts = String(item._id).split('-');
-                            if (parts.length === 3) {
-                                dateLabel = `${parts[1]}/${parts[2]}`;
-                            }
-                        } else if (period === 'monthly') {
-                            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                            const monthNum = parseInt(String(item._id).split('-')[1]) - 1;
-                            dateLabel = monthNames[monthNum] || item._id;
-                        }
-                        
-                        return (
-                            <div key={idx} className="flex-1 flex flex-col items-center group">
-                                <div className="relative w-full flex justify-center">
-                                    <div 
-                                        className="w-8 bg-emerald-500/20 rounded-t-lg hover:bg-emerald-500/40 transition-all cursor-pointer group-hover:scale-105"
-                                        style={{ height: `${barHeight}px` }}
-                                    >
-                                        <div 
-                                            className="w-full bg-emerald-500 rounded-t-lg transition-all"
-                                            style={{ height: `${heightPercent}%` }}
-                                        />
-                                    </div>
-                                    {/* Tooltip on hover */}
-                                    <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 px-2 py-1 rounded-lg whitespace-nowrap z-10 pointer-events-none shadow-lg">
-                                        <p className="text-[8px] text-emerald-400 font-black">₱{item.revenue.toLocaleString()}</p>
-                                        <p className="text-[6px] text-slate-400">{item.bookings} booking{item.bookings !== 1 ? 's' : ''}</p>
-                                    </div>
-                                </div>
-                                <span className="text-[7px] text-slate-500 mt-2 font-mono">
-                                    {dateLabel}
-                                </span>
-                            </div>
-                        );
-                    });
-                })()
-            ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-600 text-[9px]">
-                    No revenue data for this period
-                </div>
-            )}
-        </div>
-        
-        {/* Summary stats */}
-        <div className="flex justify-between items-center pt-3 border-t border-white/5">
-            <div>
-                <p className="text-[8px] text-slate-500 uppercase tracking-wider">Total Revenue</p>
-                <p className="text-lg font-black text-emerald-400">
-                    ₱{(revenueTrend.totalRevenue || 0).toLocaleString()}
-                </p>
-            </div>
-            <div className="text-right">
-                <p className="text-[8px] text-slate-500 uppercase tracking-wider">Total Bookings</p>
-                <p className="text-lg font-black text-white">{revenueTrend.totalBookings || 0}</p>
-            </div>
-            {revenueTrend.trend && revenueTrend.trend.length > 1 && (
-                <div className="text-right">
-                    <p className="text-[8px] text-slate-500 uppercase tracking-wider">Period Range</p>
-                    <p className="text-[7px] font-mono text-slate-500">
-                        {revenueTrend.trend[0]?._id?.slice(5)} → {revenueTrend.trend.slice(-1)[0]?._id?.slice(5)}
-                    </p>
-                </div>
-            )}
-        </div>
-    </CardContent>
-</Card>
-                </div>
-            </div>
+            </motion.div>
 
             {/* --- QUICK ACTIONS --- */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+            <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
                 <Button
                     onClick={() => navigate('/space/walkins')}
-                    className="p-8 bg-indigo-600 hover:bg-indigo-500 rounded-[2.5rem] text-white flex justify-between items-center group cursor-pointer overflow-hidden relative shadow-2xl shadow-indigo-900/40 active:scale-[0.98] transition-all h-auto"
+                    className={cn(
+                        "p-8 rounded-[2.5rem] text-white flex justify-between items-center group cursor-pointer overflow-hidden relative shadow-2xl active:scale-[0.98] transition-all h-auto",
+                        getButtonColor()
+                    )}
                 >
                     <div className="relative z-10 text-left">
                         <h3 className="text-2xl font-black uppercase italic tracking-tighter">New Walk-in</h3>
@@ -618,67 +434,81 @@ const SpaceDashboard = () => {
                 <Button
                     onClick={() => navigate('/space/bookings')}
                     variant="outline"
-                    className="p-8 bg-white/5 border-white/10 hover:bg-white hover:text-black rounded-[2.5rem] text-white flex justify-between items-center group cursor-pointer transition-all duration-500 shadow-xl active:scale-[0.98] h-auto"
+                    className="p-8 bg-muted border-border hover:bg-primary hover:text-primary-foreground rounded-[2.5rem] text-foreground flex justify-between items-center group cursor-pointer transition-all duration-500 shadow-xl active:scale-[0.98] h-auto"
                 >
                     <div className="relative z-10 text-left">
                         <h3 className="text-2xl font-black uppercase italic tracking-tighter">Scan QR</h3>
-                        <p className="text-[10px] font-bold text-slate-500 group-hover:text-black/60 mt-1 uppercase tracking-widest transition-colors">Digital Ticket Entry</p>
+                        <p className="text-[10px] font-bold text-muted-foreground group-hover:text-primary-foreground/60 mt-1 uppercase tracking-widest transition-colors">Digital Ticket Entry</p>
                     </div>
                     <QrCode className="relative z-10 group-hover:scale-110 transition-transform" size={32} />
                 </Button>
-            </div>
+            </motion.div>
 
             {/* --- LIVE OCCUPANCY SECTION --- */}
-            <div className="mt-12">
+            <motion.div variants={itemVariants} className="mt-12">
                 <div className="flex items-center justify-between mb-8 px-2">
                     <div className="flex items-center gap-4">
                         <div className="relative">
                             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping absolute inset-0"></div>
                             <div className="w-3 h-3 rounded-full bg-emerald-500 relative"></div>
                         </div>
-                        <h3 className="text-lg font-black text-white uppercase italic tracking-tighter">Live Traffic</h3>
+                        <h3 className="text-lg font-black text-foreground uppercase italic tracking-tighter">Live Traffic</h3>
                     </div>
-                    <Button variant="ghost" className="text-[10px] font-black text-slate-500 uppercase hover:text-indigo-500 flex items-center gap-2 transition-all">
+                    <Button variant="ghost" className="text-[10px] font-black text-muted-foreground uppercase hover:text-primary flex items-center gap-2 transition-all">
                         View All Activity <ChevronRight size={14} />
                     </Button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {activeSessions.length > 0 ? (
-                        activeSessions.map((session) => (
-                            <Card key={session._id} className="bg-[#111114] border-white/5 hover:border-indigo-500/30 transition-all shadow-lg">
-                                <CardContent className="p-6 flex items-center justify-between">
-                                    <div className="flex items-center gap-5">
-                                        <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-indigo-400 font-black text-xl italic border border-white/5">
-                                            {session.userName?.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <p className="text-md font-black text-white uppercase tracking-tight">{session.userName}</p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <Clock size={12} className="text-slate-600" />
-                                                <p className="text-[10px] text-slate-500 font-bold uppercase">Checked in at {session.startTime}</p>
+                <AnimatePresence>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {activeSessions.length > 0 ? (
+                            activeSessions.map((session, idx) => (
+                                <motion.div
+                                    key={session._id}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                >
+                                    <Card className="bg-card border-border hover:border-primary/30 transition-all shadow-lg">
+                                        <CardContent className="p-6 flex items-center justify-between">
+                                            <div className="flex items-center gap-5">
+                                                <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center font-black text-xl italic border border-border">
+                                                    {session.userName?.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-md font-black text-foreground uppercase tracking-tight">{session.userName}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <Clock size={12} className="text-muted-foreground" />
+                                                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Checked in at {session.startTime}</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <Button
-                                        onClick={() => handleCheckout(session._id)}
-                                        variant="outline"
-                                        className="h-12 px-6 bg-emerald-500/10 text-emerald-500 rounded-2xl text-[10px] font-black uppercase border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
-                                    >
-                                        End Session
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        ))
-                    ) : (
-                        <div className="col-span-full py-16 bg-white/5 rounded-[3rem] border border-dashed border-white/10 flex flex-col items-center justify-center text-center opacity-40">
-                            <Calendar size={40} className="text-slate-600 mb-4" />
-                            <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">No Active Guests in the Hub</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+                                            <Button
+                                                onClick={() => handleCheckout(session._id)}
+                                                variant="outline"
+                                                className="h-12 px-6 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl text-[10px] font-black uppercase border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
+                                            >
+                                                End Session
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            ))
+                        ) : (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="col-span-full py-16 bg-muted rounded-[3rem] border border-dashed border-border flex flex-col items-center justify-center text-center"
+                            >
+                                <Calendar size={40} className="text-muted-foreground mb-4" />
+                                <p className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.3em]">No Active Guests in the Hub</p>
+                            </motion.div>
+                        )}
+                    </div>
+                </AnimatePresence>
+            </motion.div>
+        </motion.div>
     );
 };
 

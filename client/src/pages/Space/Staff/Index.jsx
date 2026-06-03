@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { apiGet, apiPost, apiDelete, apiPut } from '@/utils/Api';
 import { Trash2, Edit3, Users, CheckCircle, XCircle, UserPlus, Shield, Building } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
@@ -6,10 +7,12 @@ import Swal from 'sweetalert2';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
 import { BranchModal } from '@/components/modal';
+import { useTheme } from '@/hooks/useTheme';
 
 let globalPollingInstance = null;
 
 const StaffManagement = () => {
+    const { themeColor } = useTheme();
     const [staff, setStaff] = useState([]);
     const [spaces, setSpaces] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -123,12 +126,12 @@ const StaffManagement = () => {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Remove Access',
-            background: '#111114',
-            color: '#fff',
+            background: 'var(--card)',
+            color: 'var(--foreground)',
             customClass: {
-                popup: 'rounded-[2.5rem] border border-white/5 shadow-2xl',
+                popup: 'rounded-[2.5rem] border border-border shadow-2xl',
                 confirmButton: 'rounded-xl bg-rose-500 font-black uppercase text-[10px] tracking-widest',
-                cancelButton: 'rounded-xl bg-white/5 font-black uppercase text-[10px] tracking-widest text-slate-500'
+                cancelButton: 'rounded-xl bg-muted font-black uppercase text-[10px] tracking-widest text-muted-foreground'
             }
         });
         if (result.isConfirmed) {
@@ -163,14 +166,24 @@ const StaffManagement = () => {
     const getBranchName = (spaceId) => {
         if (!spaceId) return 'Not Assigned';
 
-        // If space_id is populated (object with name from populate)
         if (typeof spaceId === 'object' && spaceId !== null) {
             return spaceId.name || 'Unknown Branch';
         }
 
-        // If space_id is just an ID string
         const space = spaces.find(s => s._id === spaceId);
         return space ? space.name : 'Unknown Branch';
+    };
+
+    const getButtonColor = () => {
+        const colors = {
+            indigo: 'hover:bg-indigo-600',
+            emerald: 'hover:bg-emerald-600',
+            purple: 'hover:bg-purple-600',
+            blue: 'hover:bg-blue-600',
+            rose: 'hover:bg-rose-600',
+            amber: 'hover:bg-amber-600',
+        };
+        return colors[themeColor] || colors.indigo;
     };
 
     const columns = [
@@ -178,12 +191,12 @@ const StaffManagement = () => {
             header: "Staff Member",
             cell: (row) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-indigo-500 text-xs italic">
+                    <div className="w-10 h-10 rounded-2xl bg-muted border border-border flex items-center justify-center font-black text-primary text-xs italic">
                         {row.name?.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <p className="font-bold text-white leading-none">{row.name}</p>
-                        <p className="text-[10px] text-slate-500 mt-1 font-medium">{row.email}</p>
+                        <p className="font-bold text-foreground leading-none">{row.name}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 font-medium">{row.email}</p>
                     </div>
                 </div>
             )
@@ -192,8 +205,8 @@ const StaffManagement = () => {
             header: "Branch",
             cell: (row) => (
                 <div className="flex items-center gap-2">
-                    <Building size={12} className="text-emerald-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                    <Building size={12} className="text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
                         {getBranchName(row.space_id)}
                     </span>
                 </div>
@@ -203,8 +216,8 @@ const StaffManagement = () => {
             header: "Role",
             cell: (row) => (
                 <div className="flex items-center gap-2">
-                    <Shield size={12} className={row.role === 'admin' ? "text-indigo-500" : "text-slate-600"} />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{row.role}</span>
+                    <Shield size={12} className={row.role === 'admin' ? "text-primary" : "text-muted-foreground"} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{row.role}</span>
                 </div>
             )
         },
@@ -218,19 +231,19 @@ const StaffManagement = () => {
                             "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all cursor-pointer",
                             "hover:shadow-md active:scale-95",
                             row.isActive
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
-                                : 'bg-slate-500/20 text-slate-400 border border-slate-500/30 hover:bg-slate-500/30'
+                                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                                : 'bg-muted text-muted-foreground border border-border hover:bg-muted/80'
                         )}
                     >
                         <div className="flex items-center gap-1.5">
                             <div className={cn(
                                 "w-1.5 h-1.5 rounded-full",
-                                row.isActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
+                                row.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground'
                             )} />
                             {row.isActive ? 'Active' : 'Revoked'}
                         </div>
                     </button>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 bg-slate-800 text-white text-[8px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 bg-card text-foreground text-[8px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none border border-border">
                         Click to {row.isActive ? 'revoke' : 'activate'} access
                     </div>
                 </div>
@@ -242,7 +255,6 @@ const StaffManagement = () => {
                 <div className="flex justify-end gap-2">
                     <button
                         onClick={() => {
-                            // Extract the space_id properly
                             const spaceIdValue = extractSpaceId(row.space_id);
                             setSelectedMember({
                                 _id: row._id,
@@ -253,7 +265,7 @@ const StaffManagement = () => {
                             setIsEditMode(true);
                             setOpenModal(true);
                         }}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 text-slate-400 hover:bg-white hover:text-black transition-all"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all"
                     >
                         <Edit3 size={14} />
                     </button>
@@ -266,11 +278,16 @@ const StaffManagement = () => {
     ];
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0">
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="px-4 md:px-0 pb-10"
+        >
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Staff Management</h1>
-                    <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Manage your hub's operational team.</p>
+                    <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">Staff Management</h1>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">Manage your hub's operational team.</p>
                 </div>
                 <button
                     onClick={() => {
@@ -283,7 +300,10 @@ const StaffManagement = () => {
                         setIsEditMode(false);
                         setOpenModal(true);
                     }}
-                    className="bg-white text-black px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-xl active:scale-95"
+                    className={cn(
+                        "bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95",
+                        getButtonColor()
+                    )}
                 >
                     <UserPlus size={16} className="inline mr-2" /> Add Staff
                 </button>
@@ -291,25 +311,31 @@ const StaffManagement = () => {
 
             {/* STATS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20"><Users size={20} /></div>
+                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-4 shadow-lg">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                        <Users size={20} style={{ color: `var(--theme-primary)` }} />
+                    </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total Team</p>
-                        <p className="text-2xl font-black text-white italic">{stats.total}</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Team</p>
+                        <p className="text-2xl font-black text-foreground italic">{stats.total}</p>
                     </div>
                 </div>
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20"><CheckCircle size={20} /></div>
+                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-4 shadow-lg">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                        <CheckCircle size={20} className="text-emerald-600 dark:text-emerald-400" />
+                    </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Active</p>
-                        <p className="text-2xl font-black text-white italic">{stats.active}</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Active</p>
+                        <p className="text-2xl font-black text-foreground italic">{stats.active}</p>
                     </div>
                 </div>
-                <div className="bg-[#111114] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20"><XCircle size={20} /></div>
+                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-4 shadow-lg">
+                    <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+                        <XCircle size={20} className="text-rose-600 dark:text-rose-400" />
+                    </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Revoked</p>
-                        <p className="text-2xl font-black text-white italic">{stats.inactive}</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Revoked</p>
+                        <p className="text-2xl font-black text-foreground italic">{stats.inactive}</p>
                     </div>
                 </div>
             </div>
@@ -323,30 +349,30 @@ const StaffManagement = () => {
                 renderMobileCard={(member) => {
                     const spaceIdValue = extractSpaceId(member.space_id);
                     return (
-                        <div key={member._id} className="bg-[#111114] border border-white/5 p-5 rounded-[2.5rem] space-y-4 shadow-xl">
+                        <div key={member._id} className="bg-card border-border p-5 rounded-[2.5rem] space-y-4 shadow-xl">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white italic border border-white/10">
+                                    <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-black text-primary-foreground italic">
                                         {member.name?.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-black text-white leading-tight uppercase italic tracking-tighter">{member.name}</h3>
-                                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{member.email}</p>
+                                        <h3 className="text-sm font-black text-foreground leading-tight uppercase italic tracking-tighter">{member.name}</h3>
+                                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{member.email}</p>
                                     </div>
                                 </div>
-                                <div className="text-[8px] font-[1000] text-indigo-400 uppercase px-2 py-1 bg-indigo-500/10 rounded-lg border border-indigo-500/10 tracking-widest">
+                                <div className="text-[8px] font-[1000] text-primary uppercase px-2 py-1 bg-primary/10 rounded-lg border border-primary/10 tracking-widest">
                                     {member.role}
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <Building size={12} className="text-emerald-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                                <Building size={12} className="text-emerald-600 dark:text-emerald-400" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
                                     {getBranchName(member.space_id)}
                                 </span>
                             </div>
 
-                            <div className="h-px w-full bg-white/5" />
+                            <div className="h-px w-full bg-border" />
 
                             <div className="flex items-center justify-between">
                                 <button
@@ -354,8 +380,8 @@ const StaffManagement = () => {
                                     className={cn(
                                         "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all",
                                         member.isActive
-                                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                            : 'bg-slate-500/10 text-slate-500 border border-white/5'
+                                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                            : 'bg-muted text-muted-foreground border border-border'
                                     )}
                                 >
                                     {member.isActive ? 'Active' : 'Revoked'}
@@ -372,7 +398,7 @@ const StaffManagement = () => {
                                             setIsEditMode(true);
                                             setOpenModal(true);
                                         }}
-                                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 text-slate-400 hover:bg-white hover:text-black active:scale-90 transition-all border border-white/5"
+                                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground active:scale-90 transition-all border border-border"
                                     >
                                         <Edit3 size={14} />
                                     </button>
@@ -389,7 +415,6 @@ const StaffManagement = () => {
                 }}
             />
 
-            {/* Reusable Branch Modal */}
             <BranchModal
                 isOpen={openModal}
                 onClose={() => setOpenModal(false)}
@@ -399,7 +424,7 @@ const StaffManagement = () => {
                 spaces={spaces}
                 loadingSpaces={loadingSpaces}
             />
-        </div>
+        </motion.div>
     );
 };
 

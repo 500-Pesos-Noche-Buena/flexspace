@@ -8,8 +8,10 @@ import {
 import { showToast, showConfirm } from '@/components/ui/SweetAlert2';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useTheme } from '@/hooks/useTheme';
 
 const SpaceReviewList = () => {
+    const { themeColor } = useTheme();
     const [reviews, setReviews] = useState([]);
     const [spaces, setSpaces] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -149,19 +151,31 @@ const SpaceReviewList = () => {
                     {rating >= star ? (
                         <Star size={size} className="fill-amber-400 text-amber-400" />
                     ) : (
-                        <StarOff size={size} className="text-slate-300" />
+                        <StarOff size={size} className="text-muted-foreground" />
                     )}
                 </span>
             ))}
         </div>
     );
 
+    const getButtonHoverColor = () => {
+        const colors = {
+            indigo: 'hover:bg-indigo-600',
+            emerald: 'hover:bg-emerald-600',
+            purple: 'hover:bg-purple-600',
+            blue: 'hover:bg-blue-600',
+            rose: 'hover:bg-rose-600',
+            amber: 'hover:bg-amber-600',
+        };
+        return colors[themeColor] || colors.indigo;
+    };
+
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
             {/* Header */}
             <div className="mb-8">
-                <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Customer Reviews</h1>
-                <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">
+                <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">Customer Reviews</h1>
+                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">
                     Manage and respond to customer feedback
                 </p>
             </div>
@@ -170,23 +184,23 @@ const SpaceReviewList = () => {
             {stats.total_reviews > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <div className="bg-linear-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-5 rounded-2xl">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-400">Total Reviews</p>
-                        <p className="text-3xl font-[1000] text-white italic mt-2">{stats.total_reviews}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Total Reviews</p>
+                        <p className="text-3xl font-[1000] text-foreground italic mt-2">{stats.total_reviews}</p>
                     </div>
                     <div className="bg-linear-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-5 rounded-2xl">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-400">Average Rating</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Average Rating</p>
                         <div className="flex items-center gap-2 mt-2">
                             <StarRating rating={stats.average_rating} size={20} />
-                            <p className="text-3xl font-[1000] text-white italic">{stats.average_rating.toFixed(1)}</p>
+                            <p className="text-3xl font-[1000] text-foreground italic">{stats.average_rating.toFixed(1)}</p>
                         </div>
                     </div>
                     <div className="bg-linear-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-5 rounded-2xl">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-400">5-Star Reviews</p>
-                        <p className="text-3xl font-[1000] text-white italic mt-2">{stats.rating_breakdown?.[5] || 0}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">5-Star Reviews</p>
+                        <p className="text-3xl font-[1000] text-foreground italic mt-2">{stats.rating_breakdown?.[5] || 0}</p>
                     </div>
                     <div className="bg-linear-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-5 rounded-2xl">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-400">Response Rate</p>
-                        <p className="text-3xl font-[1000] text-white italic mt-2">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Response Rate</p>
+                        <p className="text-3xl font-[1000] text-foreground italic mt-2">
                             {Math.round((reviews.filter(r => r.reply).length / (stats.total_reviews || 1)) * 100)}%
                         </p>
                     </div>
@@ -194,41 +208,41 @@ const SpaceReviewList = () => {
             )}
 
             {/* Filters */}
-            <div className="bg-[#111114] border border-white/5 rounded-2xl p-4 mb-6">
+            <div className="bg-card border border-border rounded-2xl p-4 mb-6">
                 <div className="flex flex-col md:flex-row gap-4">
                     {/* Space Filter */}
                     <div className="flex-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
                             Filter by Space
                         </label>
                         <div className="relative">
                             <select
                                 value={selectedSpaceId}
                                 onChange={(e) => setSelectedSpaceId(e.target.value)}
-                                className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:border-amber-500 outline-none appearance-none cursor-pointer"
+                                className="w-full px-4 py-2 rounded-xl bg-background border border-border text-foreground text-sm focus:border-primary outline-none appearance-none cursor-pointer"
                             >
                                 <option value="">All Spaces</option>
                                 {spaces.map(space => (
                                     <option key={space._id} value={space._id}>{space.name}</option>
                                 ))}
                             </select>
-                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         </div>
                     </div>
 
                     {/* Rating Filter */}
                     <div>
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
                             Rating
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                             <button
                                 onClick={() => setFilterRating(null)}
                                 className={cn(
                                     "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
                                     !filterRating 
-                                        ? "bg-amber-500 text-white" 
-                                        : "bg-white/5 text-slate-400 hover:bg-white/10"
+                                        ? "bg-primary text-primary-foreground" 
+                                        : "bg-muted text-muted-foreground hover:bg-muted/80"
                                 )}
                             >
                                 All
@@ -240,8 +254,8 @@ const SpaceReviewList = () => {
                                     className={cn(
                                         "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1",
                                         filterRating === rating 
-                                            ? "bg-amber-500 text-white" 
-                                            : "bg-white/5 text-slate-400 hover:bg-white/10"
+                                            ? "bg-primary text-primary-foreground" 
+                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
                                     )}
                                 >
                                     {rating}★
@@ -252,13 +266,13 @@ const SpaceReviewList = () => {
 
                     {/* Sort */}
                     <div>
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
                             Sort By
                         </label>
                         <select
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value)}
-                            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:border-amber-500 outline-none"
+                            className="px-4 py-2 rounded-xl bg-background border border-border text-foreground text-sm focus:border-primary outline-none"
                         >
                             <option value="newest">Newest First</option>
                             <option value="oldest">Oldest First</option>
@@ -273,48 +287,48 @@ const SpaceReviewList = () => {
             {/* Reviews List */}
             {loading ? (
                 <div className="flex items-center justify-center py-20">
-                    <Loader2 size={40} className="animate-spin text-amber-500" />
+                    <Loader2 size={40} className="animate-spin text-primary" />
                 </div>
             ) : reviews.length === 0 ? (
-                <div className="text-center py-20 bg-[#111114] border border-white/5 rounded-3xl">
-                    <MessageCircle size={64} className="mx-auto text-slate-700 mb-4" />
-                    <p className="text-lg text-slate-500 font-medium">No reviews yet</p>
-                    <p className="text-sm text-slate-600 mt-2">When customers leave reviews, they'll appear here</p>
+                <div className="text-center py-20 bg-card border border-border rounded-3xl">
+                    <MessageCircle size={64} className="mx-auto text-muted-foreground mb-4" />
+                    <p className="text-lg text-muted-foreground font-medium">No reviews yet</p>
+                    <p className="text-sm text-muted-foreground/60 mt-2">When customers leave reviews, they'll appear here</p>
                 </div>
             ) : (
                 <div className="space-y-4">
                     {reviews.map((review) => (
-                        <div key={review._id} className="bg-[#111114] border border-white/5 rounded-2xl p-6 hover:border-amber-500/30 transition-all">
+                        <div key={review._id} className="bg-card border border-border rounded-2xl p-6 hover:border-primary/30 transition-all">
                             {/* Review Header */}
                             <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                                         <StarRating rating={review.rating} size={18} />
                                         {review.is_verified_booking && (
-                                            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                                            <span className="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
                                                 Verified Booking
                                             </span>
                                         )}
                                         {review.is_edited && (
-                                            <span className="text-[10px] bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full">
+                                            <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
                                                 Edited
                                             </span>
                                         )}
                                     </div>
                                     
                                     {review.title && (
-                                        <h4 className="font-bold text-white text-base mb-2">
+                                        <h4 className="font-bold text-foreground text-base mb-2">
                                             {review.title}
                                         </h4>
                                     )}
                                     
-                                    <p className="text-slate-300 leading-relaxed">
+                                    <p className="text-foreground/80 leading-relaxed">
                                         {review.comment}
                                     </p>
                                 </div>
                                 
                                 <div className="text-right">
-                                    <p className="text-sm font-bold text-amber-400">{review.space?.name}</p>
+                                    <p className="text-sm font-bold text-primary">{review.space?.name}</p>
                                 </div>
                             </div>
 
@@ -326,7 +340,7 @@ const SpaceReviewList = () => {
                                             key={idx}
                                             src={img}
                                             alt={`Review ${idx + 1}`}
-                                            className="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity border border-white/10"
+                                            className="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity border border-border"
                                             onClick={() => window.open(img, '_blank')}
                                         />
                                     ))}
@@ -334,8 +348,8 @@ const SpaceReviewList = () => {
                             )}
 
                             {/* Customer Info */}
-                            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/5">
-                                <div className="flex items-center gap-4 text-sm text-slate-500">
+                            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-border">
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                     <div className="flex items-center gap-1">
                                         <User size={14} />
                                         <span>{review.customer?.name || review.guest_name || 'Anonymous'}</span>
@@ -349,7 +363,7 @@ const SpaceReviewList = () => {
                                         })}</span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1 text-sm text-slate-500">
+                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                     <ThumbsUp size={14} />
                                     <span>{review.helpful_count} found this helpful</span>
                                 </div>
@@ -357,28 +371,28 @@ const SpaceReviewList = () => {
 
                             {/* Reply Section */}
                             {review.reply ? (
-                                <div className="mt-4 ml-4 pl-4 border-l-2 border-amber-500 bg-amber-500/5 p-4 rounded-r-xl">
+                                <div className="mt-4 ml-4 pl-4 border-l-2 border-primary bg-primary/5 p-4 rounded-r-xl">
                                     <div className="flex items-center justify-between mb-2">
-                                        <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                                        <p className="text-[11px] font-bold text-primary uppercase tracking-wider flex items-center gap-2">
                                             <Reply size={12} /> Your Response
                                         </p>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => openEditModal(review._id, review.reply.text)}
-                                                className="p-1 hover:bg-amber-500/20 rounded transition-colors"
+                                                className="p-1 hover:bg-primary/20 rounded transition-colors"
                                             >
-                                                <Edit2 size={14} className="text-amber-400" />
+                                                <Edit2 size={14} className="text-primary" />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteReply(review._id)}
-                                                className="p-1 hover:bg-red-500/20 rounded transition-colors"
+                                                className="p-1 hover:bg-rose-500/20 rounded transition-colors"
                                             >
-                                                <Trash2 size={14} className="text-red-400" />
+                                                <Trash2 size={14} className="text-rose-600 dark:text-rose-400" />
                                             </button>
                                         </div>
                                     </div>
-                                    <p className="text-sm text-slate-300">{review.reply.text}</p>
-                                    <p className="text-[10px] text-slate-500 mt-2">
+                                    <p className="text-sm text-foreground/80">{review.reply.text}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-2">
                                         Replied on {new Date(review.reply.created_at).toLocaleDateString()}
                                         {review.reply.updated_at !== review.reply.created_at && ' (Edited)'}
                                     </p>
@@ -386,20 +400,23 @@ const SpaceReviewList = () => {
                             ) : (
                                 <div className="mt-4">
                                     {replyingTo === review._id ? (
-                                        <div className="flex gap-3 items-start">
+                                        <div className="flex gap-3 items-start flex-wrap">
                                             <textarea
                                                 value={replyText}
                                                 onChange={(e) => setReplyText(e.target.value)}
                                                 placeholder="Write your reply to this customer..."
                                                 rows="3"
-                                                className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-amber-500 outline-none resize-none"
+                                                className="flex-1 min-w-[200px] px-4 py-2 bg-background border border-border rounded-xl text-foreground text-sm focus:border-primary outline-none resize-none"
                                                 autoFocus
                                             />
                                             <div className="flex gap-2">
                                                 <button
                                                     onClick={() => handleReply(review._id)}
                                                     disabled={submitting}
-                                                    className="px-4 py-2 bg-amber-500 text-white rounded-xl font-bold text-xs disabled:opacity-50 hover:bg-amber-600 transition"
+                                                    className={cn(
+                                                        "px-4 py-2 bg-primary text-primary-foreground rounded-xl font-bold text-xs disabled:opacity-50 transition",
+                                                        getButtonHoverColor()
+                                                    )}
                                                 >
                                                     {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                                                 </button>
@@ -408,7 +425,7 @@ const SpaceReviewList = () => {
                                                         setReplyingTo(null);
                                                         setReplyText('');
                                                     }}
-                                                    className="px-4 py-2 bg-white/5 text-slate-400 rounded-xl hover:bg-white/10 transition"
+                                                    className="px-4 py-2 bg-muted text-muted-foreground rounded-xl hover:bg-muted/80 transition"
                                                 >
                                                     <X size={14} />
                                                 </button>
@@ -417,7 +434,7 @@ const SpaceReviewList = () => {
                                     ) : (
                                         <button
                                             onClick={() => setReplyingTo(review._id)}
-                                            className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition font-medium"
+                                            className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition font-medium"
                                         >
                                             <Reply size={14} /> Reply to this review
                                         </button>
@@ -435,17 +452,17 @@ const SpaceReviewList = () => {
                     <button
                         onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                         disabled={pagination.page === 1}
-                        className="px-4 py-2 rounded-xl bg-white/5 text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition text-sm font-medium"
+                        className="px-4 py-2 rounded-xl bg-muted text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted/80 transition text-sm font-medium"
                     >
                         Previous
                     </button>
-                    <span className="px-4 py-2 text-sm text-slate-400">
+                    <span className="px-4 py-2 text-sm text-muted-foreground">
                         Page {pagination.page} of {pagination.pages}
                     </span>
                     <button
                         onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
                         disabled={pagination.page === pagination.pages}
-                        className="px-4 py-2 rounded-xl bg-white/5 text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition text-sm font-medium"
+                        className="px-4 py-2 rounded-xl bg-muted text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted/80 transition text-sm font-medium"
                     >
                         Next
                     </button>

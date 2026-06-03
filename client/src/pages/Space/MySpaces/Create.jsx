@@ -12,6 +12,8 @@ import {
     MapPin, Clock, Image as ImageIcon,
     X, CheckCircle, AlertCircle, Crosshair, Search
 } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
+import { cn } from '@/utils/cn';
 
 // Fix Leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -105,13 +107,13 @@ const AddressSearchBar = ({ onResult }) => {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Search address or landmark…"
-                className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs outline-none focus:border-indigo-500 transition-all font-medium placeholder:text-slate-600"
+                className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-foreground text-xs outline-none focus:border-primary transition-all font-medium placeholder:text-muted-foreground"
             />
             <button
                 type="button"
                 onClick={handleSearch}
                 disabled={searching}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1"
+                className="px-4 py-2 bg-primary text-primary-foreground disabled:opacity-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1"
             >
                 <Search size={12} />
                 {searching ? 'Searching…' : 'Go'}
@@ -132,6 +134,7 @@ const defaultHours = () => ({
 });
 
 const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) => {
+    const { themeColor } = useTheme();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [uploadingImages, setUploadingImages] = useState(false);
@@ -139,7 +142,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
     const [images, setImages] = useState([]);
     const [detectingDistrict, setDetectingDistrict] = useState(false);
     const [existingImages, setExistingImages] = useState([]);
-    const [errors, setErrors] = useState({});  // ← ADD THIS LINE
+    const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState({
         name: '',
@@ -159,12 +162,21 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
     const [touched, setTouched] = useState({});
     const [mapCenter, setMapCenter] = useState([10.7202, 122.5621]);
 
+    const getButtonColor = () => {
+        const colors = {
+            indigo: 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40',
+            emerald: 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40',
+            purple: 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/40',
+            blue: 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/40',
+            rose: 'bg-rose-600 hover:bg-rose-500 shadow-rose-900/40',
+            amber: 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/40',
+        };
+        return colors[themeColor] || colors.indigo;
+    };
+
     // Populate form with existing data when editing
     useEffect(() => {
         if (initialData && isEditing) {
-            // console.log('Populating form with data:', initialData);
-
-            // Parse hours_json if it's a string
             let hoursData = initialData.hours_json;
             if (typeof hoursData === 'string') {
                 try {
@@ -189,12 +201,10 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                 status: initialData.status || 'Open Now'
             });
 
-            // Store existing images as strings (URLs)
             if (initialData.images && initialData.images.length > 0) {
-                setImages(initialData.images); // These are URLs, not File objects
+                setImages(initialData.images);
             }
 
-            // Set map center if coordinates exist
             if (initialData.lat && initialData.lng) {
                 setMapCenter([parseFloat(initialData.lat), parseFloat(initialData.lng)]);
             }
@@ -204,23 +214,17 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
     const handleChange = (e) => {
         const { name, value } = e.target;
 
-        // Handle numeric fields (rate_hour, capacity, available_rooms)
         if (name === 'rate_hour' || name === 'capacity' || name === 'available_rooms') {
-            // Allow empty string
             if (value === '') {
                 setFormData(prev => ({ ...prev, [name]: '' }));
                 return;
             }
 
-            // Check if it's a valid positive number (only digits, no negative sign)
-            // Allow only numbers (0-9) and decimal point for rate_hour only
             if (name === 'rate_hour') {
-                // Allow only positive numbers with optional decimal
                 if (/^\d*\.?\d*$/.test(value) && parseFloat(value) >= 0) {
                     setFormData(prev => ({ ...prev, [name]: value }));
                 }
             } else {
-                // For capacity and available_rooms - only whole positive numbers
                 if (/^\d+$/.test(value) && parseInt(value) >= 0) {
                     setFormData(prev => ({ ...prev, [name]: value }));
                 }
@@ -228,7 +232,6 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             return;
         }
 
-        // For other fields, update normally
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
@@ -237,7 +240,6 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
         setTouched(prev => ({ ...prev, [name]: true }));
     };
 
-    // Auto-detect district from coordinates
     const autoDetectDistrict = async (lat, lng) => {
         setDetectingDistrict(true);
         try {
@@ -334,14 +336,10 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             return;
         }
 
-        // Store files locally - they will be uploaded when form is submitted
         setImages(prev => [...prev, ...files]);
         showToast({ icon: 'success', title: `${files.length} image(s) added`, duration: 1500 });
-
-        // Clear the input
         e.target.value = '';
     };
-
 
     const removeImage = (index) => {
         setImages(prev => prev.filter((_, i) => i !== index));
@@ -350,13 +348,11 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Check if form has any empty required fields
         if (!formData.name || !formData.area || !formData.rate_hour || !formData.capacity) {
             showToast({ icon: 'error', title: 'Please fill in all required fields' });
             return;
         }
 
-        // ✅ ADD NAME LENGTH VALIDATION
         if (formData.name.length > 50) {
             showToast({ icon: 'error', title: 'Space name cannot exceed 50 characters' });
             return;
@@ -367,7 +363,6 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             return;
         }
 
-        // For create: require images, for edit: images are optional
         if (!isEditing && images.length === 0) {
             showToast({ icon: 'error', title: 'Please upload at least one image' });
             return;
@@ -391,7 +386,6 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             if (formData.district_id) submitData.append('district_id', formData.district_id);
             if (formData.available_rooms) submitData.append('available_rooms', formData.available_rooms);
 
-            // Append only NEW image files (not existing URLs)
             images.forEach(img => {
                 if (img instanceof File) {
                     submitData.append('images', img);
@@ -399,8 +393,6 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             });
 
             const url = isEditing ? `/space/spaces/${spaceId}/update` : '/space/spaces';
-            // console.log('Submitting to:', url);
-
             const response = await apiPost(url, submitData);
 
             if (response.success) {
@@ -436,16 +428,16 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
             <div className="mb-8">
-                <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">
+                <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">
                     {isEditing ? 'Edit Space' : 'Create New Space'}
                 </h1>
-                <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">
+                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">
                     {isEditing ? 'Modify your coworking space details' : 'List your coworking space'}
                 </p>
             </div>
 
             <form onSubmit={handleSubmit} className="max-w-7xl mx-auto">
-                <div className="bg-[#111114] border border-white/10 rounded-3xl p-6 space-y-6">
+                <div className="bg-card border border-border rounded-3xl p-6 space-y-6">
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormInput
@@ -516,10 +508,10 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                     </div>
 
                     {/* Location Map */}
-                    <div className="bg-linear-to-br from-indigo-950/30 to-purple-950/30 rounded-2xl p-4 md:p-6 border border-indigo-500/20">
+                    <div className="bg-linear-to-br from-primary/10 to-purple-500/10 rounded-2xl p-4 md:p-6 border border-primary/20">
                         <div className="flex items-center gap-2 mb-4 md:mb-6">
-                            <MapPin size={16} className="text-indigo-400" />
-                            <label className="text-[11px] md:text-xs text-indigo-400 font-black uppercase tracking-widest">
+                            <MapPin size={16} className="text-primary" />
+                            <label className="text-[11px] md:text-xs text-primary font-black uppercase tracking-widest">
                                 Click on map to set location & auto-detect district
                             </label>
                         </div>
@@ -531,7 +523,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                 type="button"
                                 onClick={handleUseMyLocation}
                                 disabled={detectingDistrict}
-                                className="w-full sm:w-auto bg-black/50 backdrop-blur-md text-white text-[11px] md:text-xs font-black px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all border border-white/10"
+                                className="w-full sm:w-auto bg-muted backdrop-blur-md text-foreground text-[11px] md:text-xs font-black px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all border border-border"
                             >
                                 <Crosshair size={14} />
                                 Use My Location
@@ -540,7 +532,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                 <button
                                     type="button"
                                     onClick={() => setFormData(prev => ({ ...prev, lat: '', lng: '', area: '' }))}
-                                    className="w-full sm:w-auto bg-black/50 text-rose-400 text-[11px] md:text-xs font-black px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-rose-500/20 transition-all border border-rose-500/20"
+                                    className="w-full sm:w-auto bg-muted text-rose-500 dark:text-rose-400 text-[11px] md:text-xs font-black px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-rose-500/20 transition-all border border-rose-500/20"
                                 >
                                     <X size={14} />
                                     Clear Pin
@@ -548,7 +540,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                             )}
                         </div>
 
-                        <div className="rounded-xl overflow-hidden border border-white/10 mb-3" style={{ height: '280px' }}>
+                        <div className="rounded-xl overflow-hidden border border-border mb-3" style={{ height: '280px' }}>
                             <MapContainer
                                 center={mapCenter}
                                 zoom={15}
@@ -580,40 +572,40 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                            <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
-                                <label className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-wider">Latitude</label>
+                            <div className="bg-muted rounded-xl p-3 md:p-4 border border-border">
+                                <label className="text-[9px] md:text-[10px] text-muted-foreground font-black uppercase tracking-wider">Latitude</label>
                                 <input
                                     type="text"
                                     value={formData.lat}
                                     readOnly
-                                    className="w-full mt-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm outline-none font-mono"
+                                    className="w-full mt-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none font-mono"
                                 />
                             </div>
-                            <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
-                                <label className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-wider">Longitude</label>
+                            <div className="bg-muted rounded-xl p-3 md:p-4 border border-border">
+                                <label className="text-[9px] md:text-[10px] text-muted-foreground font-black uppercase tracking-wider">Longitude</label>
                                 <input
                                     type="text"
                                     value={formData.lng}
                                     readOnly
-                                    className="w-full mt-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm outline-none font-mono"
+                                    className="w-full mt-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm outline-none font-mono"
                                 />
                             </div>
                         </div>
 
                         {detectingDistrict && (
-                            <div className="flex items-center gap-2 text-[9px] md:text-[10px] text-indigo-400 bg-indigo-500/10 px-3 py-2.5 rounded-lg mb-3">
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-400"></div>
+                            <div className="flex items-center gap-2 text-[9px] md:text-[10px] text-primary bg-primary/10 px-3 py-2.5 rounded-lg mb-3">
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
                                 <span>Detecting district from location...</span>
                             </div>
                         )}
 
                         {hasLocation ? (
-                            <div className="flex items-center gap-2 text-[9px] md:text-[10px] text-emerald-400 bg-emerald-500/10 px-3 py-2.5 rounded-lg">
+                            <div className="flex items-center gap-2 text-[9px] md:text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-2.5 rounded-lg">
                                 <CheckCircle size={14} />
                                 <span>Location set! District: {formData.area || 'Detecting...'}</span>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-2 text-[9px] md:text-[10px] text-yellow-400 bg-yellow-500/10 px-3 py-2.5 rounded-lg">
+                            <div className="flex items-center gap-2 text-[9px] md:text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-2.5 rounded-lg">
                                 <AlertCircle size={14} />
                                 <span>No location set yet — click on the map to auto-detect district</span>
                             </div>
@@ -638,22 +630,21 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                         touched={touched.description}
                     />
 
-                    <div className="bg-white/5 rounded-2xl p-3 sm:p-6 border border-white/10">
+                    <div className="bg-muted rounded-2xl p-3 sm:p-6 border border-border">
                         {/* Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-                                    <Clock size={16} className="text-indigo-400" />
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                                    <Clock size={16} className="text-primary" />
                                 </div>
                                 <div>
-                                    <h3 className="text-[10px] sm:text-sm font-black text-white uppercase tracking-tighter">Weekly Schedule</h3>
-                                    <p className="text-[7px] sm:text-[8px] text-slate-400 mt-0.5">Set your space's operating hours</p>
+                                    <h3 className="text-[10px] sm:text-sm font-black text-foreground uppercase tracking-tighter">Weekly Schedule</h3>
+                                    <p className="text-[7px] sm:text-[8px] text-muted-foreground mt-0.5">Set your space's operating hours</p>
                                 </div>
                             </div>
 
                             {/* Quick Actions Group */}
                             <div className="flex flex-wrap gap-2">
-                                {/* Apply 24/7 to All Days */}
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -668,13 +659,12 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                         setFormData(prev => ({ ...prev, hours_json: newHours }));
                                         showToast({ icon: 'success', title: '24/7 Schedule Applied', text: 'All days set to open 24 hours', duration: 2000 });
                                     }}
-                                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-400 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
                                 >
                                     <span className="text-[10px] sm:text-[11px]">🕒</span>
                                     <span>24/7 All Days</span>
                                 </button>
 
-                                {/* Reset All to Default (8am-8pm) */}
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -689,7 +679,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                         setFormData(prev => ({ ...prev, hours_json: newHours }));
                                         showToast({ icon: 'success', title: 'Default Schedule Applied', text: 'All days set to 8AM - 8PM', duration: 2000 });
                                     }}
-                                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-600/20 hover:bg-slate-600/30 text-slate-400 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-600/20 hover:bg-slate-600/30 text-muted-foreground rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
                                 >
                                     <span className="text-[10px] sm:text-[11px]">↺</span>
                                     <span>Reset to Default</span>
@@ -709,8 +699,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                     <div
                                         key={day}
                                         className={`block p-3 sm:p-4 rounded-xl transition-all duration-200 ${isActive
-                                                ? 'bg-indigo-500/5 border border-indigo-500/20'
-                                                : 'bg-white/5 border border-white/10 opacity-60'
+                                                ? 'bg-primary/5 border border-primary/20'
+                                                : 'bg-muted border border-border opacity-60'
                                             }`}
                                     >
                                         {/* Day Row */}
@@ -720,9 +710,9 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                                     type="checkbox"
                                                     checked={isActive}
                                                     onChange={(e) => handleHoursChange(day, 'active', e.target.checked)}
-                                                    className="w-4 h-4 sm:w-4.5 sm:h-4.5 accent-indigo-500 rounded cursor-pointer"
+                                                    className="w-4 h-4 sm:w-4.5 sm:h-4.5 accent-primary rounded cursor-pointer"
                                                 />
-                                                <span className={`text-[11px] sm:text-xs font-black capitalize ${isActive ? 'text-white' : 'text-slate-500'
+                                                <span className={`text-[11px] sm:text-xs font-black capitalize ${isActive ? 'text-foreground' : 'text-muted-foreground'
                                                     }`}>
                                                     {dayLabels[index]}
                                                 </span>
@@ -731,13 +721,13 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                             {/* Status Badges */}
                                             <div className="flex items-center gap-2">
                                                 {is247 && isActive && (
-                                                    <span className="text-[7px] sm:text-[8px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full font-black uppercase">
+                                                    <span className="text-[7px] sm:text-[8px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-full font-black uppercase">
                                                         24 hrs
                                                     </span>
                                                 )}
                                                 <span className={`text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase ${isActive
-                                                        ? 'bg-emerald-500/20 text-emerald-400'
-                                                        : 'bg-slate-500/20 text-slate-500'
+                                                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                                        : 'bg-slate-500/20 text-muted-foreground'
                                                     }`}>
                                                     {isActive ? 'Open' : 'Closed'}
                                                 </span>
@@ -749,47 +739,42 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                             <div className="flex flex-wrap items-center gap-2 pl-2 sm:pl-4">
                                                 <div className="flex-1 min-w-30">
                                                     <div className="relative">
-                                                        <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] text-slate-500 pointer-events-none">
+                                                        <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] text-muted-foreground pointer-events-none">
                                                             🕐
                                                         </div>
                                                         <input
                                                             type="time"
                                                             value={openTime}
                                                             onChange={(e) => handleHoursChange(day, 'open', e.target.value)}
-                                                            className="w-full bg-black/60 border border-white/15 rounded-lg text-[11px] sm:text-xs font-bold text-white py-2 pl-7 pr-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
-                                                            style={{ colorScheme: 'dark' }}
+                                                            className="w-full bg-background border border-border rounded-lg text-[11px] sm:text-xs font-bold text-foreground py-2 pl-7 pr-2 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all cursor-pointer"
                                                         />
                                                     </div>
                                                 </div>
 
-                                                <span className="text-[8px] sm:text-[10px] font-black text-slate-500">→</span>
+                                                <span className="text-[8px] sm:text-[10px] font-black text-muted-foreground">→</span>
 
                                                 <div className="flex-1 min-w-30">
                                                     <div className="relative">
-                                                        <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] text-slate-500 pointer-events-none">
+                                                        <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] text-muted-foreground pointer-events-none">
                                                             🕐
                                                         </div>
                                                         <input
                                                             type="time"
                                                             value={closeTime}
                                                             onChange={(e) => handleHoursChange(day, 'close', e.target.value)}
-                                                            className="w-full bg-black/60 border border-white/15 rounded-lg text-[11px] sm:text-xs font-bold text-white py-2 pl-7 pr-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
-                                                            style={{ colorScheme: 'dark' }}
+                                                            className="w-full bg-background border border-border rounded-lg text-[11px] sm:text-xs font-bold text-foreground py-2 pl-7 pr-2 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all cursor-pointer"
                                                         />
                                                     </div>
                                                 </div>
 
-                                                {/* 24/7 Quick button for this day */}
                                                 <button
                                                     type="button"
                                                     onClick={() => {
                                                         if (is247) {
-                                                            // If already 24/7, revert to default
                                                             handleHoursChange(day, 'open', '09:00');
                                                             handleHoursChange(day, 'close', '18:00');
                                                             showToast({ icon: 'info', title: `${dayLabels[index]} reverted to 9AM-6PM`, duration: 1500 });
                                                         } else {
-                                                            // Set to 24/7
                                                             handleHoursChange(day, 'open', '00:00');
                                                             handleHoursChange(day, 'close', '23:59');
                                                             if (!isActive) {
@@ -799,8 +784,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                                         }
                                                     }}
                                                     className={`px-2 py-1 rounded-lg text-[7px] sm:text-[8px] font-black uppercase whitespace-nowrap transition-all ${is247
-                                                            ? 'bg-slate-600/20 hover:bg-slate-600/30 text-slate-400'
-                                                            : 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400'
+                                                            ? 'bg-slate-600/20 hover:bg-slate-600/30 text-muted-foreground'
+                                                            : 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-400'
                                                         }`}
                                                 >
                                                     {is247 ? 'Cancel 24hrs' : '24hrs'}
@@ -811,10 +796,10 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                         {/* Closed hint */}
                                         {!isActive && (
                                             <div className="pl-2 sm:pl-4 mt-1">
-                                                <p className="text-[7px] sm:text-[8px] text-slate-500 italic">
+                                                <p className="text-[7px] sm:text-[8px] text-muted-foreground italic">
                                                     ⚠️ Day is closed - customers cannot book the main space
                                                 </p>
-                                                <p className="text-[7px] sm:text-[8px] text-slate-600 mt-0.5">
+                                                <p className="text-[7px] sm:text-[8px] text-muted-foreground/60 mt-0.5">
                                                     💡 Private rooms can still be booked (if they have their own hours)
                                                 </p>
                                             </div>
@@ -825,34 +810,34 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                         </div>
 
                         {/* Helpful Tips Section */}
-                        <div className="mt-5 pt-4 border-t border-white/10">
+                        <div className="mt-5 pt-4 border-t border-border">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="flex items-start gap-2">
                                     <span className="text-[10px]">✅</span>
                                     <div>
-                                        <p className="text-[8px] sm:text-[9px] text-slate-300 font-bold">Open Day</p>
-                                        <p className="text-[7px] sm:text-[8px] text-slate-400">Main space is bookable during selected hours</p>
+                                        <p className="text-[8px] sm:text-[9px] text-foreground font-bold">Open Day</p>
+                                        <p className="text-[7px] sm:text-[8px] text-muted-foreground">Main space is bookable during selected hours</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-2">
                                     <span className="text-[10px]">❌</span>
                                     <div>
-                                        <p className="text-[8px] sm:text-[9px] text-slate-300 font-bold">Closed Day</p>
-                                        <p className="text-[7px] sm:text-[8px] text-slate-400">Main space is closed, but private rooms may still be available</p>
+                                        <p className="text-[8px] sm:text-[9px] text-foreground font-bold">Closed Day</p>
+                                        <p className="text-[7px] sm:text-[8px] text-muted-foreground">Main space is closed, but private rooms may still be available</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-2">
                                     <span className="text-[10px]">🕒</span>
                                     <div>
-                                        <p className="text-[8px] sm:text-[9px] text-slate-300 font-bold">24/7 Operation</p>
-                                        <p className="text-[7px] sm:text-[8px] text-slate-400">Day is open all day (00:00 - 23:59)</p>
+                                        <p className="text-[8px] sm:text-[9px] text-foreground font-bold">24/7 Operation</p>
+                                        <p className="text-[7px] sm:text-[8px] text-muted-foreground">Day is open all day (00:00 - 23:59)</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-2">
                                     <span className="text-[10px]">🏠</span>
                                     <div>
-                                        <p className="text-[8px] sm:text-[9px] text-slate-300 font-bold">Private Rooms</p>
-                                        <p className="text-[7px] sm:text-[8px] text-slate-400">Rooms can have their own separate schedule</p>
+                                        <p className="text-[8px] sm:text-[9px] text-foreground font-bold">Private Rooms</p>
+                                        <p className="text-[7px] sm:text-[8px] text-muted-foreground">Rooms can have their own separate schedule</p>
                                     </div>
                                 </div>
                             </div>
@@ -861,13 +846,13 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
 
                     {/* Images */}
                     <div>
-                        <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Space Images (Max 10, 50MB each)</label>
+                        <label className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">Space Images (Max 10, 50MB each)</label>
                         <div className="mt-2">
                             <label className="cursor-pointer">
-                                <div className="border-2 border-dashed border-white/5 rounded-4xl p-4 group hover:border-indigo-500/30 transition-all text-center">
-                                    <ImageIcon size={32} className="text-slate-700 mx-auto mb-3 group-hover:text-indigo-500 transition-colors" />
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Click to select images</p>
-                                    <p className="text-[8px] text-slate-600 mt-1">Max 10 images, 50MB each (JPG, PNG, GIF, WEBP)</p>
+                                <div className="border-2 border-dashed border-border rounded-4xl p-4 group hover:border-primary/30 transition-all text-center">
+                                    <ImageIcon size={32} className="text-muted-foreground mx-auto mb-3 group-hover:text-primary transition-colors" />
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Click to select images</p>
+                                    <p className="text-[8px] text-muted-foreground/60 mt-1">Max 10 images, 50MB each (JPG, PNG, GIF, WEBP)</p>
                                 </div>
                                 <input
                                     type="file"
@@ -879,14 +864,14 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                 />
                             </label>
                             {uploadingImages && (
-                                <div className="mt-2 text-center text-indigo-400 text-[10px]">Uploading...</div>
+                                <div className="mt-2 text-center text-primary text-[10px]">Uploading...</div>
                             )}
                         </div>
 
                         {images.length > 0 && (
                             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4">
                                 {images.map((img, idx) => (
-                                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10 group/image">
+                                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-muted border border-border group/image">
                                         <img src={typeof img === 'string' ? img : URL.createObjectURL(img)} className="w-full h-full object-cover" alt={`Preview ${idx + 1}`} />
                                         <button
                                             type="button"
@@ -901,19 +886,22 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                         )}
                     </div>
 
-                    <div className="flex gap-3 pt-4 border-t border-white/10">
+                    <div className="flex gap-3 pt-4 border-t border-border">
                         <Button
                             type="button"
                             variant="ghost"
                             onClick={() => navigate('/space/my-spaces')}
-                            className="flex-1 py-4 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors"
+                            className="flex-1 py-4 text-[10px] font-black uppercase text-muted-foreground hover:text-foreground transition-colors"
                         >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
                             disabled={loading}
-                            className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase shadow-lg shadow-indigo-900/40 hover:bg-indigo-500 transition-all active:scale-[0.98] disabled:opacity-50"
+                            className={cn(
+                                "flex-1 py-4 rounded-2xl text-primary-foreground font-black text-[10px] uppercase shadow-lg transition-all active:scale-[0.98] disabled:opacity-50",
+                                getButtonColor()
+                            )}
                         >
                             {loading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update Space' : 'Publish Listing')}
                         </Button>

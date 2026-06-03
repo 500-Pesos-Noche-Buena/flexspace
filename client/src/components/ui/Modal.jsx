@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 /**
- * Universal Modal Component
- * @param {string} variant - 'dark' (Admin) or 'light' (User)
+ * Universal Modal Component - Auto-detects theme
  */
 export const Modal = ({ 
     open, 
@@ -13,9 +12,34 @@ export const Modal = ({
     children, 
     title, 
     size = 'md', 
-    variant = 'dark', // Default to dark for your Admin dashboard
     showClose = true 
 }) => {
+    const [isDark, setIsDark] = useState(true);
+
+    useEffect(() => {
+        // Check if dark class is present
+        const checkTheme = () => {
+            setIsDark(document.documentElement.classList.contains('dark'));
+        };
+        
+        checkTheme();
+        
+        // Listen for theme changes
+        const observer = new MutationObserver(checkTheme);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        
+        // Also listen for storage events
+        const handleStorageChange = () => {
+            checkTheme();
+        };
+        
+        window.addEventListener('theme-changed', handleStorageChange);
+        
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('theme-changed', handleStorageChange);
+        };
+    }, []);
     
     const sizeMap = {
         sm: 'max-w-sm',
@@ -26,27 +50,33 @@ export const Modal = ({
         'full': 'max-w-[95vw]'
     };
 
-    // Dynamic styles based on variant
-    const theme = {
-        dark: {
-            content: "bg-[#111114] border-white/10 text-slate-300",
-            header: "bg-indigo-600 text-white",
-            close: "text-white/70 hover:bg-white/10 hover:text-white"
-        },
-        light: {
-            content: "bg-white border-slate-100 text-slate-900",
-            header: "bg-slate-900 text-white", // Black header for user side
-            close: "text-white/50 hover:bg-white/20 hover:text-white"
-        }
-    };
+    const overlayClass = isDark 
+        ? "bg-black/60 backdrop-blur-sm"
+        : "bg-black/30 backdrop-blur-sm";
 
-    const activeTheme = theme[variant] || theme.dark;
+    // Light mode specific classes
+    const contentClass = isDark
+        ? "bg-card border-border text-foreground"
+        : "bg-white border-slate-200 text-slate-900";
+
+    const headerClass = isDark
+        ? "bg-primary text-primary-foreground"
+        : "bg-slate-900 text-white";
+
+    const closeClass = isDark
+        ? "text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground"
+        : "text-white/70 hover:bg-white/20 hover:text-white";
+
+    const bodyClass = isDark ? "bg-card" : "bg-white";
 
     return (
         <Dialog.Root open={open} onOpenChange={onClose}>
             <Dialog.Portal>
                 <Dialog.Overlay 
-                    className="fixed inset-0 z-100 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" 
+                    className={cn(
+                        "fixed inset-0 z-100 animate-in fade-in duration-300",
+                        overlayClass
+                    )} 
                 />
                 
                 <Dialog.Content 
@@ -55,19 +85,19 @@ export const Modal = ({
                         "border shadow-2xl duration-200 outline-none",
                         "animate-in fade-in zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%]",
                         "rounded-4xl sm:rounded-[3rem] overflow-hidden",
-                        activeTheme.content,
+                        contentClass,
                         sizeMap[size] || sizeMap.md
                     )}
                 >
                     {/* Header */}
                     {title && (
-                        <div className={cn("p-6 sm:p-8 relative", activeTheme.header)}>
+                        <div className={cn("p-6 sm:p-8 relative", headerClass)}>
                             <Dialog.Title className="text-xl sm:text-2xl font-[1000] tracking-tighter uppercase italic leading-none">
                                 {title}
                             </Dialog.Title>
                             
                             {showClose && (
-                                <Dialog.Close className={cn("absolute right-6 top-1/2 -translate-y-1/2 rounded-full p-2 transition-all", activeTheme.close)}>
+                                <Dialog.Close className={cn("absolute right-6 top-1/2 -translate-y-1/2 rounded-full p-2 transition-all", closeClass)}>
                                     <X size={20} />
                                 </Dialog.Close>
                             )}
@@ -75,7 +105,10 @@ export const Modal = ({
                     )}
 
                     {/* Body */}
-                    <div className="p-6 sm:p-10 overflow-y-auto max-h-[85vh]">
+                    <div className={cn(
+                        "p-6 sm:p-10 overflow-y-auto max-h-[85vh]",
+                        bodyClass
+                    )}>
                         {children}
                     </div>
                 </Dialog.Content>

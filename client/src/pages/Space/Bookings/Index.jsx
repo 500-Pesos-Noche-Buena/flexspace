@@ -10,8 +10,8 @@ import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { PaymentQRModal, WalkinModal, ReviewQRModal, BookingDetailsModal, BookingTicketModal } from '@/components/modal';
+import { useTheme } from '@/hooks/useTheme';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatPHTime = (dateStr) => new Date(dateStr).toLocaleTimeString('en-PH', {
@@ -23,6 +23,7 @@ const formatPHDate = (dateStr) => new Date(dateStr).toLocaleDateString('en-PH', 
 const formatScanTime = (d) => d ? new Date(d).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' }) : '--:--';
 
 const BookingsIndex = () => {
+    const { themeColor } = useTheme();
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
@@ -60,6 +61,18 @@ const BookingsIndex = () => {
 
     const paramsRef = useRef(currentParams);
     const lastDataFingerprint = useRef("");
+
+    const getButtonColor = () => {
+        const colors = {
+            indigo: 'hover:bg-indigo-600',
+            emerald: 'hover:bg-emerald-600',
+            purple: 'hover:bg-purple-600',
+            blue: 'hover:bg-blue-600',
+            rose: 'hover:bg-rose-600',
+            amber: 'hover:bg-amber-600',
+        };
+        return colors[themeColor] || colors.indigo;
+    };
 
     // Fetch spaces
     const fetchSpaces = useCallback(async () => {
@@ -281,10 +294,7 @@ const BookingsIndex = () => {
     };
 
     const handleOpenOnlinePayment = ({ amount, orderNumber, bookingId, spaceId }) => {
-        // First close the BookingTicketModal
-        closeModal();  // ← Add this line to close the BookingTicketModal first
-        
-        // Then open the PaymentQRModal after a small delay
+        closeModal();
         setTimeout(() => {
             setPaymentQRData({ amount, orderNumber, bookingId, spaceId });
             setShowPaymentQRModal(true);
@@ -295,7 +305,6 @@ const BookingsIndex = () => {
         showToast({ icon: 'success', title: 'Payment confirmed!' });
         await fetchData();
         setShowPaymentQRModal(false);
-        // Don't call closeModal() again - it's already closed
     };
 
     // Effects
@@ -326,8 +335,8 @@ const BookingsIndex = () => {
             header: "Ref & Time",
             cell: (row) => (
                 <div className="flex flex-col">
-                    <span className="text-white font-black italic uppercase tracking-tighter">#{row.ticket_number || 'N/A'}</span>
-                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                    <span className="text-foreground font-black italic uppercase tracking-tighter">#{row.ticket_number || 'N/A'}</span>
+                    <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
                         {row.is_open_time ? `ALL DAY: ${formatPHDate(row.start_time)}` : `START: ${formatPHTime(row.start_time)} - END: ${formatPHTime(row.end_time)}`}
                     </span>
                 </div>
@@ -337,8 +346,8 @@ const BookingsIndex = () => {
             header: "Customer",
             cell: (row) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-indigo-400 border border-white/5"><User size={14} /></div>
-                    <p className="text-xs text-white font-bold">{row.user_id?.name || row.guest_name || 'Guest'}</p>
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-primary border border-border"><User size={14} /></div>
+                    <p className="text-xs text-foreground font-bold">{row.user_id?.name || row.guest_name || 'Guest'}</p>
                 </div>
             )
         },
@@ -346,8 +355,8 @@ const BookingsIndex = () => {
             header: "Scan Logs",
             cell: (row) => (
                 <div className="text-[10px] space-y-1">
-                    <div className="flex items-center gap-1 text-emerald-500 font-bold tracking-tighter"><LogIn size={10} /> {formatScanTime(row.check_in_at)}</div>
-                    <div className="flex items-center gap-1 text-indigo-500 font-bold tracking-tighter"><LogOut size={10} /> {formatScanTime(row.check_out_at)}</div>
+                    <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold tracking-tighter"><LogIn size={10} /> {formatScanTime(row.check_in_at)}</div>
+                    <div className="flex items-center gap-1 text-primary font-bold tracking-tighter"><LogOut size={10} /> {formatScanTime(row.check_out_at)}</div>
                 </div>
             )
         },
@@ -355,13 +364,13 @@ const BookingsIndex = () => {
             header: "Status",
             cell: (row) => {
                 const styles = {
-                    pending: "bg-amber-500/10 text-amber-500",
-                    confirmed: "bg-emerald-500/10 text-emerald-500",
-                    active: "bg-indigo-500/20 text-indigo-400 border border-indigo-500/20",
-                    pending_payment: "bg-orange-500/20 text-orange-400 border border-orange-500/20",
-                    completed: "bg-teal-500/10 text-teal-400",
-                    rejected: "bg-red-500/10 text-red-500",
-                    cancelled: "bg-slate-800 text-slate-500"
+                    pending: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                    confirmed: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                    active: "bg-primary/10 text-primary border border-primary/20",
+                    pending_payment: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20",
+                    completed: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+                    rejected: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+                    cancelled: "bg-muted text-muted-foreground"
                 };
                 return (
                     <div className={cn("px-2 py-1 rounded text-[9px] font-black uppercase inline-flex items-center gap-1", styles[row.status])}>
@@ -377,17 +386,17 @@ const BookingsIndex = () => {
             cell: (row) => (
                 <div className="flex gap-2">
                     {row.status === 'pending' && (
-                        <button onClick={() => fetchBookingDetails(row._id)} className="p-2 bg-emerald-600/20 text-emerald-500 rounded-lg border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all">
+                        <button onClick={() => fetchBookingDetails(row._id)} className="p-2 bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all">
                             <Eye size={14} />
                         </button>
                     )}
                     {['confirmed', 'active', 'pending_payment'].includes(row.status) && (
-                        <button onClick={() => openModal(row)} className={cn("flex items-center gap-2 px-3 py-1.5 text-white rounded-xl text-[10px] font-black uppercase transition-all shadow-lg", row.status === 'pending_payment' ? "bg-orange-600 hover:bg-orange-500 shadow-orange-900/40" : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40")}>
+                        <button onClick={() => openModal(row)} className={cn("flex items-center gap-2 px-3 py-1.5 text-white rounded-xl text-[10px] font-black uppercase transition-all shadow-lg", row.status === 'pending_payment' ? "bg-amber-600 hover:bg-amber-500 shadow-amber-900/40" : "bg-primary hover:opacity-90 shadow-lg")}>
                             {row.status === 'pending_payment' ? (<><Banknote size={12} /> Collect</>) : row.booking_type === 'walkin' ? (<><User size={12} /> View</>) : (<><QrCode size={12} /> Show QR</>)}
                         </button>
                     )}
                     {row.status === 'completed' && row.qr_code_token && (
-                        <button onClick={() => openReviewModal(row)} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 text-purple-400 rounded-xl text-[10px] font-black uppercase transition-all hover:bg-purple-600 hover:text-white border border-purple-500/30">
+                        <button onClick={() => openReviewModal(row)} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 text-purple-600 dark:text-purple-400 rounded-xl text-[10px] font-black uppercase transition-all hover:bg-purple-600 hover:text-white border border-purple-500/30">
                             <Star size={12} /> Review
                         </button>
                     )}
@@ -397,28 +406,37 @@ const BookingsIndex = () => {
     ];
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             <div className="mb-8">
-                <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Live Hub Traffic</h1>
-                <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest italic">Monitoring real-time check-ins.</p>
+                <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">Live Hub Traffic</h1>
+                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest italic">Monitoring real-time check-ins.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <Card className="bg-indigo-500/5 border-indigo-500/10"><CardContent className="p-5 flex items-center gap-4"><div className="w-11 h-11 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500"><Activity size={20} className="animate-pulse" /></div><div><p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Active Sessions</p><p className="text-xl font-[1000] text-white italic tracking-tighter">{stats.active || 0}</p></div></CardContent></Card>
-                <Card className="bg-[#111114] border-white/5"><CardContent className="p-5 flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-slate-400"><Users size={20} /></div><div><p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Traffic Mix</p><div className="flex items-baseline gap-2"><span className="text-xs font-black text-indigo-400">W: {stats.walkin || 0}</span><span className="text-xs font-black text-emerald-400">O: {stats.online || 0}</span></div></div></div></CardContent></Card>
-                <Card className="bg-amber-500/5 border-amber-500/10"><CardContent className="p-5 flex items-center gap-4"><div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500"><Clock size={20} /></div><div><p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Pending</p><p className="text-xl font-[1000] text-white italic tracking-tighter">{stats.pending || 0}</p></div></CardContent></Card>
-                <Card className="bg-emerald-500/5 border-emerald-500/10"><CardContent className="p-5 flex items-center gap-4"><div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500"><Banknote size={20} /></div><div><p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Today's Revenue</p><p className="text-xl font-[1000] text-emerald-400 italic tracking-tighter">₱{(stats.revenue || 0).toLocaleString()}</p></div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10"><CardContent className="p-5 flex items-center gap-4"><div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center"><Activity size={20} className="animate-pulse text-primary" /></div><div><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Active Sessions</p><p className="text-xl font-[1000] text-foreground italic tracking-tighter">{stats.active || 0}</p></div></CardContent></Card>
+                <Card className="bg-card border-border"><CardContent className="p-5 flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground"><Users size={20} /></div><div><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Traffic Mix</p><div className="flex items-baseline gap-2"><span className="text-xs font-black text-primary">W: {stats.walkin || 0}</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">O: {stats.online || 0}</span></div></div></div></CardContent></Card>
+                <Card className="bg-amber-500/5 border-amber-500/10"><CardContent className="p-5 flex items-center gap-4"><div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center"><Clock size={20} className="text-amber-600 dark:text-amber-400" /></div><div><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Pending</p><p className="text-xl font-[1000] text-foreground italic tracking-tighter">{stats.pending || 0}</p></div></CardContent></Card>
+                <Card className="bg-emerald-500/5 border-emerald-500/10"><CardContent className="p-5 flex items-center gap-4"><div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center"><Banknote size={20} className="text-emerald-600 dark:text-emerald-400" /></div><div><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Today's Revenue</p><p className="text-xl font-[1000] text-emerald-600 dark:text-emerald-400 italic tracking-tighter">₱{(stats.revenue || 0).toLocaleString()}</p></div></CardContent></Card>
             </div>
 
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
                 <Tabs value={bookingType} onValueChange={setBookingType} className="w-auto">
-                    <TabsList className="bg-white/5 border border-white/5 rounded-3xl p-1.5">
-                        <TabsTrigger value="all" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-900/40 text-slate-500">All</TabsTrigger>
-                        <TabsTrigger value="online" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-900/40 text-slate-500">Online</TabsTrigger>
-                        <TabsTrigger value="walkin" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-900/40 text-slate-500">Walk-ins</TabsTrigger>
+                    <TabsList className="bg-muted border border-border rounded-3xl p-1.5">
+                        <TabsTrigger value="all" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg text-muted-foreground">All</TabsTrigger>
+                        <TabsTrigger value="online" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg text-muted-foreground">Online</TabsTrigger>
+                        <TabsTrigger value="walkin" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg text-muted-foreground">Walk-ins</TabsTrigger>
                     </TabsList>
                 </Tabs>
-                <Button onClick={() => setShowWalkinModal(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest px-4 py-2 h-auto shadow-lg shadow-emerald-900/20"><UserPlus size={14} className="mr-2" /> New Walk-in</Button>
+                {/* EXACT SAME PATTERN AS VOUCHERSINDEX */}
+                <button
+                    onClick={() => setShowWalkinModal(true)}
+                    className={cn(
+                        "bg-primary text-primary-foreground px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl active:scale-95",
+                        getButtonColor()
+                    )}
+                >
+                    <UserPlus size={14} /> New Walk-in
+                </button>
             </div>
 
             <WalkinModal
@@ -486,29 +504,35 @@ const BookingsIndex = () => {
                 totalCount={totalCount}
                 onParamsChange={handleParamsChange}
                 renderMobileCard={(booking) => (
-                    <div key={booking._id} className="bg-[#111114] border border-white/5 p-5 rounded-[2.5rem] space-y-4">
+                    <div key={booking._id} className="bg-card border-border p-5 rounded-[2.5rem] space-y-4 shadow-lg">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center font-black text-white italic">{booking.user_id?.name?.charAt(0) || booking.guest_name?.charAt(0) || 'G'}</div>
-                                <div><h3 className="text-sm font-black text-white leading-tight">{booking.user_id?.name || booking.guest_name || 'Guest'}</h3><p className="text-[10px] font-bold text-slate-500">#{booking.ticket_number}</p></div>
+                                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center font-black text-primary-foreground italic">{booking.user_id?.name?.charAt(0) || booking.guest_name?.charAt(0) || 'G'}</div>
+                                <div><h3 className="text-sm font-black text-foreground leading-tight">{booking.user_id?.name || booking.guest_name || 'Guest'}</h3><p className="text-[10px] font-bold text-muted-foreground">#{booking.ticket_number}</p></div>
                             </div>
-                            <div className={cn("px-2 py-1 rounded text-[9px] font-black uppercase", booking.status === 'active' && "bg-indigo-500/20 text-indigo-400", booking.status === 'pending_payment' && "bg-orange-500/20 text-orange-400", booking.status === 'completed' && "bg-teal-500/10 text-teal-400", booking.status === 'pending' && "bg-amber-500/10 text-amber-500", booking.status === 'confirmed' && "bg-emerald-500/10 text-emerald-500")}>{booking.status}</div>
+                            <div className={cn("px-2 py-1 rounded text-[9px] font-black uppercase", 
+                                booking.status === 'active' && "bg-primary/10 text-primary",
+                                booking.status === 'pending_payment' && "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+                                booking.status === 'completed' && "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+                                booking.status === 'pending' && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                                booking.status === 'confirmed' && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            )}>{booking.status}</div>
                         </div>
-                        <div className="flex justify-between text-[10px] text-slate-400"><span>{booking.space_id?.name}</span><span>₱{booking.space_id?.rate_hour}/hr</span></div>
-                        <div className="flex justify-between text-[9px] text-slate-500"><span>{booking.is_open_time ? `ALL DAY: ${formatPHDate(booking.start_time)}` : `${formatPHTime(booking.start_time)} - ${formatPHTime(booking.end_time)}`}</span>{booking.check_in_at && <span className="text-emerald-400">✓ Checked in</span>}</div>
+                        <div className="flex justify-between text-[10px] text-muted-foreground"><span>{booking.space_id?.name}</span><span>₱{booking.space_id?.rate_hour}/hr</span></div>
+                        <div className="flex justify-between text-[9px] text-muted-foreground"><span>{booking.is_open_time ? `ALL DAY: ${formatPHDate(booking.start_time)}` : `${formatPHTime(booking.start_time)} - ${formatPHTime(booking.end_time)}`}</span>{booking.check_in_at && <span className="text-emerald-600 dark:text-emerald-400">✓ Checked in</span>}</div>
                         <div className="flex gap-2">
                             {['confirmed', 'active', 'pending_payment'].includes(booking.status) && (
-                                <button onClick={() => openModal(booking)} className={cn("flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all", booking.status === 'pending_payment' ? "bg-orange-600 hover:bg-orange-500 text-white" : "bg-indigo-600 hover:bg-indigo-500 text-white")}>
+                                <button onClick={() => openModal(booking)} className={cn("flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all text-white", booking.status === 'pending_payment' ? "bg-amber-600 hover:bg-amber-500" : "bg-primary hover:opacity-90")}>
                                     {booking.status === 'pending_payment' ? 'Collect Payment' : booking.status === 'active' ? 'View Session' : 'Show QR'}
                                 </button>
                             )}
                             {booking.status === 'completed' && booking.qr_code_token && (
-                                <button onClick={() => openReviewModal(booking)} className="flex-1 py-3 bg-purple-600/20 text-purple-400 rounded-xl text-[10px] font-black uppercase transition-all hover:bg-purple-600 hover:text-white border border-purple-500/30 flex items-center justify-center gap-2"><Star size={12} /> Review</button>
+                                <button onClick={() => openReviewModal(booking)} className="flex-1 py-3 bg-purple-600/20 text-purple-600 dark:text-purple-400 rounded-xl text-[10px] font-black uppercase transition-all hover:bg-purple-600 hover:text-white border border-purple-500/30 flex items-center justify-center gap-2"><Star size={12} /> Review</button>
                             )}
                             {booking.status === 'pending' && (
                                 <div className="flex-1 flex gap-2">
-                                    <button onClick={() => fetchBookingDetails(booking._id)} className="flex-1 py-3 bg-emerald-600/20 text-emerald-500 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center gap-2"><Eye size={12} /> View Details</button>
-                                    <button onClick={() => updateStatus(booking._id, 'reject')} className="flex-1 py-3 bg-red-600/20 text-red-500 rounded-xl text-[10px] font-black uppercase hover:bg-red-600 hover:text-white transition-all">Reject</button>
+                                    <button onClick={() => fetchBookingDetails(booking._id)} className="flex-1 py-3 bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center gap-2"><Eye size={12} /> View Details</button>
+                                    <button onClick={() => updateStatus(booking._id, 'reject')} className="flex-1 py-3 bg-rose-600/20 text-rose-600 dark:text-rose-400 rounded-xl text-[10px] font-black uppercase hover:bg-rose-600 hover:text-white transition-all">Reject</button>
                                 </div>
                             )}
                         </div>

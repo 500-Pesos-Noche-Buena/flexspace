@@ -4,6 +4,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Copy, Download, ExternalLink, Loader2, CheckCircle, CreditCard, Smartphone, Landmark, Wallet } from 'lucide-react';
 import { apiGet, apiPost } from '@/utils/Api';
 import { showToast } from '@/components/ui/SweetAlert2';
+import { cn } from '@/lib/utils';
+import { useTheme } from '@/hooks/useTheme';
 
 export const PaymentQRModal = ({ 
     isOpen, 
@@ -14,6 +16,7 @@ export const PaymentQRModal = ({
     onPaymentComplete,
     spaceId
 }) => {
+    const { themeColor } = useTheme();
     const [paymentConfirmed, setPaymentConfirmed] = useState(false);
     const [pollingInterval, setPollingInterval] = useState(null);
     const [isPolling, setIsPolling] = useState(false);
@@ -40,7 +43,6 @@ export const PaymentQRModal = ({
         try {
             const res = await apiGet('/space/payment-methods');
             if (res.success && res.data) {
-                // Filter out cash payment methods
                 const onlineMethods = res.data.filter(method => method.value !== 'cash');
                 setPaymentMethods(onlineMethods);
                 if (onlineMethods.length > 0) {
@@ -79,72 +81,71 @@ export const PaymentQRModal = ({
 
     const getColorClasses = (colorName) => {
         const colors = {
-            emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500', shadow: 'shadow-emerald-900/20', text: 'text-emerald-400', hover: 'hover:border-emerald-500/50' },
-            blue: { bg: 'bg-blue-500/20', border: 'border-blue-500', shadow: 'shadow-blue-900/20', text: 'text-blue-400', hover: 'hover:border-blue-500/50' },
-            purple: { bg: 'bg-purple-500/20', border: 'border-purple-500', shadow: 'shadow-purple-900/20', text: 'text-purple-400', hover: 'hover:border-purple-500/50' },
-            indigo: { bg: 'bg-indigo-500/20', border: 'border-indigo-500', shadow: 'shadow-indigo-900/20', text: 'text-indigo-400', hover: 'hover:border-indigo-500/50' },
-            amber: { bg: 'bg-amber-500/20', border: 'border-amber-500', shadow: 'shadow-amber-900/20', text: 'text-amber-400', hover: 'hover:border-amber-500/50' },
+            emerald: { bg: 'bg-emerald-500/10 dark:bg-emerald-500/10', border: 'border-emerald-500', shadow: 'shadow-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', hover: 'hover:border-emerald-500/50' },
+            blue: { bg: 'bg-blue-500/10 dark:bg-blue-500/10', border: 'border-blue-500', shadow: 'shadow-blue-900/20', text: 'text-blue-600 dark:text-blue-400', hover: 'hover:border-blue-500/50' },
+            purple: { bg: 'bg-purple-500/10 dark:bg-purple-500/10', border: 'border-purple-500', shadow: 'shadow-purple-900/20', text: 'text-purple-600 dark:text-purple-400', hover: 'hover:border-purple-500/50' },
+            indigo: { bg: 'bg-indigo-500/10 dark:bg-indigo-500/10', border: 'border-indigo-500', shadow: 'shadow-indigo-900/20', text: 'text-indigo-600 dark:text-indigo-400', hover: 'hover:border-indigo-500/50' },
+            amber: { bg: 'bg-amber-500/10 dark:bg-amber-500/10', border: 'border-amber-500', shadow: 'shadow-amber-900/20', text: 'text-amber-600 dark:text-amber-400', hover: 'hover:border-amber-500/50' },
         };
         return colors[colorName] || colors.purple;
     };
 
-   const generatePaymentLink = async () => {
-    setIsGenerating(true);
-    try {
-        const isBooking = orderNumber && (orderNumber.startsWith('FLX') || orderNumber.startsWith('WK'));
-        const endpoint = isBooking ? '/landing/payment/create-link' : '/space/payment/create-link';
-        
-        // Map payment method to correct PayMongo values
-        let paymentMethodValue;
-        switch(selectedMethod) {
-            case 'gcash':
-                paymentMethodValue = 'gcash';
-                break;
-            case 'maya':
-                paymentMethodValue = 'paymaya';  // Try 'paymaya' or 'maya'
-                break;
-            case 'credit_card':
-                paymentMethodValue = 'card';
-                break;
-            case 'bank_transfer':
-                paymentMethodValue = 'bank_transfer';
-                break;
-            case 'paypal':
-                paymentMethodValue = 'paypal';
-                break;
-            default:
-                paymentMethodValue = selectedMethod;
+    const generatePaymentLink = async () => {
+        setIsGenerating(true);
+        try {
+            const isBooking = orderNumber && (orderNumber.startsWith('FLX') || orderNumber.startsWith('WK'));
+            const endpoint = isBooking ? '/landing/payment/create-link' : '/space/payment/create-link';
+            
+            let paymentMethodValue;
+            switch(selectedMethod) {
+                case 'gcash':
+                    paymentMethodValue = 'gcash';
+                    break;
+                case 'maya':
+                    paymentMethodValue = 'paymaya';
+                    break;
+                case 'credit_card':
+                    paymentMethodValue = 'card';
+                    break;
+                case 'bank_transfer':
+                    paymentMethodValue = 'bank_transfer';
+                    break;
+                case 'paypal':
+                    paymentMethodValue = 'paypal';
+                    break;
+                default:
+                    paymentMethodValue = selectedMethod;
+            }
+            
+            const payload = {
+                amount: amount,
+                order_number: orderNumber,
+                customer_name: 'Customer',
+                payment_method: paymentMethodValue
+            };
+            
+            if (isBooking && spaceId) {
+                payload.space_id = spaceId;
+            }
+            
+            console.log('Sending payment request:', payload);
+            
+            const res = await apiPost(endpoint, payload);
+            
+            if (res.success && res.data.checkout_url) {
+                setGeneratedLink(res.data.checkout_url);
+                const method = paymentMethods.find(m => m.value === selectedMethod);
+                showToast({ icon: 'success', title: `${method?.name || selectedMethod} payment link generated` });
+            } else {
+                showToast({ icon: 'error', title: res.message || 'Failed to generate payment link' });
+            }
+        } catch (err) {
+            console.error('Failed to generate payment link:', err);
+            showToast({ icon: 'error', title: err.message || 'Failed to generate payment link' });
+        } finally {
+            setIsGenerating(false);
         }
-        
-        const payload = {
-            amount: amount,
-            order_number: orderNumber,
-            customer_name: 'Customer',
-            payment_method: paymentMethodValue
-        };
-        
-        if (isBooking && spaceId) {
-            payload.space_id = spaceId;
-        }
-        
-        console.log('Sending payment request:', payload); // Debug log
-        
-        const res = await apiPost(endpoint, payload);
-        
-        if (res.success && res.data.checkout_url) {
-            setGeneratedLink(res.data.checkout_url);
-            const method = paymentMethods.find(m => m.value === selectedMethod);
-            showToast({ icon: 'success', title: `${method?.name || selectedMethod} payment link generated` });
-        } else {
-            showToast({ icon: 'error', title: res.message || 'Failed to generate payment link' });
-        }
-    } catch (err) {
-        console.error('Failed to generate payment link:', err);
-        showToast({ icon: 'error', title: err.message || 'Failed to generate payment link' });
-    } finally {
-        setIsGenerating(false);
-    }
-};
+    };
 
     useEffect(() => {
         if (paymentLink && !generatedLink) {
@@ -232,16 +233,16 @@ export const PaymentQRModal = ({
     const colorClasses = getColorClasses(selectedMethodData?.color || 'purple');
 
     return (
-        <Modal open={isOpen} onClose={onClose} title="Online Payment" size="md" variant="dark">
+        <Modal open={isOpen} onClose={onClose} title="Online Payment" size="md">
             <div className="text-center py-4">
                 {!paymentConfirmed ? (
                     <>
                         {/* Payment Method Selection */}
                         <div className="mb-6">
-                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-wider mb-3">Select Payment Method</p>
+                            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider mb-3">Select Payment Method</p>
                             {loadingMethods ? (
                                 <div className="flex justify-center py-4">
-                                    <Loader2 size={24} className="animate-spin text-purple-500" />
+                                    <Loader2 size={24} className="animate-spin text-primary" />
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-3">
@@ -251,20 +252,21 @@ export const PaymentQRModal = ({
                                             <button
                                                 key={method.id}
                                                 onClick={() => setSelectedMethod(method.value)}
-                                                className={`p-4 rounded-xl border-2 transition-all ${
+                                                className={cn(
+                                                    "p-4 rounded-xl border-2 transition-all",
                                                     selectedMethod === method.value
                                                         ? `${methodColors.bg} ${methodColors.border} shadow-lg ${methodColors.shadow}`
-                                                        : 'bg-white/5 border-white/10 hover:border-white/20'
-                                                }`}
+                                                        : "bg-muted border-border hover:border-primary/30"
+                                                )}
                                             >
                                                 <div className="flex flex-col items-center gap-2">
-                                                    <div className={selectedMethod === method.value ? methodColors.text : 'text-slate-400'}>
+                                                    <div className={selectedMethod === method.value ? methodColors.text : 'text-muted-foreground'}>
                                                         {getIcon(method.icon)}
                                                     </div>
-                                                    <span className={`text-xs font-bold ${selectedMethod === method.value ? methodColors.text : 'text-white'}`}>
+                                                    <span className={cn("text-xs font-bold", selectedMethod === method.value ? methodColors.text : 'text-foreground')}>
                                                         {method.name}
                                                     </span>
-                                                    <span className="text-[8px] text-slate-500">
+                                                    <span className="text-[8px] text-muted-foreground">
                                                         {method.value === 'gcash' ? 'Scan to pay' : 
                                                          method.value === 'maya' ? 'Pay with Maya' :
                                                          method.value === 'credit_card' ? 'Visa, Mastercard' :
@@ -282,17 +284,17 @@ export const PaymentQRModal = ({
                         {/* Loading State */}
                         {isGenerating ? (
                             <div className="py-8">
-                                <Loader2 size={40} className="animate-spin text-purple-500 mx-auto mb-4" />
-                                <p className="text-sm text-slate-400">Generating payment link...</p>
+                                <Loader2 size={40} className="animate-spin text-primary mx-auto mb-4" />
+                                <p className="text-sm text-muted-foreground">Generating payment link...</p>
                             </div>
                         ) : generatedLink ? (
                             <>
                                 {/* QR Code */}
                                 <div className="mb-4">
-                                    <p className={`text-[10px] ${colorClasses.text} font-black uppercase tracking-wider`}>
+                                    <p className={cn("text-[10px] font-black uppercase tracking-wider", colorClasses.text)}>
                                         Scan to Pay with {selectedMethodData?.name}
                                     </p>
-                                    <p className="text-[8px] text-slate-500 mb-4">Customer scans QR code with their phone</p>
+                                    <p className="text-[8px] text-muted-foreground mb-4">Customer scans QR code with their phone</p>
                                 </div>
                                 
                                 <div className="bg-white p-4 rounded-2xl inline-block mb-4">
@@ -306,40 +308,40 @@ export const PaymentQRModal = ({
                                 </div>
                                 
                                 {/* Amount Display */}
-                                <div className={`${colorClasses.bg} rounded-xl p-3 mb-4`}>
-                                    <p className={`text-[8px] font-black uppercase ${colorClasses.text}`}>Amount to Pay</p>
-                                    <p className="text-xl font-black text-white">₱{amount?.toFixed(2)}</p>
+                                <div className={cn("rounded-xl p-3 mb-4", colorClasses.bg)}>
+                                    <p className={cn("text-[8px] font-black uppercase", colorClasses.text)}>Amount to Pay</p>
+                                    <p className="text-xl font-black text-foreground">₱{amount?.toFixed(2)}</p>
                                 </div>
                                 
                                 {/* Order Reference */}
-                                <div className="bg-white/5 rounded-xl p-3 mb-4">
-                                    <p className="text-[8px] text-slate-500 font-black uppercase mb-1">Order Reference</p>
-                                    <p className="text-white font-mono text-xs">{orderNumber}</p>
+                                <div className="bg-muted rounded-xl p-3 mb-4">
+                                    <p className="text-[8px] text-muted-foreground font-black uppercase mb-1">Order Reference</p>
+                                    <p className="text-foreground font-mono text-xs">{orderNumber}</p>
                                 </div>
                                 
                                 {/* Waiting for payment indicator */}
                                 {isPolling && (
                                     <div className="bg-amber-500/10 rounded-xl p-3 mb-4 flex items-center justify-center gap-2">
-                                        <Loader2 size={14} className="animate-spin text-amber-400" />
-                                        <p className="text-[8px] text-amber-400 font-black uppercase">Waiting for payment confirmation...</p>
+                                        <Loader2 size={14} className="animate-spin text-amber-600 dark:text-amber-400" />
+                                        <p className="text-[8px] text-amber-600 dark:text-amber-400 font-black uppercase">Waiting for payment confirmation...</p>
                                     </div>
                                 )}
                                 
                                 {/* Payment Link (as backup) */}
-                                <div className="bg-white/5 rounded-xl p-3 mb-4">
-                                    <p className="text-[8px] text-slate-500 font-black uppercase mb-1">Payment Link (Backup)</p>
+                                <div className="bg-muted rounded-xl p-3 mb-4">
+                                    <p className="text-[8px] text-muted-foreground font-black uppercase mb-1">Payment Link (Backup)</p>
                                     <div className="flex items-center gap-2">
                                         <input
                                             type="text"
                                             value={generatedLink}
                                             readOnly
-                                            className="flex-1 px-3 py-2 bg-black/50 rounded-lg text-white text-xs font-mono truncate"
+                                            className="flex-1 px-3 py-2 bg-background rounded-lg text-foreground text-xs font-mono truncate border border-border"
                                         />
                                         <button
                                             onClick={copyPaymentLink}
-                                            className="p-2 bg-purple-600/20 hover:bg-purple-600 rounded-lg transition-colors"
+                                            className="p-2 bg-primary/20 hover:bg-primary rounded-lg transition-colors"
                                         >
-                                            <Copy size={16} className="text-purple-400" />
+                                            <Copy size={16} className="text-primary" />
                                         </button>
                                     </div>
                                 </div>
@@ -348,28 +350,28 @@ export const PaymentQRModal = ({
                                 <div className="flex gap-3">
                                     <button
                                         onClick={downloadQRCode}
-                                        className="flex-1 py-2 bg-indigo-600/20 text-indigo-400 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 hover:bg-indigo-600 hover:text-white transition-colors"
+                                        className="flex-1 py-2 bg-primary/20 text-primary rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
                                     >
                                         <Download size={14} /> Download QR
                                     </button>
                                     <button
                                         onClick={() => window.open(generatedLink, '_blank')}
-                                        className="flex-1 py-2 bg-purple-600/20 text-purple-400 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 hover:bg-purple-600 hover:text-white transition-colors"
+                                        className="flex-1 py-2 bg-primary/20 text-primary rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
                                     >
                                         <ExternalLink size={14} /> Open Link
                                     </button>
                                 </div>
                                 
-                                <p className="text-[8px] text-slate-500 mt-4">
+                                <p className="text-[8px] text-muted-foreground mt-4">
                                     Customer scans QR code or opens link to complete payment via {selectedMethodData?.name}
                                 </p>
                             </>
                         ) : (
                             <div className="py-8">
-                                <p className="text-slate-500 text-sm">Failed to generate payment link</p>
+                                <p className="text-muted-foreground text-sm">Failed to generate payment link</p>
                                 <button
                                     onClick={generatePaymentLink}
-                                    className="mt-4 px-4 py-2 bg-purple-600 rounded-xl text-white text-xs font-bold"
+                                    className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold"
                                 >
                                     Try Again
                                 </button>
@@ -379,13 +381,13 @@ export const PaymentQRModal = ({
                 ) : (
                     <div className="py-8">
                         <div className="w-16 h-16 mx-auto bg-emerald-500/20 rounded-full flex items-center justify-center mb-4">
-                            <CheckCircle size={32} className="text-emerald-400" />
+                            <CheckCircle size={32} className="text-emerald-600 dark:text-emerald-400" />
                         </div>
-                        <h3 className="text-white font-black text-lg mb-2">Payment Confirmed!</h3>
-                        <p className="text-slate-400 text-sm mb-4">
+                        <h3 className="text-foreground font-black text-lg mb-2">Payment Confirmed!</h3>
+                        <p className="text-muted-foreground text-sm mb-4">
                             Payment of ₱{amount?.toFixed(2)} has been confirmed.
                         </p>
-                        <p className="text-[10px] text-emerald-400">
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
                             Order #{orderNumber} is now being prepared.
                         </p>
                     </div>
@@ -394,5 +396,3 @@ export const PaymentQRModal = ({
         </Modal>
     );
 };
-
-export default PaymentQRModal;

@@ -28,7 +28,7 @@ import AdminDashboard from '@/pages/Admin/Dashboard/Index';
 import UserManagement from '@/pages/Admin/User/Index';
 import SpaceManagement from '@/pages/Admin/Space/Index';
 import SpaceApplication from '@/pages/Admin/Space/Application';
-import AdminSettings from '@/pages/Admin/Settings/Index';
+import SystemSettings from '@/pages/Settings/Index';
 import AdminEarnings from '@/pages/Admin/Earnings/Index';
 import AdminVoucher from '@/pages/Admin/Voucher/Index'; 
 import Insights from '@/pages/Admin/Insights/Index';
@@ -67,6 +67,7 @@ import NotCompletedPage from '@/pages/Public/NotCompletedPage';
 import PaymentSuccess from '@/pages/Payment/Success';
 import PaymentFailed from '@/pages/Payment/Failed';
 import { i } from 'framer-motion/client';
+import { Settings } from 'lucide-react';
 
 export const AppRoutes = () => {
     return (
@@ -103,6 +104,7 @@ export const AppRoutes = () => {
                 
                 {/* Shared Profile for High-Level Roles */}
                 <Route path="profile" element={<Profile />} />
+                <Route path="settings" element={<SystemSettings />} />
 
                 {/* Admin Section */}
                 <Route path="/admin">
@@ -111,7 +113,6 @@ export const AppRoutes = () => {
                     <Route path="users" element={<UserManagement />} />
                     <Route path="spaces" element={<SpaceManagement />} />
                     <Route path="space/applications" element={<SpaceApplication />} />
-                    <Route path="settings" element={<AdminSettings />} />
                     <Route path="earnings" element={<AdminEarnings />} />
                     <Route path="vouchers" element={<AdminVoucher />} />
                     <Route path="insights" element={<Insights />} />

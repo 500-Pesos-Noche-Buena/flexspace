@@ -10,10 +10,14 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { StatCard } from '@/components/StatCard';
+import { EditableList } from '@/components/EditableList';
+import { useTheme } from '@/hooks/useTheme';
 
 let globalPollingInstance = null;
 
 const InsightsIndex = () => {
+    const { themeColor } = useTheme();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState('7d');
@@ -22,6 +26,18 @@ const InsightsIndex = () => {
     
     const paramsRef = useRef({ period });
     const lastDataFingerprint = useRef("");
+
+    const getThemeColorClass = () => {
+        const colors = {
+            indigo: 'indigo',
+            emerald: 'emerald',
+            purple: 'purple',
+            blue: 'blue',
+            rose: 'rose',
+            amber: 'amber',
+        };
+        return colors[themeColor] || 'indigo';
+    };
 
     useEffect(() => {
         paramsRef.current = { period };
@@ -53,7 +69,6 @@ const InsightsIndex = () => {
         }
     }, [editing]);
 
-    // Real-time polling
     useEffect(() => {
         if (globalPollingInstance) clearInterval(globalPollingInstance);
         
@@ -119,87 +134,29 @@ const InsightsIndex = () => {
         setEditData({ ...editData, [arrayName]: newArray });
     };
 
-    const StatCard = ({ title, value, icon: Icon, trend, color, field }) => (
-        <Card className="bg-[#111114] border-white/5 hover:border-indigo-500/30 transition-all">
-            <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-                        <Icon size={18} className="text-slate-400" />
-                    </div>
-                    {trend && (
-                        <div className={cn(
-                            "flex items-center gap-1 text-[9px] font-black",
-                            trend > 0 ? "text-emerald-400" : "text-red-400"
-                        )}>
-                            {trend > 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
-                            {Math.abs(trend)}%
-                        </div>
-                    )}
-                </div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">{title}</p>
-                {editing && field ? (
-                    <input
-                        type="number"
-                        value={editData?.[field] || 0}
-                        onChange={(e) => updateMainStat(field, e.target.value)}
-                        className="mt-2 w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xl font-[1000] italic focus:border-indigo-500 outline-none"
-                    />
-                ) : (
-                    <p className={cn("text-2xl font-[1000] italic mt-1", color)}>{value}</p>
+    const PeriodButton = ({ periodId, label }) => {
+        const color = getThemeColorClass();
+        return (
+            <button
+                onClick={() => { setPeriod(periodId); setEditing(false); }}
+                className={cn(
+                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    period === periodId
+                        ? `bg-${color}-600 text-white shadow-lg shadow-${color}-900/40`
+                        : "text-muted-foreground hover:text-foreground"
                 )}
-            </CardContent>
-        </Card>
-    );
+            >
+                {label}
+            </button>
+        );
+    };
 
-    const PeriodButton = ({ periodId, label }) => (
-        <button
-            onClick={() => { setPeriod(periodId); setEditing(false); }}
-            className={cn(
-                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                period === periodId
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/40"
-                    : "text-slate-500 hover:text-slate-300"
-            )}
-        >
-            {label}
-        </button>
-    );
-
-    const EditableList = ({ title, items, arrayName, renderItem, defaultItem }) => (
-        <Card className="bg-[#111114] border-white/5">
-            <CardContent className="p-6">
-                <h3 className="text-sm font-black text-white uppercase tracking-tighter mb-4">{title}</h3>
-                <div className="space-y-2">
-                    {items?.map((item, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                            {renderItem(item, i)}
-                            {editing && (
-                                <button
-                                    onClick={() => removeArrayItem(arrayName, i)}
-                                    className="p-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500 hover:text-white transition-all"
-                                >
-                                    <Trash2 size={12} />
-                                </button>
-                            )}
-                        </div>
-                    ))}
-                    {editing && (
-                        <button
-                            onClick={() => addArrayItem(arrayName, defaultItem)}
-                            className="w-full py-2 mt-2 bg-white/5 text-slate-400 rounded-lg text-xs hover:bg-white/10 transition-all flex items-center justify-center gap-1"
-                        >
-                            <Plus size={12} /> Add
-                        </button>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    );
+    const color = getThemeColorClass();
 
     if (loading) {
         return (
             <div className="flex items-center justify-center h-96">
-                <Loader2 className="text-indigo-600 animate-spin" size={40} />
+                <Loader2 className="text-primary animate-spin" size={40} />
             </div>
         );
     }
@@ -208,18 +165,18 @@ const InsightsIndex = () => {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
             <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-black text-white tracking-tighter uppercase italic">Analytics Insights</h1>
-                    <p className="text-[10px] text-slate-500 mt-1 font-bold uppercase tracking-[0.3em]">Visitor Analytics & User Behavior</p>
+                    <h1 className="text-2xl font-black text-foreground tracking-tighter uppercase italic">Analytics Insights</h1>
+                    <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-[0.3em]">Visitor Analytics & User Behavior</p>
                 </div>
                 <div className="flex gap-3">
-                    <div className="flex bg-[#111114] border border-white/5 p-1 rounded-2xl">
+                    <div className="flex bg-card border border-border p-1 rounded-2xl">
                         <PeriodButton periodId="24h" label="24h" />
                         <PeriodButton periodId="7d" label="7d" />
                         <PeriodButton periodId="30d" label="30d" />
                     </div>
                     {editing ? (
                         <>
-                            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 gap-2">
+                            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 gap-2 text-white">
                                 <Save size={14} /> Save
                             </Button>
                             <Button onClick={() => { setEditing(false); setEditData(JSON.parse(JSON.stringify(data))); }} variant="outline" className="gap-2">
@@ -227,40 +184,81 @@ const InsightsIndex = () => {
                             </Button>
                         </>
                     ) : (
-                        <Button onClick={() => setEditing(true)} className="bg-indigo-600 hover:bg-indigo-500 gap-2">
+                        <Button onClick={() => setEditing(true)} className={`bg-${color}-600 hover:bg-${color}-500 gap-2 text-white`}>
                             <Edit2 size={14} /> Edit Numbers
                         </Button>
                     )}
                 </div>
             </div>
 
+            {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <StatCard title="Visitors" value={data?.visitors || 0} icon={Users} trend={12} color="text-indigo-400" field="visitors" />
-                <StatCard title="Page Views" value={data?.pageViews || 0} icon={Eye} trend={8} color="text-emerald-400" field="pageViews" />
-                <StatCard title="Bounce Rate" value={`${data?.bounceRate || 0}%`} icon={MousePointer} trend={-5} color="text-amber-400" field="bounceRate" />
-                <StatCard title="Avg Session" value={`${Math.floor((data?.avgSessionDuration || 0) / 60)}m`} icon={Activity} trend={3} color="text-purple-400" field="avgSessionDuration" />
+                <StatCard 
+                    title="Visitors" 
+                    value={data?.visitors || 0} 
+                    icon={Users} 
+                    trend={12} 
+                    color="text-primary" 
+                    field="visitors"
+                    editing={editing}
+                    editValue={editData?.visitors}
+                    onEditChange={updateMainStat}
+                />
+                <StatCard 
+                    title="Page Views" 
+                    value={data?.pageViews || 0} 
+                    icon={Eye} 
+                    trend={8} 
+                    color="text-emerald-600 dark:text-emerald-400" 
+                    field="pageViews"
+                    editing={editing}
+                    editValue={editData?.pageViews}
+                    onEditChange={updateMainStat}
+                />
+                <StatCard 
+                    title="Bounce Rate" 
+                    value={`${data?.bounceRate || 0}%`} 
+                    icon={MousePointer} 
+                    trend={-5} 
+                    color="text-amber-600 dark:text-amber-400" 
+                    field="bounceRate"
+                    editing={editing}
+                    editValue={editData?.bounceRate}
+                    onEditChange={updateMainStat}
+                />
+                <StatCard 
+                    title="Avg Session" 
+                    value={`${Math.floor((data?.avgSessionDuration || 0) / 60)}m`} 
+                    icon={Activity} 
+                    trend={3} 
+                    color="text-purple-600 dark:text-purple-400" 
+                    field="avgSessionDuration"
+                    editing={editing}
+                    editValue={editData?.avgSessionDuration}
+                    onEditChange={updateMainStat}
+                />
             </div>
 
             {/* Daily Stats Chart */}
-            <Card className="bg-[#111114] border-white/5 mb-8">
+            <Card className="bg-card border-border mb-8 shadow-lg">
                 <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
-                            <Calendar size={16} className="text-indigo-400" />
-                            <h3 className="text-sm font-black text-white uppercase tracking-tighter">Daily Traffic</h3>
+                            <Calendar size={16} className="text-primary" />
+                            <h3 className="text-sm font-black text-foreground uppercase tracking-tighter">Daily Traffic</h3>
                         </div>
-                        <div className="text-[8px] text-slate-500">Last {period === '7d' ? '7 days' : period === '30d' ? '30 days' : '24 hours'}</div>
+                        <div className="text-[8px] text-muted-foreground">Last {period === '7d' ? '7 days' : period === '30d' ? '30 days' : '24 hours'}</div>
                     </div>
                     <div className="flex items-end gap-2 h-48">
                         {data?.dailyStats?.map((day, i) => (
                             <div key={i} className="flex-1 flex flex-col items-center gap-2">
                                 <div className="relative w-full group">
-                                    <div className="bg-indigo-500/50 hover:bg-indigo-400 transition-all rounded-t" style={{ height: `${(day.visitors / 40) * 100}px` }} />
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[8px] px-2 py-1 rounded whitespace-nowrap">
+                                    <div className={`bg-primary/50 hover:bg-primary transition-all rounded-t`} style={{ height: `${(day.visitors / 40) * 100}px` }} />
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-card text-foreground text-[8px] px-2 py-1 rounded whitespace-nowrap border border-border">
                                         {day.visitors} visitors
                                     </div>
                                 </div>
-                                <span className="text-[8px] text-slate-500 rotate-45 origin-left">
+                                <span className="text-[8px] text-muted-foreground rotate-45 origin-left">
                                     {new Date(day.date).toLocaleDateString('en-PH', { day: 'numeric', month: 'short' })}
                                 </span>
                             </div>
@@ -276,17 +274,21 @@ const InsightsIndex = () => {
                     items={editData?.topPages}
                     arrayName="topPages"
                     defaultItem={{ path: "/new", views: 0, visitors: 0 }}
+                    editing={editing}
+                    onUpdate={updateArrayItem}
+                    onAdd={addArrayItem}
+                    onRemove={removeArrayItem}
                     renderItem={(page, i) => (
                         editing ? (
                             <>
-                                <input type="text" value={page.path} onChange={(e) => updateArrayItem("topPages", i, "path", e.target.value)} className="flex-1 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
-                                <input type="number" value={page.views} onChange={(e) => updateArrayItem("topPages", i, "views", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
-                                <input type="number" value={page.visitors} onChange={(e) => updateArrayItem("topPages", i, "visitors", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
+                                <input type="text" value={page.path} onChange={(e) => updateArrayItem("topPages", i, "path", e.target.value)} className="flex-1 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
+                                <input type="number" value={page.views} onChange={(e) => updateArrayItem("topPages", i, "views", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
+                                <input type="number" value={page.visitors} onChange={(e) => updateArrayItem("topPages", i, "visitors", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
                             </>
                         ) : (
                             <div className="flex justify-between items-center w-full">
-                                <div><p className="text-white text-sm font-bold">{page.path}</p><p className="text-[8px] text-slate-500">{page.visitors} visitors</p></div>
-                                <p className="text-emerald-400 font-bold">{page.views} views</p>
+                                <div><p className="text-foreground text-sm font-bold">{page.path}</p><p className="text-[8px] text-muted-foreground">{page.visitors} visitors</p></div>
+                                <p className="text-emerald-600 dark:text-emerald-400 font-bold">{page.views} views</p>
                             </div>
                         )
                     )}
@@ -297,16 +299,20 @@ const InsightsIndex = () => {
                     items={editData?.trafficSources}
                     arrayName="trafficSources"
                     defaultItem={{ source: "New", percentage: 0, visitors: 0 }}
+                    editing={editing}
+                    onUpdate={updateArrayItem}
+                    onAdd={addArrayItem}
+                    onRemove={removeArrayItem}
                     renderItem={(source, i) => (
                         editing ? (
                             <>
-                                <input type="text" value={source.source} onChange={(e) => updateArrayItem("trafficSources", i, "source", e.target.value)} className="flex-1 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
-                                <input type="number" value={source.percentage} onChange={(e) => updateArrayItem("trafficSources", i, "percentage", parseInt(e.target.value))} className="w-20 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
+                                <input type="text" value={source.source} onChange={(e) => updateArrayItem("trafficSources", i, "source", e.target.value)} className="flex-1 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
+                                <input type="number" value={source.percentage} onChange={(e) => updateArrayItem("trafficSources", i, "percentage", parseInt(e.target.value))} className="w-20 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
                             </>
                         ) : (
                             <div className="flex justify-between items-center w-full">
-                                <div className="flex items-center gap-2"><Globe size={12} className="text-slate-400" /><span className="text-slate-400 text-sm">{source.source}</span></div>
-                                <div className="flex items-center gap-4"><div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${source.percentage}%` }} /></div><span className="text-white text-xs font-bold">{source.percentage}%</span></div>
+                                <div className="flex items-center gap-2"><Globe size={12} className="text-muted-foreground" /><span className="text-muted-foreground text-sm">{source.source}</span></div>
+                                <div className="flex items-center gap-4"><div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${source.percentage}%` }} /></div><span className="text-foreground text-xs font-bold">{source.percentage}%</span></div>
                             </div>
                         )
                     )}
@@ -320,21 +326,25 @@ const InsightsIndex = () => {
                     items={editData?.devices}
                     arrayName="devices"
                     defaultItem={{ type: "New", visitors: 0, percentage: 0 }}
+                    editing={editing}
+                    onUpdate={updateArrayItem}
+                    onAdd={addArrayItem}
+                    onRemove={removeArrayItem}
                     renderItem={(device, i) => (
                         editing ? (
                             <>
-                                <input type="text" value={device.type} onChange={(e) => updateArrayItem("devices", i, "type", e.target.value)} className="flex-1 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
-                                <input type="number" value={device.percentage} onChange={(e) => updateArrayItem("devices", i, "percentage", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
+                                <input type="text" value={device.type} onChange={(e) => updateArrayItem("devices", i, "type", e.target.value)} className="flex-1 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
+                                <input type="number" value={device.percentage} onChange={(e) => updateArrayItem("devices", i, "percentage", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
                             </>
                         ) : (
                             <div className="flex justify-between items-center w-full">
                                 <div className="flex items-center gap-2">
-                                    {device.type === 'Desktop' && <Monitor size={12} className="text-slate-400" />}
-                                    {device.type === 'Mobile' && <Smartphone size={12} className="text-slate-400" />}
-                                    {device.type === 'Tablet' && <Tablet size={12} className="text-slate-400" />}
-                                    <span className="text-slate-400 text-xs">{device.type}</span>
+                                    {device.type === 'Desktop' && <Monitor size={12} className="text-muted-foreground" />}
+                                    {device.type === 'Mobile' && <Smartphone size={12} className="text-muted-foreground" />}
+                                    {device.type === 'Tablet' && <Tablet size={12} className="text-muted-foreground" />}
+                                    <span className="text-muted-foreground text-xs">{device.type}</span>
                                 </div>
-                                <span className="text-white text-xs font-bold">{device.percentage}%</span>
+                                <span className="text-foreground text-xs font-bold">{device.percentage}%</span>
                             </div>
                         )
                     )}
@@ -345,16 +355,20 @@ const InsightsIndex = () => {
                     items={editData?.browsers}
                     arrayName="browsers"
                     defaultItem={{ name: "New", visitors: 0, percentage: 0 }}
+                    editing={editing}
+                    onUpdate={updateArrayItem}
+                    onAdd={addArrayItem}
+                    onRemove={removeArrayItem}
                     renderItem={(browser, i) => (
                         editing ? (
                             <>
-                                <input type="text" value={browser.name} onChange={(e) => updateArrayItem("browsers", i, "name", e.target.value)} className="flex-1 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
-                                <input type="number" value={browser.percentage} onChange={(e) => updateArrayItem("browsers", i, "percentage", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
+                                <input type="text" value={browser.name} onChange={(e) => updateArrayItem("browsers", i, "name", e.target.value)} className="flex-1 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
+                                <input type="number" value={browser.percentage} onChange={(e) => updateArrayItem("browsers", i, "percentage", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
                             </>
                         ) : (
                             <div className="flex justify-between items-center w-full">
-                                <div className="flex items-center gap-2"><Globe size={12} className="text-slate-400" /><span className="text-slate-400 text-xs">{browser.name}</span></div>
-                                <span className="text-white text-xs font-bold">{browser.percentage}%</span>
+                                <div className="flex items-center gap-2"><Globe size={12} className="text-muted-foreground" /><span className="text-muted-foreground text-xs">{browser.name}</span></div>
+                                <span className="text-foreground text-xs font-bold">{browser.percentage}%</span>
                             </div>
                         )
                     )}
@@ -365,16 +379,20 @@ const InsightsIndex = () => {
                     items={editData?.countries}
                     arrayName="countries"
                     defaultItem={{ code: "XX", name: "New", visitors: 0, percentage: 0 }}
+                    editing={editing}
+                    onUpdate={updateArrayItem}
+                    onAdd={addArrayItem}
+                    onRemove={removeArrayItem}
                     renderItem={(country, i) => (
                         editing ? (
                             <>
-                                <input type="text" value={country.name} onChange={(e) => updateArrayItem("countries", i, "name", e.target.value)} className="flex-1 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
-                                <input type="number" value={country.percentage} onChange={(e) => updateArrayItem("countries", i, "percentage", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
+                                <input type="text" value={country.name} onChange={(e) => updateArrayItem("countries", i, "name", e.target.value)} className="flex-1 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
+                                <input type="number" value={country.percentage} onChange={(e) => updateArrayItem("countries", i, "percentage", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
                             </>
                         ) : (
                             <div className="flex justify-between items-center w-full">
-                                <div className="flex items-center gap-2"><MapPin size={12} className="text-slate-400" /><span className="text-slate-400 text-xs">{country.name}</span></div>
-                                <span className="text-white text-xs font-bold">{country.percentage}%</span>
+                                <div className="flex items-center gap-2"><MapPin size={12} className="text-muted-foreground" /><span className="text-muted-foreground text-xs">{country.name}</span></div>
+                                <span className="text-foreground text-xs font-bold">{country.percentage}%</span>
                             </div>
                         )
                     )}
@@ -385,16 +403,20 @@ const InsightsIndex = () => {
                     items={editData?.os}
                     arrayName="os"
                     defaultItem={{ name: "New", visitors: 0, percentage: 0 }}
+                    editing={editing}
+                    onUpdate={updateArrayItem}
+                    onAdd={addArrayItem}
+                    onRemove={removeArrayItem}
                     renderItem={(os, i) => (
                         editing ? (
                             <>
-                                <input type="text" value={os.name} onChange={(e) => updateArrayItem("os", i, "name", e.target.value)} className="flex-1 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
-                                <input type="number" value={os.percentage} onChange={(e) => updateArrayItem("os", i, "percentage", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-xs" />
+                                <input type="text" value={os.name} onChange={(e) => updateArrayItem("os", i, "name", e.target.value)} className="flex-1 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
+                                <input type="number" value={os.percentage} onChange={(e) => updateArrayItem("os", i, "percentage", parseInt(e.target.value))} className="w-16 px-2 py-1 bg-background border border-border rounded text-foreground text-xs" />
                             </>
                         ) : (
                             <div className="flex justify-between items-center w-full">
-                                <span className="text-slate-400 text-xs">{os.name}</span>
-                                <span className="text-white text-xs font-bold">{os.percentage}%</span>
+                                <span className="text-muted-foreground text-xs">{os.name}</span>
+                                <span className="text-foreground text-xs font-bold">{os.percentage}%</span>
                             </div>
                         )
                     )}

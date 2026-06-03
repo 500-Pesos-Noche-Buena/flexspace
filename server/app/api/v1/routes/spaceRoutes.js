@@ -160,7 +160,8 @@ class SpaceRoutes {
         // ============ EARNINGS ============
         this.router.get('/earnings', auth, (req, res, next) => EarningsController.index(req, res, next));
         this.router.get('/earnings/export/csv', auth, (req, res, next) => EarningsController.exportCSV(req, res, next));
-
+        this.router.get('/earnings/pending-fees', auth, (req, res, next) => PaymentController.getPendingPlatformFees(req, res, next)); // ← ADD THIS LINE
+        
         // ============ STAFF MANAGEMENT ============
         this.router.get('/staff', auth, (req, res, next) => StaffController.index(req, res, next));
         this.router.post('/staff', auth, (req, res, next) => StaffController.store(req, res, next));
@@ -200,6 +201,14 @@ class SpaceRoutes {
         this.router.post('/payment/create-link', auth, (req, res, next) => PaymentController.createPaymentLink(req, res, next));
         this.router.get('/payment/verify/:paymentIntentId', auth, (req, res, next) => PaymentController.verifyPayment(req, res, next));
         this.router.get('/payment/key-status', auth, (req, res, next) => PaymentController.getPaymentKeyStatus(req, res, next));
+
+
+        // Add to spaceRoutes.js
+        
+        this.router.get('/payment/check-status/:payment_intent_id', auth, (req, res, next) => PaymentController.checkFeePaymentStatus(req, res, next));
+        this.router.post('/payment/confirm-fee-payment', auth, (req, res, next) => PaymentController.confirmFeePayment(req, res, next));
+        this.router.get('/earnings/pending', auth, (req, res, next) => PaymentController.getPendingPlatformFees(req, res, next));
+        this.router.post('/earnings/pay-platform-fees', auth, (req, res, next) => PaymentController.payPlatformFees(req, res, next));
 
     }
 

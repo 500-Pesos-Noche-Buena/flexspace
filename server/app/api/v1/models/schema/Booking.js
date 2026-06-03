@@ -182,6 +182,55 @@ bookingSchema.methods.calculateTotal = function() {
     return this.total_amount;
 };
 
+// Add this to your booking schema file (before module.exports)
+bookingSchema.pre('save', async function(next) {
+    // Check if status changed to 'completed'
+    if (this.isModified('status') && this.status === 'completed') {
+        // Use setTimeout to avoid mongoose parallel save issues
+        setTimeout(async () => {
+            try {
+                const Earnings = require('./Earnings');
+                const Settings = require('./Settings');
+                
+                const existingEarnings = await Earnings.findOne({ booking_id: this._id });
+                if (!existingEarnings) {
+                    const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+                    const platformFeePercent = feeSetting?.value ?? 3;
+                    
+                    const platformFee = (this.total_amount * platformFeePercent) / 100;
+                    const ownerEarnings = this.total_amount - platformFee;
+                    const month = new Date(this.start_time || this.created_at).toISOString().slice(0, 7);
+                    const prefix = this.booking_type === 'online' ? 'ONL' : 'WLK';
+                    const orderNumber = `${prefix}-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+                    
+                    await Earnings.create({
+                        owner_id: this.space_id,
+                        space_id: this.space_id,
+                        order_number: orderNumber,
+                        booking_id: this._id,
+                        total_amount: this.total_amount,
+                        platform_fee_percent: platformFeePercent,
+                        platform_fee: parseFloat(platformFee.toFixed(4)),
+                        owner_earnings: parseFloat(ownerEarnings.toFixed(4)),
+                        payment_method: this.booking_type === 'online' ? 'online' : (this.payment_method || 'walkin'),
+                        payment_intent_id: this.payment_intent_id || null,
+                        auto_collected: false, // ← CHANGE to false
+                        fee_status: 'pending', // ← CHANGE to pending (not collected)
+                        collected_at: null, // ← CHANGE to null
+                        booking_date: this.start_time || this.created_at,
+                        month: month,
+                        notes: `Auto-created when booking became completed`
+                    });
+                    console.log(`✅ Earnings auto-created for ${this.booking_type} booking ${this.ticket_number}`);
+                }
+            } catch (error) {
+                console.error('Error auto-creating earnings:', error);
+            }
+        }, 0);
+    }
+    next();
+});
+
 bookingSchema.plugin(logsActivity, { modelName: 'Booking' });
 
 module.exports = mongoose.model('Booking', bookingSchema);

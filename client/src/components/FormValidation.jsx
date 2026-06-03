@@ -1,11 +1,12 @@
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
+import { cn } from '@/utils/cn';
 
 // ==================== VALIDATION ERROR COMPONENT ====================
 export const ValidationError = ({ error, touched }) => {
     if (!error || !touched) return null;
     return (
-        <div className="text-red-400 text-[10px] mt-1 flex items-center gap-1">
+        <div className="text-red-500 dark:text-red-400 text-[10px] mt-1 flex items-center gap-1">
             <AlertCircle size={10} />
             <span>{error}</span>
         </div>
@@ -85,10 +86,10 @@ export const FormInput = ({
     
     return (
         <div className="mb-4">
-            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">
-                {label} {required && <span className="text-red-400">*</span>}
+            <label className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
+                {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
                 {maxLength && (
-                    <span className="text-slate-600 ml-2">
+                    <span className="text-muted-foreground/60 ml-2">
                         ({value?.length || 0}/{maxLength})
                     </span>
                 )}
@@ -105,9 +106,16 @@ export const FormInput = ({
                 max={max}
                 maxLength={maxLength}
                 step={step}
-                className={`w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border ${
-                    displayError ? 'border-red-500' : 'border-white/10'
-                } text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold ${readOnly ? 'opacity-70 cursor-not-allowed' : ''} ${className}`}
+                className={cn(
+                    "w-full mt-2 px-4 py-3 rounded-2xl",
+                    "bg-background border",
+                    "text-foreground placeholder:text-muted-foreground",
+                    "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                    "transition-all text-sm font-bold",
+                    displayError ? 'border-red-500 dark:border-red-400' : 'border-border',
+                    readOnly && 'opacity-70 cursor-not-allowed',
+                    className
+                )}
             />
             <ValidationError error={displayError} touched={touched} />
         </div>
@@ -137,8 +145,8 @@ export const FormSelect = ({
     
     return (
         <div className="mb-4">
-            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">
-                {label} {required && <span className="text-red-400">*</span>}
+            <label className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
+                {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
             </label>
             <select
                 name={name}
@@ -146,13 +154,19 @@ export const FormSelect = ({
                 onChange={onChange}
                 onBlur={onBlur}
                 disabled={disabled}
-                className={`w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border ${
-                    displayError ? 'border-red-500' : 'border-white/10'
-                } text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold appearance-none cursor-pointer ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={cn(
+                    "w-full mt-2 px-4 py-3 rounded-2xl",
+                    "bg-background border",
+                    "text-foreground",
+                    "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                    "transition-all text-sm font-bold appearance-none cursor-pointer",
+                    displayError ? 'border-red-500 dark:border-red-400' : 'border-border',
+                    disabled && 'opacity-70 cursor-not-allowed'
+                )}
             >
-                <option value="" className="bg-[#111114]">{placeholder}</option>
+                <option value="" className="bg-background text-foreground">{placeholder}</option>
                 {options.map(option => (
-                    <option key={option.value} value={option.value} className="bg-[#111114]">
+                    <option key={option.value} value={option.value} className="bg-background text-foreground">
                         {option.label}
                     </option>
                 ))}
@@ -185,10 +199,10 @@ export const FormTextArea = ({
     
     return (
         <div className="mb-4">
-            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">
-                {label} {required && <span className="text-red-400">*</span>}
+            <label className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
+                {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
                 {maxLength && (
-                    <span className="text-slate-600 ml-2">
+                    <span className="text-muted-foreground/60 ml-2">
                         ({value?.length || 0}/{maxLength})
                     </span>
                 )}
@@ -201,9 +215,14 @@ export const FormTextArea = ({
                 placeholder={placeholder}
                 rows={rows}
                 maxLength={maxLength}
-                className={`w-full mt-2 px-4 py-3 rounded-2xl bg-white/5 border ${
-                    displayError ? 'border-red-500' : 'border-white/10'
-                } text-white focus:border-indigo-500 transition-all text-sm outline-none font-bold resize-none`}
+                className={cn(
+                    "w-full mt-2 px-4 py-3 rounded-2xl",
+                    "bg-background border",
+                    "text-foreground placeholder:text-muted-foreground",
+                    "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                    "transition-all text-sm font-bold resize-none",
+                    displayError ? 'border-red-500 dark:border-red-400' : 'border-border'
+                )}
             />
             <ValidationError error={displayError} touched={touched} />
         </div>

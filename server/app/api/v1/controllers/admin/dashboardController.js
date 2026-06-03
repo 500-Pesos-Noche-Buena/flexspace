@@ -1,4 +1,4 @@
-const { User, Space, SpaceRequest, Booking } = require('@/api/v1/models');
+const { User, Space, SpaceRequest, Booking, Earnings } = require('@/api/v1/models');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 
 class DashboardController {
@@ -9,28 +9,51 @@ class DashboardController {
                 totalSpaceHubs,
                 activeSpaces,
                 pendingRequestsCount,
-                revenueData
+                platformRevenueData
             ] = await Promise.all([
                 User.countDocuments({ role: 'user' }),
                 User.countDocuments({ role: 'space' }),
                 Space.countDocuments(),
                 SpaceRequest.countDocuments({ status: 'pending' }),
-                Booking.aggregate([
+                Earnings.aggregate([
                     {
                         $match: {
-                            status: 'completed',
-                            check_in_at: {
+                            fee_status: 'collected',
+                            collected_at: {
                                 $gte: new Date(new Date().setDate(1))
                             }
                         }
                     },
-                    { $group: { _id: null, total: { $sum: "$total_amount" } } }
+                    {
+                        $group: { 
+                            _id: null, 
+                            total: { $sum: "$platform_fee" }
+                        }
+                    }
                 ])
             ]);
 
-            const monthlyRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
+            const platformRevenue = platformRevenueData.length > 0 ? platformRevenueData[0].total : 0;
 
-            // FIXED: Removed populate('user_id') since SpaceRequest doesn't have that field
+            const grossBookingData = await Booking.aggregate([
+                {
+                    $match: {
+                        status: 'completed',
+                        check_in_at: {
+                            $gte: new Date(new Date().setDate(1))
+                        }
+                    }
+                },
+                {
+                    $group: { 
+                        _id: null, 
+                        total: { $sum: "$total_amount" } 
+                    }
+                }
+            ]);
+            
+            const grossVolume = grossBookingData.length > 0 ? grossBookingData[0].total : 0;
+
             const recentRequests = await SpaceRequest.find({ status: 'pending' })
                 .select('name business_name status created_at')
                 .sort({ created_at: -1 })
@@ -43,10 +66,11 @@ class DashboardController {
                     totalSpaceHubs,
                     activeSpaces,
                     pendingRequests: pendingRequestsCount,
-                    monthlyRevenue: monthlyRevenue.toLocaleString(),
+                    monthlyRevenue: platformRevenue.toLocaleString(),
+                    grossVolume: grossVolume.toLocaleString(),
                     recentRequests: recentRequests.map(req => ({
                         name: req.business_name || req.name,
-                        ownerName: 'Pending', // No owner available since no user relation
+                        ownerName: 'Pending',
                         location: "Iloilo City",
                         status: req.status,
                         createdAt: req.created_at
