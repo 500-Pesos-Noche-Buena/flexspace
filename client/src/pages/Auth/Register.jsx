@@ -4,14 +4,26 @@ import { User, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, CheckCircle, XCircl
 import { Button } from "@/components/ui/button";
 import { apiPost } from '@/utils/Api';
 import { showToast } from '@/components/ui/SweetAlert2';
+import { useTheme } from '@/hooks/useTheme';
+import { cn } from '@/utils/cn';
 
 const Register = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { theme, themeColor } = useTheme();
     const [role, setRole] = useState('user');
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    
+    // Form validation states
+    const [touched, setTouched] = useState({
+        name: false,
+        email: false,
+        password: false,
+        confirmPassword: false
+    });
+    const [errors, setErrors] = useState({});
     
     // Cloudflare Turnstile states
     const [turnstileToken, setTurnstileToken] = useState(null);
@@ -33,7 +45,20 @@ const Register = () => {
         dti_sec_reg: null
     });
 
-    // Check URL hash for role detection (e.g., /register#space or /register#user)
+    // Get dynamic color for buttons
+    const getButtonColor = () => {
+        const colors = {
+            indigo: 'hover:bg-indigo-600',
+            emerald: 'hover:bg-emerald-600',
+            purple: 'hover:bg-purple-600',
+            blue: 'hover:bg-blue-600',
+            rose: 'hover:bg-rose-600',
+            amber: 'hover:bg-amber-600',
+        };
+        return colors[themeColor] || colors.indigo;
+    };
+
+    // Check URL hash for role detection
     useEffect(() => {
         const hash = window.location.hash.replace('#', '');
         if (hash === 'space') {
@@ -45,7 +70,6 @@ const Register = () => {
 
     // Load Turnstile script and initialize widget
     useEffect(() => {
-        // Load the Turnstile script
         const script = document.createElement('script');
         script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
         script.async = true;
@@ -54,7 +78,6 @@ const Register = () => {
         document.body.appendChild(script);
 
         return () => {
-            // Cleanup widget on unmount
             if (widgetIdRef.current && window.turnstile) {
                 window.turnstile.remove(widgetIdRef.current);
             }
@@ -86,6 +109,11 @@ const Register = () => {
         }
     };
 
+    // Validate email format
+    const validateEmail = (email) => {
+        return /\S+@\S+\.\S+/.test(email);
+    };
+
     // Password validation
     const validatePassword = (password) => {
         const errors = [];
@@ -95,6 +123,96 @@ const Register = () => {
         if (!/[0-9]/.test(password)) errors.push('One number');
         if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) errors.push('One special character');
         return errors;
+    };
+
+    // Form validation function
+    const validateForm = () => {
+        const newErrors = {};
+        
+        if (!formData.name) {
+            newErrors.name = 'Full name is required';
+        } else if (formData.name.length < 2) {
+            newErrors.name = 'Name must be at least 2 characters';
+        }
+        
+        if (!formData.email) {
+            newErrors.email = 'Email is required';
+        } else if (!validateEmail(formData.email)) {
+            newErrors.email = 'Please enter a valid email address';
+        }
+        
+        if (!formData.password) {
+            newErrors.password = 'Password is required';
+        } else if (validatePassword(formData.password).length > 0) {
+            newErrors.password = 'Password does not meet requirements';
+        }
+        
+        if (!formData.confirmPassword) {
+            newErrors.confirmPassword = 'Please confirm your password';
+        } else if (formData.password !== formData.confirmPassword) {
+            newErrors.confirmPassword = 'Passwords do not match';
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    // Handle field blur
+    const handleBlur = (e) => {
+        const { name } = e.target;
+        setTouched(prev => ({ ...prev, [name]: true }));
+        
+        // Validate on blur
+        if (name === 'name') {
+            if (!formData.name) {
+                setErrors(prev => ({ ...prev, name: 'Full name is required' }));
+            } else if (formData.name.length < 2) {
+                setErrors(prev => ({ ...prev, name: 'Name must be at least 2 characters' }));
+            } else {
+                setErrors(prev => ({ ...prev, name: '' }));
+            }
+        }
+        
+        if (name === 'email') {
+            if (!formData.email) {
+                setErrors(prev => ({ ...prev, email: 'Email is required' }));
+            } else if (!validateEmail(formData.email)) {
+                setErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
+            } else {
+                setErrors(prev => ({ ...prev, email: '' }));
+            }
+        }
+        
+        if (name === 'password') {
+            if (!formData.password) {
+                setErrors(prev => ({ ...prev, password: 'Password is required' }));
+            } else if (validatePassword(formData.password).length > 0) {
+                setErrors(prev => ({ ...prev, password: 'Password does not meet requirements' }));
+            } else {
+                setErrors(prev => ({ ...prev, password: '' }));
+            }
+        }
+        
+        if (name === 'confirmPassword') {
+            if (!formData.confirmPassword) {
+                setErrors(prev => ({ ...prev, confirmPassword: 'Please confirm your password' }));
+            } else if (formData.password !== formData.confirmPassword) {
+                setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
+            } else {
+                setErrors(prev => ({ ...prev, confirmPassword: '' }));
+            }
+        }
+    };
+
+    // Handle field change
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        
+        // Clear error when user starts typing
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: '' }));
+        }
     };
 
     const passwordErrors = validatePassword(formData.password);
@@ -108,13 +226,25 @@ const Register = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Validate form
+        if (!validateForm()) {
+            // Mark all fields as touched to show errors
+            setTouched({ name: true, email: true, password: true, confirmPassword: true });
+            showToast({ 
+                icon: 'error', 
+                title: 'Validation Error', 
+                message: 'Please check the form for errors.' 
+            });
+            return;
+        }
 
         // Check Turnstile verification
         if (!turnstileToken) {
             showToast({ 
                 icon: 'error', 
                 title: 'Security Check Required', 
-                text: 'Please complete the security verification.' 
+                message: 'Please complete the security verification.' 
             });
             return;
         }
@@ -149,7 +279,7 @@ const Register = () => {
                 showToast({
                     icon: 'success',
                     title: 'Success!',
-                    text: response.message || 'Registration successful! You can now log in.'
+                    message: response.message || 'Registration successful! You can now log in.'
                 });
                 navigate('/login');
             }
@@ -157,7 +287,7 @@ const Register = () => {
                 showToast({
                     icon: 'info',
                     title: 'Application Received',
-                    text: response.message
+                    message: response.message
                 });
                 localStorage.setItem('pending_name', formData.name);
                 navigate('/registration-status');
@@ -172,7 +302,6 @@ const Register = () => {
             }
             setTurnstileToken(null);
 
-            // Check for duplicate email error
             const errorMessage = error.message || '';
 
             if (errorMessage.includes('Email is already registered') ||
@@ -181,31 +310,25 @@ const Register = () => {
                 showToast({
                     icon: 'error',
                     title: 'Email Already Exists',
-                    text: 'This email is already registered. Please login or use a different email.'
+                    message: 'This email is already registered. Please login or use a different email.'
                 });
-            }
-            // Check for missing files error
-            else if (errorMessage.includes('Please upload all required documents')) {
+            } else if (errorMessage.includes('Please upload all required documents')) {
                 showToast({
                     icon: 'error',
                     title: 'Missing Documents',
-                    text: errorMessage
+                    message: errorMessage
                 });
-            }
-            // Check for validation errors
-            else if (errorMessage.includes('All fields are required')) {
+            } else if (errorMessage.includes('All fields are required')) {
                 showToast({
                     icon: 'error',
                     title: 'Missing Information',
-                    text: 'Please fill in all required fields.'
+                    message: 'Please fill in all required fields.'
                 });
-            }
-            // Default error
-            else {
+            } else {
                 showToast({
                     icon: 'error',
                     title: 'Registration Failed',
-                    text: errorMessage || 'Something went wrong. Please try again.'
+                    message: errorMessage || 'Something went wrong. Please try again.'
                 });
             }
         } finally {
@@ -213,14 +336,16 @@ const Register = () => {
         }
     };
 
+    const buttonColorClass = getButtonColor();
+
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center mb-4 md:mb-8">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 mb-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700">Create Account</span>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800 mb-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400">Create Account</span>
                 </div>
-                <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-none">Get Started</h1>
+                <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Get Started</h1>
             </div>
 
             <form className="space-y-3 md:space-y-4" onSubmit={handleSubmit}>
@@ -229,66 +354,109 @@ const Register = () => {
                     <button
                         type="button"
                         onClick={() => setRole('user')}
-                        className={`p-3 md:p-4 rounded-2xl border-2 transition-all text-center ${role === 'user' ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' : 'border-slate-100 bg-white'
-                            }`}
+                        className={cn(
+                            "p-3 md:p-4 rounded-2xl border-2 transition-all text-center",
+                            role === 'user' 
+                                ? "border-indigo-500 dark:border-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/30 shadow-sm" 
+                                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                        )}
                     >
-                        <span className={`block text-[8px] font-black uppercase tracking-widest mb-0.5 ${role === 'user' ? 'text-indigo-600' : 'text-slate-400'}`}>I'm a</span>
-                        <span className={`text-xs md:text-sm font-black ${role === 'user' ? 'text-slate-900' : 'text-slate-500'}`}>Member</span>
+                        <span className={cn(
+                            "block text-[8px] font-black uppercase tracking-widest mb-0.5",
+                            role === 'user' ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-500"
+                        )}>I'm a</span>
+                        <span className={cn(
+                            "text-xs md:text-sm font-black",
+                            role === 'user' ? "text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400"
+                        )}>Member</span>
                     </button>
 
                     <button
                         type="button"
                         onClick={() => setRole('space')}
-                        className={`p-3 md:p-4 rounded-2xl border-2 transition-all text-center ${role === 'space' ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' : 'border-slate-100 bg-white'
-                            }`}
+                        className={cn(
+                            "p-3 md:p-4 rounded-2xl border-2 transition-all text-center",
+                            role === 'space' 
+                                ? "border-indigo-500 dark:border-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/30 shadow-sm" 
+                                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                        )}
                     >
-                        <span className={`block text-[8px] font-black uppercase tracking-widest mb-0.5 ${role === 'space' ? 'text-indigo-600' : 'text-slate-400'}`}>I own a</span>
-                        <span className={`text-xs md:text-sm font-black ${role === 'space' ? 'text-slate-900' : 'text-slate-500'}`}>Space</span>
+                        <span className={cn(
+                            "block text-[8px] font-black uppercase tracking-widest mb-0.5",
+                            role === 'space' ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-500"
+                        )}>I own a</span>
+                        <span className={cn(
+                            "text-xs md:text-sm font-black",
+                            role === 'space' ? "text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400"
+                        )}>Space</span>
                     </button>
                 </div>
 
                 {/* Name Input */}
                 <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
                     <input
                         type="text"
+                        name="name"
                         placeholder="Full Name"
-                        required
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3.5 md:py-4 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none transition font-bold text-sm"
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={cn(
+                            "w-full pl-12 pr-4 py-3.5 md:py-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 outline-none transition font-bold text-sm",
+                            errors.name && touched.name
+                                ? "border-red-500 dark:border-red-400"
+                                : "border-slate-200 dark:border-slate-700 focus:border-indigo-400 dark:focus:border-indigo-500"
+                        )}
                     />
+                    {errors.name && touched.name && (
+                        <p className="text-red-500 dark:text-red-400 text-[10px] mt-1 ml-1">{errors.name}</p>
+                    )}
                 </div>
 
                 {/* Email Input */}
                 <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
                     <input
                         type="email"
+                        name="email"
                         placeholder="Email Address"
-                        required
                         value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3.5 md:py-4 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-400 outline-none transition font-bold text-sm"
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={cn(
+                            "w-full pl-12 pr-4 py-3.5 md:py-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 outline-none transition font-bold text-sm",
+                            errors.email && touched.email
+                                ? "border-red-500 dark:border-red-400"
+                                : "border-slate-200 dark:border-slate-700 focus:border-indigo-400 dark:focus:border-indigo-500"
+                        )}
                     />
+                    {errors.email && touched.email && (
+                        <p className="text-red-500 dark:text-red-400 text-[10px] mt-1 ml-1">{errors.email}</p>
+                    )}
                 </div>
 
                 {/* Password Input with validation */}
                 <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
                     <input
                         type={showPassword ? "text" : "password"}
+                        name="password"
                         placeholder="Create Password"
-                        required
                         value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className={`w-full pl-12 pr-12 py-3.5 md:py-4 rounded-2xl border transition-all font-bold text-sm
-                            ${formData.password && !isPasswordValid ? 'border-red-500 bg-red-50 focus:border-red-500' : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-400'}`}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={cn(
+                            "w-full pl-12 pr-12 py-3.5 md:py-4 rounded-2xl border transition-all font-bold text-sm bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800",
+                            errors.password && touched.password
+                                ? "border-red-500 dark:border-red-400"
+                                : "border-slate-200 dark:border-slate-700 focus:border-indigo-400 dark:focus:border-indigo-500"
+                        )}
                     />
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                     >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -296,55 +464,83 @@ const Register = () => {
 
                 {/* Password requirements */}
                 {formData.password && (
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-2">Password must contain:</p>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Password must contain:</p>
                         <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                            <div className={`text-[8px] flex items-center gap-1 ${formData.password.length >= 8 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <div className={cn(
+                                "text-[8px] flex items-center gap-1",
+                                formData.password.length >= 8 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"
+                            )}>
                                 {formData.password.length >= 8 ? <CheckCircle size={10} /> : <XCircle size={10} />} 8+ characters
                             </div>
-                            <div className={`text-[8px] flex items-center gap-1 ${/[A-Z]/.test(formData.password) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <div className={cn(
+                                "text-[8px] flex items-center gap-1",
+                                /[A-Z]/.test(formData.password) ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"
+                            )}>
                                 {/[A-Z]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Uppercase letter
                             </div>
-                            <div className={`text-[8px] flex items-center gap-1 ${/[a-z]/.test(formData.password) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <div className={cn(
+                                "text-[8px] flex items-center gap-1",
+                                /[a-z]/.test(formData.password) ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"
+                            )}>
                                 {/[a-z]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Lowercase letter
                             </div>
-                            <div className={`text-[8px] flex items-center gap-1 ${/[0-9]/.test(formData.password) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <div className={cn(
+                                "text-[8px] flex items-center gap-1",
+                                /[0-9]/.test(formData.password) ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"
+                            )}>
                                 {/[0-9]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Number
                             </div>
-                            <div className={`text-[8px] flex items-center gap-1 col-span-2 ${/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <div className={cn(
+                                "text-[8px] flex items-center gap-1 col-span-2",
+                                /[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"
+                            )}>
                                 {/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? <CheckCircle size={10} /> : <XCircle size={10} />} Special character
                             </div>
                         </div>
                     </div>
                 )}
 
+                {errors.password && touched.password && (
+                    <p className="text-red-500 dark:text-red-400 text-[10px] -mt-2">{errors.password}</p>
+                )}
+
                 {/* Confirm Password Input */}
                 <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
                     <input
                         type={showConfirmPassword ? "text" : "password"}
+                        name="confirmPassword"
                         placeholder="Confirm Password"
-                        required
                         value={formData.confirmPassword}
-                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                        className={`w-full pl-12 pr-12 py-3.5 md:py-4 rounded-2xl border transition-all font-bold text-sm
-                            ${formData.confirmPassword && !doPasswordsMatch ? 'border-red-500 bg-red-50' :
-                                formData.confirmPassword && doPasswordsMatch ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={cn(
+                            "w-full pl-12 pr-12 py-3.5 md:py-4 rounded-2xl border transition-all font-bold text-sm bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800",
+                            errors.confirmPassword && touched.confirmPassword
+                                ? "border-red-500 dark:border-red-400"
+                                : doPasswordsMatch && formData.confirmPassword
+                                    ? "border-emerald-500 dark:border-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20"
+                                    : "border-slate-200 dark:border-slate-700 focus:border-indigo-400 dark:focus:border-indigo-500"
+                        )}
                     />
                     <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                     >
                         {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                 </div>
 
                 {/* Confirm password feedback */}
-                {formData.confirmPassword && (
-                    <p className={`text-[8px] font-bold -mt-2 ${doPasswordsMatch ? 'text-emerald-600' : 'text-red-500'}`}>
-                        {doPasswordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
+                {formData.confirmPassword && doPasswordsMatch && (
+                    <p className="text-emerald-600 dark:text-emerald-400 text-[8px] font-bold -mt-2">
+                        ✓ Passwords match
                     </p>
+                )}
+                {errors.confirmPassword && touched.confirmPassword && (
+                    <p className="text-red-500 dark:text-red-400 text-[10px] -mt-2">{errors.confirmPassword}</p>
                 )}
 
                 {/* Password strength meter */}
@@ -361,12 +557,18 @@ const Register = () => {
                                 return (
                                     <div
                                         key={level}
-                                        className={`flex-1 h-full rounded-full transition-all ${isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                                        className={cn(
+                                            "flex-1 h-full rounded-full transition-all",
+                                            isActive ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700"
+                                        )}
                                     />
                                 );
                             })}
                         </div>
-                        <p className="text-[7px] text-slate-400 mt-1 text-right">
+                        <p className={cn(
+                            "text-[7px] mt-1 text-right",
+                            isPasswordValid ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"
+                        )}>
                             {isPasswordValid ? '✓ Strong password' : 'Weak password - meet all requirements'}
                         </p>
                     </div>
@@ -374,38 +576,36 @@ const Register = () => {
 
                 {/* Cloudflare Turnstile Widget */}
                 <div className="flex justify-center py-2">
-                    <div ref={turnstileContainerRef} />
+                    <div ref={turnstileContainerRef} className="dark:[&_iframe]:bg-slate-800" />
                 </div>
                 {turnstileError && (
-                    <p className="text-[8px] text-red-500 text-center -mt-2">
+                    <p className="text-red-500 dark:text-red-400 text-[8px] text-center -mt-2">
                         Security verification failed. Please refresh and try again.
                     </p>
                 )}
 
                 {/* Space Owner File Uploads */}
                 {role === 'space' && (
-                    <div className="space-y-3 pt-3 border-t border-slate-100 animate-in slide-in-from-top-2 duration-300">
-                        <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Verification Docs</p>
+                    <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-700 animate-in slide-in-from-top-2 duration-300">
+                        <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Verification Docs</p>
 
                         <div className="grid grid-cols-1 gap-3">
                             <div>
-                                <label className="text-[8px] font-black text-slate-400 uppercase mb-1 ml-1 block">Business Permit</label>
+                                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase mb-1 ml-1 block">Business Permit</label>
                                 <input
                                     type="file"
                                     accept="image/*,.pdf"
-                                    required
                                     onChange={(e) => handleFileChange(e, 'business_permit')}
-                                    className="block w-full text-[10px] text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-slate-900 file:text-white file:font-black file:uppercase file:text-[9px] bg-slate-50 rounded-xl border border-slate-200 p-1"
+                                    className="block w-full text-[10px] text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-slate-900 dark:file:bg-slate-700 file:text-white file:font-black file:uppercase file:text-[9px] bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-1"
                                 />
                             </div>
                             <div>
-                                <label className="text-[8px] font-black text-slate-400 uppercase mb-1 ml-1 block">DTI / SEC Registration</label>
+                                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase mb-1 ml-1 block">DTI / SEC Registration</label>
                                 <input
                                     type="file"
                                     accept="image/*,.pdf"
-                                    required
                                     onChange={(e) => handleFileChange(e, 'dti_sec_reg')}
-                                    className="block w-full text-[10px] text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-slate-900 file:text-white file:font-black file:uppercase file:text-[9px] bg-slate-50 rounded-xl border border-slate-200 p-1"
+                                    className="block w-full text-[10px] text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-slate-900 dark:file:bg-slate-700 file:text-white file:font-black file:uppercase file:text-[9px] bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-1"
                                 />
                             </div>
                         </div>
@@ -415,7 +615,10 @@ const Register = () => {
                 <Button
                     type="submit"
                     disabled={isLoading || !isFormValid || !turnstileToken}
-                    className="w-full h-12 md:h-14 rounded-2xl bg-slate-900 text-white hover:bg-indigo-600 font-black text-base md:text-lg flex gap-2 shadow-lg shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={cn(
+                        "w-full h-12 md:h-14 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white font-black text-base md:text-lg flex gap-2 shadow-lg shadow-slate-200 dark:shadow-slate-900/50 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed",
+                        buttonColorClass
+                    )}
                 >
                     {isLoading ? (
                         <Loader2 className="animate-spin" size={20} />
@@ -425,8 +628,8 @@ const Register = () => {
                 </Button>
             </form>
 
-            <p className="text-center mt-6 md:mt-8 text-xs md:text-sm font-bold text-slate-400 uppercase tracking-tight">
-                Got an account? <Link to="/login" className="text-slate-900 hover:text-indigo-600 underline underline-offset-4 decoration-2">Sign in</Link>
+            <p className="text-center mt-6 md:mt-8 text-xs md:text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">
+                Got an account? <Link to="/login" className="text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 underline underline-offset-4 decoration-2">Sign in</Link>
             </p>
         </div>
     );

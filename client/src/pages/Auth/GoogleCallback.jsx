@@ -2,15 +2,31 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/hooks/useTheme';
 import { showToast } from '@/components/ui/SweetAlert2';
+import { cn } from '@/utils/cn';
 
 const GoogleCallback = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { login } = useAuth();
+    const { themeColor } = useTheme();
     const token = searchParams.get('token');
     const error = searchParams.get('error');
     const encodedUser = searchParams.get('user');
+
+    // Get dynamic color for loader
+    const getLoaderColor = () => {
+        const colors = {
+            indigo: 'text-indigo-500',
+            emerald: 'text-emerald-500',
+            purple: 'text-purple-500',
+            blue: 'text-blue-500',
+            rose: 'text-rose-500',
+            amber: 'text-amber-500',
+        };
+        return colors[themeColor] || colors.indigo;
+    };
 
     useEffect(() => {
         console.log('🔍 GoogleCallback - Token:', token ? 'Received' : 'No token');
@@ -105,11 +121,15 @@ const GoogleCallback = () => {
         }
     }, [token, encodedUser, error, navigate, login]);
 
+    const loaderColor = getLoaderColor();
+
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center transition-colors duration-300">
             <div className="text-center">
-                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mx-auto mb-4" />
-                <p className="text-slate-600 font-black uppercase tracking-wider">Signing in with Google...</p>
+                <Loader2 className={cn("w-8 h-8 animate-spin mx-auto mb-4", loaderColor)} />
+                <p className="text-slate-600 dark:text-slate-400 font-black uppercase tracking-wider">
+                    Signing in with Google...
+                </p>
             </div>
         </div>
     );

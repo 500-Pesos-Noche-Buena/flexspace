@@ -42,7 +42,7 @@ const AuthLayout = () => {
 
             {/* RIGHT SIDE: Branding Panel (Hidden on Mobile) */}
             <section className="hidden lg:flex relative bg-slate-900 items-center justify-center p-12 overflow-hidden min-h-screen">
-                {/* Back to Home Button - Desktop (inside right panel, top left) */}
+                {/* Back to Home Button - Desktop (inside right panel, top left)
                 {showBackButton && (
                     <div className="absolute top-8 left-8 z-20">
                         <Link
@@ -53,7 +53,7 @@ const AuthLayout = () => {
                             <span className="text-[9px] font-black uppercase tracking-widest">Back to Home</span>
                         </Link>
                     </div>
-                )}
+                )} */}
 
                 <div className="absolute inset-0 z-0 opacity-20">
                     <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">

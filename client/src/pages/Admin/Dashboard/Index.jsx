@@ -2,9 +2,9 @@ import React, { useState, useEffect, useContext, useRef, useCallback } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '@/context/AuthContext';
 import { apiGet } from '@/utils/Api';
-import { 
-    Users, MapPin, Clock, Banknote, ArrowUpRight, Loader2, RefreshCw, 
-    Building2, TrendingUp, TrendingDown, Activity, Award, Crown, 
+import {
+    Users, MapPin, Clock, Banknote, ArrowUpRight, Loader2, RefreshCw,
+    Building2, TrendingUp, TrendingDown, Activity, Award, Crown,
     AlertTriangle, BarChart3, Calendar
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
@@ -18,12 +18,12 @@ let globalDashboardPollingInstance = null;
 const StatCard = ({ title, value, icon, trend }) => {
     const { themeColor } = useTheme();
     const color = themeColor;
-    
+
     // If value already has ₱, keep it as string, otherwise format number
-    const displayValue = typeof value === 'string' && value.includes('₱') 
-        ? value 
+    const displayValue = typeof value === 'string' && value.includes('₱')
+        ? value
         : formatNumber(value);
-    
+
     return (
         <div className="bg-card p-5 rounded-4xl border border-border group hover:border-primary/30 transition-all duration-500 shadow-xl">
             <div className="flex items-center justify-between mb-4">
@@ -52,7 +52,7 @@ const AdminDashboard = () => {
         monthlyRevenue: "0",
         recentRequests: []
     });
-    
+
     // Advanced analytics states
     const [platformOccupancy, setPlatformOccupancy] = useState({
         platform: { occupancyRate: 0, activeBookings: 0, totalCapacity: 0, totalSpaces: 0 },
@@ -111,7 +111,7 @@ const AdminDashboard = () => {
                 apiGet('/admin/dashboard/top-spaces?limit=5'),
                 apiGet('/admin/dashboard/user-growth')
             ]);
-            
+
             if (occupancyRes.success) setPlatformOccupancy(occupancyRes.data);
             if (revenueRes.success) setRevenueTrend(revenueRes.data);
             if (topSpacesRes.success) setTopSpaces(topSpacesRes.data);
@@ -179,18 +179,18 @@ const AdminDashboard = () => {
                 <StatCard title="Space Owners" value={stats.totalSpaceHubs} icon={<Building2 size={16} className="text-purple-600 dark:text-purple-400" />} trend="Registered" />
                 <StatCard title="Active Spaces" value={stats.activeSpaces} icon={<MapPin size={16} className="text-emerald-600 dark:text-emerald-400" />} trend="Live Now" />
                 <StatCard title="Pending" value={stats.pendingRequests} icon={<Clock size={16} className="text-amber-600 dark:text-amber-400" />} trend="Applications" />
-<StatCard 
-    title="Platform Revenue (Monthly)" 
-    value={`₱${formatNumber(stats.monthlyRevenue)}`} 
-    icon={<Banknote size={16} className="text-rose-600 dark:text-rose-400" />} 
-    trend="Platform Fees" 
-/>
+                <StatCard
+                    title="Platform Revenue (Monthly)"
+                    value={`₱${formatNumber(stats.monthlyRevenue)}`}
+                    icon={<Banknote size={16} className="text-rose-600 dark:text-rose-400" />}
+                    trend="Platform Fees"
+                />
 
-{stats.grossVolume && (
-    <div className="text-center text-[8px] text-muted-foreground mt-1">
-        Gross Volume: ₱{formatNumber(stats.grossVolume)}
-    </div>
-)}
+                {stats.grossVolume && (
+                    <div className="text-center text-[8px] text-muted-foreground mt-1">
+                        Gross Volume: ₱{formatNumber(stats.grossVolume)}
+                    </div>
+                )}
             </div>
 
             {/* Platform Analytics Section */}
@@ -216,10 +216,10 @@ const AdminDashboard = () => {
                                 <span className={cn(
                                     "text-[8px] font-black px-2 py-1 rounded-full",
                                     platformOccupancy.platform.occupancyRate >= 70 ? "bg-rose-500/10 text-rose-600 dark:text-rose-400" :
-                                    platformOccupancy.platform.occupancyRate >= 40 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                        platformOccupancy.platform.occupancyRate >= 40 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                                 )}>
-                                    {platformOccupancy.platform.occupancyRate >= 70 ? "🔥 HIGH" : 
-                                     platformOccupancy.platform.occupancyRate >= 40 ? "⚡ MODERATE" : "🌿 LOW"}
+                                    {platformOccupancy.platform.occupancyRate >= 70 ? "🔥 HIGH" :
+                                        platformOccupancy.platform.occupancyRate >= 40 ? "⚡ MODERATE" : "🌿 LOW"}
                                 </span>
                             </div>
                             <div className="text-5xl font-black text-foreground mb-2">{platformOccupancy.platform.occupancyRate}%</div>
@@ -229,7 +229,7 @@ const AdminDashboard = () => {
                             <p className="text-[10px] text-muted-foreground mb-4">
                                 {platformOccupancy.platform.activeBookings} active of {platformOccupancy.platform.totalCapacity} total seats
                             </p>
-                            
+
                             {/* Struggling Spaces Alert */}
                             {platformOccupancy.strugglingSpaces?.length > 0 && (
                                 <div className="mt-4 p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
@@ -269,7 +269,7 @@ const AdminDashboard = () => {
                                     ))}
                                 </div>
                             </div>
-                            
+
                             <div className="flex items-end gap-1 h-24 mb-3">
                                 {revenueTrend.trend?.slice(-7).map((item, idx) => {
                                     const maxRevenue = Math.max(...(revenueTrend.trend?.map(t => t.revenue) || [1]), 1);
@@ -284,7 +284,7 @@ const AdminDashboard = () => {
                                     );
                                 })}
                             </div>
-                            
+
                             <div className="flex justify-between items-center pt-2 border-t border-border">
                                 <div>
                                     <p className="text-[7px] text-muted-foreground">Total Revenue</p>
