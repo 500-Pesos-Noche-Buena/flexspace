@@ -32,7 +32,6 @@ const config = require('./app/config/config');
 const db = require('./app/config/mongodb');
 const app = require('./app');
 
-// 🔥 IMPORT YOUR QUEUE SYSTEM (THIS IS THE MISSING PART!)
 const { setupQueueEvents, retryFailedJobs, cloudinaryQueue } = require('./app/config/queue');
 
 function getLocalIp() {
@@ -51,14 +50,11 @@ async function startServer() {
     try {
         await db.connectToMongoDB();
 
-        // 🔥 INITIALIZE QUEUE LISTENERS (Now you'll see WHY they failed!)
         setupQueueEvents();
 
-        // 🔥 RETRY EXISTING FAILED JOBS (Like Laravel's php artisan queue:retry all)
         if (process.env.NODE_ENV !== 'production') {
             console.log('🔄 [Queue]: Checking for failed jobs to retry...');
 
-            // Get and log all failed jobs with their errors
             const failedCloudinaryJobs = await cloudinaryQueue.getFailed();
             if (failedCloudinaryJobs.length > 0) {
                 console.log(`\n📋 Found ${failedCloudinaryJobs.length} failed Cloudinary jobs:`);

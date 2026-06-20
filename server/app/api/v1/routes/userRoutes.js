@@ -31,7 +31,7 @@ class UserRoutes {
         this.router.post('/bookings/scan', auth, (req, res, next) => bookingController.scanHubQRCode(req, res, next));
         
         // Active booking - FAST endpoint for ChatOrder
-this.router.get('/active-booking-fast', auth, (req, res, next) => bookingController.getActiveBookingFast(req, res, next));
+        this.router.get('/active-booking-fast', auth, (req, res, next) => bookingController.getActiveBookingFast(req, res, next));
         // Voucher routes
         this.router.post('/bookings/:id/preview-voucher', auth, (req, res, next) => bookingController.previewVoucher(req, res, next));
         this.router.post('/bookings/:id/redeem-voucher', auth, (req, res, next) => bookingController.redeemVoucher(req, res, next));

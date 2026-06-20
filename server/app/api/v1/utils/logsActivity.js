@@ -1,13 +1,8 @@
 const mongoose = require('mongoose');
 
-/**
- * Laravel-style LogsActivity Trait for Mongoose
- * Automatically logs when a model is created, updated, or deleted
- */
 const logsActivity = (schema, options = {}) => {
     const modelName = options.modelName || schema.constructor.modelName;
     
-    // Lazy load ActivityLog to avoid circular dependency
     const getActivityLog = () => {
         try {
             return mongoose.model('ActivityLog');
@@ -17,7 +12,6 @@ const logsActivity = (schema, options = {}) => {
         }
     };
     
-    // Get request info from async context
     const getRequestInfo = () => {
         try {
             const req = global.currentRequest;
@@ -45,14 +39,12 @@ const logsActivity = (schema, options = {}) => {
         };
     };
 
-    // Helper to get document name/identifier
     const getDocumentIdentifier = (doc) => {
         if (doc.name) return doc.name;
         if (doc.title) return doc.title;
         return doc._id;
     };
 
-    // Helper to get user type label
     const getUserTypeLabel = (doc) => {
         if (modelName !== 'User') return modelName;
         
@@ -70,7 +62,6 @@ const logsActivity = (schema, options = {}) => {
         }
     };
 
-    // Log after save (BOTH create AND update via save())
     schema.post('save', async function(doc) {
         if (options.skipLog) return;
         

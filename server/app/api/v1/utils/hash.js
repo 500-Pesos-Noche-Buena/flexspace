@@ -1,5 +1,5 @@
 
-const bcrypt = require('bcryptjs'); // Change this line
+const bcrypt = require('bcryptjs');
 const config = require('@/config/config'); 
 
 const saltRounds = config.bcrypt.saltRounds;

@@ -9,8 +9,8 @@ const generateToken = (userId, expires, type, role, name = null, email = null) =
         exp: expires.unix(),
         type,
         role,
-        name,      // ← Add name
-        email,     // ← Add email (optional but useful)
+        name, 
+        email,
     };
     return jwt.sign(payload, config.jwt.secret);
 };
@@ -25,8 +25,8 @@ const generateAuthTokens = (user) => {
         expires, 
         'access', 
         user.role,
-        user.name,      // ← Pass the user's name
-        user.email      // ← Pass the user's email (optional)
+        user.name,     
+        user.email 
     );
 
     return {

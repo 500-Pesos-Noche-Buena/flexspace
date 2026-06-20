@@ -9,9 +9,6 @@ cloudinary.config({
     api_secret: config.cloudinary.api_secret
 });
 
-/**
- * Get folder path structure for Cloudinary
- */
 const getCloudinaryFolderPath = (req, file) => {
     const userId = req.user?.id || req.user?._id || req.user?.sub;
     
@@ -39,9 +36,6 @@ const getCloudinaryFolderPath = (req, file) => {
     return `coworking/uploads`;
 };
 
-/**
- * Get transformation based on file fieldname
- */
 const getTransformationForField = (fieldname) => {
     const transformations = {
         'qr_code': [
@@ -71,20 +65,15 @@ const getTransformationForField = (fieldname) => {
     return transformations[fieldname] || [{ quality: "auto:good", fetch_format: "auto" }];
 };
 
-/**
- * Extract public ID from Cloudinary URL
- */
 const extractPublicId = (url) => {
     if (!url || !url.includes('cloudinary')) return null;
     
     try {
-        // Find '/upload/' in the URL
         const uploadIndex = url.indexOf('/upload/');
         if (uploadIndex === -1) return null;
         
         let publicId = url.substring(uploadIndex + 8); // +8 for '/upload/'
         
-        // Remove version number if present (v1234567890/)
         const versionMatch = publicId.match(/^v\d+\//);
         if (versionMatch) {
             publicId = publicId.substring(versionMatch[0].length);
@@ -142,7 +131,6 @@ const uploadToCloudinary = async (filePath, req, file, options = {}) => {
     try {
         const cloudinaryFolder = getCloudinaryFolderPath(req, file);
         
-        // Get extension correctly
         const originalName = file.originalname;
         const extension = path.extname(originalName);
         const baseName = path.basename(originalName, extension);

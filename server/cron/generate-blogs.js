@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 const http = require('http');
 
 const BLOG_API_KEY = process.env.BLOG_API_KEY || 'flexspace-secret-key';

@@ -4,7 +4,7 @@ const adminRoutes = require('./adminRoutes');
 const spaceRoutes = require('./spaceRoutes');
 const landingRoutes = require('./landingRoutes');
 const userRoutes = require('./userRoutes');
-const blogRoutes = require('./blogRoutes');  // ← ADD THIS
+const blogRoutes = require('./blogRoutes');
 const { Analytics } = require('@/api/v1/models');
 const emailController = require('@/api/v1/controllers/emailController');
 const chatController = require('@/api/v1/controllers/chatController');
@@ -96,7 +96,7 @@ class ApiRouter {
         this.router.use('/admin', adminRoutes);
         this.router.use('/space', spaceRoutes);
         this.router.use('/user', userRoutes);
-        this.router.use('/blogs', blogRoutes);  // ← ADD THIS (mounts at /api/v1/blogs)
+        this.router.use('/blogs', blogRoutes); 
         
         this.router.post('/chat/support', chatController.chatSupport);
         

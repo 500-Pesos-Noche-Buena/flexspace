@@ -74,7 +74,7 @@ const initQueues = async () => {
         console.log(`☁️ Cloudinary Queue: ${cloudinaryQueueReady ? '✅ READY' : '❌ OFFLINE'}`);
         console.log('====================================\n');
         
-        // Log queue stats after connections are established
+        // Log queue stats after connections
         if (emailQueueReady || cloudinaryQueueReady) {
             setTimeout(async () => {
                 try {
@@ -108,7 +108,7 @@ const initQueues = async () => {
     }
 };
 
-// Initialize queues (don't block server startup)
+// Initialize queues
 initQueues();
 
 const getLocalIp = () => {
