@@ -1,11 +1,6 @@
 const jwt = require('jsonwebtoken');
 const config = require('@/config/config');
 
-/**
- * Queue Dashboard Auth Middleware
- * Supports both Authorization header AND URL query parameter (?token=xxx)
- * This allows the Bull Dashboard's API calls to authenticate properly
- */
 const queueAuthMiddleware = (req, res, next) => {
     try {
         let token = null;
@@ -16,7 +11,7 @@ const queueAuthMiddleware = (req, res, next) => {
             token = authHeader.split(' ')[1];
         }
         
-        // If no header token, try query parameter (for Bull Board API calls)
+        // If no header token, try query parameter
         if (!token && req.query.token) {
             token = req.query.token;
             console.log('📊 Queue Dashboard: Using token from query parameter');

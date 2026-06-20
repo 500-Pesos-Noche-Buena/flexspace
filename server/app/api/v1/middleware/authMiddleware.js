@@ -6,7 +6,6 @@ const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 class AuthMiddleware {
     /**
      * Middleware to verify JWT.
-     * Exported as an arrow function to maintain scope.
      */
     handle = async (req, res, next) => {
         try {

@@ -5,7 +5,6 @@ const { hashPassword, comparePassword } = require('@/api/v1/utils/hash');
 const cloudinary = require('cloudinary').v2;
 const fs = require('fs');
 
-// Configure cloudinary
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
