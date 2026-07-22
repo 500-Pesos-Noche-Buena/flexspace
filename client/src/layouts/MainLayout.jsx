@@ -8,6 +8,7 @@ import ChatSupport from '@/components/ui/ChatSupport';
 import CookieConsent from '@/components/ui/CookieConsent';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { apiPost } from '@/utils/Api';
+import UserManual from '@/components/ui/UserManual';
 
 const MainLayout = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -213,6 +214,7 @@ const MainLayout = () => {
             </main>
 
             <ChatSupport />
+            <UserManual />
             <CookieConsent />
 
             <footer className="border-t border-slate-100 bg-white py-16 px-8 mt-auto">

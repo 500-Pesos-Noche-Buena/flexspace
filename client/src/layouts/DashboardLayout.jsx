@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { useTheme } from '@/hooks/useTheme';
 import { usePendingFees } from '@/hooks/usePendingFees'; // Add this
+import UserManual from '@/components/ui/UserManual';
 
 export default function DashboardLayout() {
     const { user: authUser, isAuthenticated, logout } = useAuth();
@@ -434,6 +435,9 @@ export default function DashboardLayout() {
                         )}
                     </div>
                 </header>
+
+                <UserManual />
+
 
                 <main className="px-4 lg:px-8 pb-8">
                     <Outlet />
