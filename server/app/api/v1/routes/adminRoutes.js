@@ -12,7 +12,7 @@ const insightsController = require('@/api/v1/controllers/admin/insightsControlle
 const queueController = require('@/api/v1/controllers/admin/queueController');
 const logsController = require('@/api/v1/controllers/admin/logsController');
 const districtController = require('@/api/v1/controllers/admin/location/districtController');
-// ADD THIS - Import Payment Controller for admin
+const ErrorLogController = require('@/api/v1/controllers/admin/errorLogController');
 const paymentController = require('@/api/v1/controllers/admin/paymentController');
 
 const { ActivityLog } = require('@/api/v1/models');
@@ -126,6 +126,14 @@ class AdminRoutes {
         // Add these routes for admin payment configuration
         this.router.get('/payment/key-status', auth, (req, res, next) => paymentController.getPaymentKeyStatus(req, res, next));
         this.router.post('/payment/keys/paymongo', auth, (req, res, next) => paymentController.savePayMongoKey(req, res, next));
+
+         // ============ ERROR LOGS ============
+        this.router.get('/error-logs', auth, ErrorLogController.index);
+        this.router.get('/error-logs/stats', auth, ErrorLogController.stats);
+        this.router.get('/error-logs/:id', auth, ErrorLogController.show);
+        this.router.put('/error-logs/:id/resolve', auth, ErrorLogController.resolve);
+        this.router.delete('/error-logs/cleanup', auth, ErrorLogController.cleanup);
+
     };
 
     getRouter = () => this.router;

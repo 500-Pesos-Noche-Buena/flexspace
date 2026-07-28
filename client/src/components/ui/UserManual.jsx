@@ -158,7 +158,7 @@ const UserManual = () => {
 
                     <div class="space-y-4">
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Click "Join Now" or "Sign Up"</h4>
                                 <p class="text-muted-foreground text-sm">Find the button in the top-right corner of the homepage.</p>
@@ -169,7 +169,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Fill in Your Details</h4>
                                 <ul class="text-muted-foreground text-sm space-y-1">
@@ -182,7 +182,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Verify Your Email</h4>
                                 <p class="text-muted-foreground text-sm">Check your inbox for a verification link. Click it to activate your account.</p>
@@ -219,7 +219,7 @@ const UserManual = () => {
 
                     <div class="space-y-4">
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Click "Sign In"</h4>
                                 <p class="text-muted-foreground text-sm">Find the button in the top-right corner of the homepage.</p>
@@ -227,7 +227,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Enter Your Credentials</h4>
                                 <ul class="text-muted-foreground text-sm space-y-1">
@@ -241,7 +241,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Click "Sign In"</h4>
                                 <p class="text-muted-foreground text-sm">You'll be redirected to your dashboard.</p>
@@ -276,7 +276,7 @@ const UserManual = () => {
 
                     <div class="space-y-4">
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Browse Available Spaces</h4>
                                 <p class="text-muted-foreground text-sm">Go to the <strong>Spaces</strong> page to see all available workspaces.</p>
@@ -288,7 +288,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Check Availability</h4>
                                 <p class="text-muted-foreground text-sm">Select your desired <strong>date and time</strong>.</p>
@@ -299,7 +299,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Confirm Your Booking</h4>
                                 <p class="text-muted-foreground text-sm">Review the details and click <strong>"Book Now"</strong>.</p>
@@ -311,7 +311,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">4</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">4</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Manage Your Booking</h4>
                                 <p class="text-muted-foreground text-sm">View, reschedule, or cancel from your dashboard.</p>
@@ -457,7 +457,7 @@ const UserManual = () => {
 
                     <div class="space-y-4">
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Go to "My Spaces"</h4>
                                 <p class="text-muted-foreground text-sm">Find it in your dashboard sidebar.</p>
@@ -465,7 +465,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Click "Add New Space"</h4>
                                 <p class="text-muted-foreground text-sm">Fill in all the details:</p>
@@ -480,7 +480,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Upload Photos</h4>
                                 <p class="text-muted-foreground text-sm">High-quality photos get more bookings.</p>
@@ -491,7 +491,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">4</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">4</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Submit for Approval</h4>
                                 <p class="text-muted-foreground text-sm">Our team will review and approve your space within 24-48 hours.</p>
@@ -673,7 +673,7 @@ const UserManual = () => {
 
                     <div class="space-y-4">
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Go to Staff Management</h4>
                                 <p class="text-muted-foreground text-sm">Find <strong>"Staff"</strong> in your dashboard sidebar.</p>
@@ -681,7 +681,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Click "Add Staff"</h4>
                                 <p class="text-muted-foreground text-sm">Enter the staff member's email address.</p>
@@ -689,7 +689,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Set Permissions</h4>
                                 <ul class="text-muted-foreground text-sm space-y-2">
@@ -727,7 +727,7 @@ const UserManual = () => {
 
                     <div class="space-y-4">
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">1</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Greet the Customer</h4>
                                 <p class="text-muted-foreground text-sm">Welcome them and ask about their needs.</p>
@@ -735,7 +735,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">2</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Check Availability</h4>
                                 <p class="text-muted-foreground text-sm">Check if the requested space is available.</p>
@@ -743,7 +743,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">3</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Process Booking</h4>
                                 <ul class="text-muted-foreground text-sm space-y-1">
@@ -755,7 +755,7 @@ const UserManual = () => {
                         </div>
 
                         <div class="bg-card rounded-xl p-5 border border-border flex gap-4 items-start">
-                            <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">4</div>
+                            <div class="shrink-0 w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg">4</div>
                             <div>
                                 <h4 class="text-foreground font-semibold mb-1">Show to Space</h4>
                                 <p class="text-muted-foreground text-sm">Escort the customer to their booked space.</p>
@@ -1045,7 +1045,7 @@ const UserManual = () => {
         return (
             <button
                 onClick={() => setIsOpen(true)}
-                className={`fixed bottom-6 ${positionClass} p-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-2xl shadow-primary/30 transition-all active:scale-95 z-[9999] group`}
+                className={`fixed bottom-6 ${positionClass} p-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-2xl shadow-primary/30 transition-all active:scale-95 z-9999 group`}
                 style={{ zIndex: 9999 }}
             >
                 <BookOpen className="w-6 h-6 group-hover:rotate-12 transition-transform" />
@@ -1057,7 +1057,7 @@ const UserManual = () => {
     // Main Modal - FULL WIDTH
     return (
         <div 
-            className={`fixed bottom-4 md:bottom-6 ${positionClass} w-[98vw] md:w-[95vw] lg:w-[90vw] xl:w-[85vw] max-w-7xl bg-background border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-300 overflow-hidden z-[9999] ${
+            className={`fixed bottom-4 md:bottom-6 ${positionClass} w-[98vw] md:w-[95vw] lg:w-[90vw] xl:w-[85vw] max-w-7xl bg-background border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-300 overflow-hidden z-9999 ${
                 isMinimized ? 'h-17.5' : 'h-[92vh] md:h-[88vh] max-h-[95vh]'
             }`}
             style={{ zIndex: 9999 }}
@@ -1065,7 +1065,7 @@ const UserManual = () => {
             {/* ===== HEADER ===== */}
             <div className="px-4 md:px-6 py-3 md:py-4 border-b border-border bg-card/50 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 md:w-10 md:h-10 bg-primary/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-primary/20 rounded-xl flex items-center justify-center shrink-0">
                         <BookOpen className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                     </div>
                     <div className="min-w-0">
@@ -1080,7 +1080,7 @@ const UserManual = () => {
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                     <button
                         onClick={() => setIsMinimized(!isMinimized)}
                         className="p-1.5 md:p-2 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground transition-colors"

@@ -5,7 +5,7 @@ import {
     ShoppingCart, Plus, Minus, Trash2, CreditCard,
     Banknote, QrCode, Search, Package, Coffee,
     Sandwich, Cookie, Users, Loader2, Percent, History, X, CheckCircle,
-    ExternalLink, Copy, Download, User, Smartphone, Receipt
+    ExternalLink, Copy, Download, User, Smartphone, Receipt, Calendar, Clock
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
@@ -52,6 +52,12 @@ const POS = () => {
     const [recentOrders, setRecentOrders] = useState([]);
     const [showHistory, setShowHistory] = useState(false);
     const [spaceId, setSpaceId] = useState(null);
+
+    // NEW: Customer search states
+    const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+    const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+    const [customerBookings, setCustomerBookings] = useState([]);
+    const [searchingCustomers, setSearchingCustomers] = useState(false);
 
     // QR and Payment states
     const [qrPaymentImage, setQrPaymentImage] = useState(null);
@@ -106,6 +112,54 @@ const POS = () => {
         }
     };
 
+    // NEW: Fetch customer bookings
+    const fetchCustomerBookings = async (searchTerm) => {
+        if (!searchTerm || searchTerm.length < 2) {
+            setCustomerBookings([]);
+            return;
+        }
+
+        setSearchingCustomers(true);
+        try {
+            const res = await apiGet(`/space/bookings?search=${encodeURIComponent(searchTerm)}&status=completed`);
+            if (res.success) {
+                const bookings = res.data?.bookings || [];
+                // Filter unique customers
+                const uniqueCustomers = bookings.reduce((acc, booking) => {
+                    const name = booking.user_id?.name || booking.guest_name || 'Guest';
+                    const key = name.toLowerCase().trim();
+                    if (!acc.find(c => c.name.toLowerCase().trim() === key)) {
+                        acc.push({
+                            name: name,
+                            email: booking.user_id?.email || booking.guest_email,
+                            phone: booking.user_id?.phone || booking.guest_phone,
+                            bookingId: booking._id,
+                            lastVisit: booking.created_at,
+                            totalSpent: booking.total_amount || 0
+                        });
+                    }
+                    return acc;
+                }, []);
+                setCustomerBookings(uniqueCustomers);
+            } else {
+                setCustomerBookings([]);
+            }
+        } catch (err) {
+            console.error('Failed to fetch customer bookings:', err);
+            setCustomerBookings([]);
+        } finally {
+            setSearchingCustomers(false);
+        }
+    };
+
+    const selectCustomer = (customer) => {
+        setCustomerName(customer.name);
+        setShowCustomerSearch(false);
+        setCustomerSearchTerm('');
+        setCustomerBookings([]);
+        showToast({ icon: 'success', title: `Customer selected: ${customer.name}` });
+    };
+
     useEffect(() => {
         const fetchSpaceId = async () => {
             try {
@@ -136,6 +190,19 @@ const POS = () => {
             };
         }
     }, [showPaymentQR, currentOrderId]);
+
+    // NEW: Debounce customer search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (customerSearchTerm.length >= 2) {
+                fetchCustomerBookings(customerSearchTerm);
+            } else {
+                setCustomerBookings([]);
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [customerSearchTerm]);
 
     const checkPayMongoStatus = async () => {
         try {
@@ -682,7 +749,7 @@ const POS = () => {
                                     <p className="text-foreground font-bold text-sm truncate">{product.name}</p>
                                     <p className={`text-${color}-400 font-bold text-xs`}>₱{product.price}</p>
 
-                                    {/* ADD THIS - Profit Display */}
+                                    {/* Profit Display */}
                                     {product.purchase_price > 0 && (
                                         (() => {
                                             const profitPerUnit = (product.price || 0) - (product.purchase_price || 0);
@@ -912,18 +979,113 @@ const POS = () => {
             <Modal open={paymentModal} onClose={() => { setPaymentModal(false); setShowPaymentLink(false); }} title="Complete Payment" size="lg">
                 {!showPaymentLink ? (
                     <div className="space-y-6">
-                        {/* Customer Name Input */}
-                        <div>
+                        {/* Customer Name Input with Search */}
+                        <div className="relative">
                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-2">
                                 <User size={12} /> Customer Name
                             </label>
-                            <input
-                                type="text"
-                                value={customerName}
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                placeholder="Enter customer name"
-                                className="w-full mt-2 px-4 py-3 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground focus:border-primary outline-none transition-all"
-                            />
+                            <div className="relative mt-2">
+                                <input
+                                    type="text"
+                                    value={customerName}
+                                    onChange={(e) => {
+                                        setCustomerName(e.target.value);
+                                        if (e.target.value.length >= 2) {
+                                            setShowCustomerSearch(true);
+                                            setCustomerSearchTerm(e.target.value);
+                                        } else {
+                                            setShowCustomerSearch(false);
+                                            setCustomerBookings([]);
+                                        }
+                                    }}
+                                    onFocus={() => {
+                                        if (customerName.length >= 2) {
+                                            setShowCustomerSearch(true);
+                                            setCustomerSearchTerm(customerName);
+                                        }
+                                    }}
+                                    placeholder="Enter customer name or search from bookings"
+                                    className="w-full px-4 py-3 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground focus:border-primary outline-none transition-all pr-10"
+                                />
+                                <button
+                                    onClick={() => {
+                                        setShowCustomerSearch(!showCustomerSearch);
+                                        if (!showCustomerSearch && customerName.length >= 2) {
+                                            setCustomerSearchTerm(customerName);
+                                            fetchCustomerBookings(customerName);
+                                        }
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    <Search size={16} />
+                                </button>
+                            </div>
+
+                            {/* Customer Search Results Dropdown */}
+                            {showCustomerSearch && (
+                                <div className="absolute z-50 mt-2 w-full bg-card border border-border rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                                    {searchingCustomers ? (
+                                        <div className="p-4 text-center">
+                                            <Loader2 size={20} className="animate-spin mx-auto text-primary" />
+                                            <p className="text-[10px] text-muted-foreground mt-2">Searching customers...</p>
+                                        </div>
+                                    ) : customerBookings.length > 0 ? (
+                                        <div>
+                                            {customerBookings.map((customer, index) => (
+                                                <button
+                                                    key={index}
+                                                    onClick={() => selectCustomer(customer)}
+                                                    className="w-full p-3 hover:bg-muted transition-colors text-left border-b border-border last:border-0 flex items-start gap-3"
+                                                >
+                                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                                                        <User size={16} className="text-primary" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-foreground font-bold text-sm truncate">{customer.name}</p>
+                                                        <div className="flex flex-wrap gap-2 mt-1">
+                                                            {customer.email && (
+                                                                <span className="text-[8px] text-muted-foreground">{customer.email}</span>
+                                                            )}
+                                                            {customer.phone && (
+                                                                <span className="text-[8px] text-muted-foreground">{customer.phone}</span>
+                                                            )}
+                                                            <span className="text-[8px] text-primary font-bold">
+                                                                ₱{customer.totalSpent.toFixed(2)} spent
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[8px] text-muted-foreground mt-1 flex items-center gap-1">
+                                                            <Calendar size={8} />
+                                                            Last visit: {formatDate(customer.lastVisit)}
+                                                        </p>
+                                                    </div>
+                                                    <div className="shrink-0">
+                                                        <CheckCircle size={14} className="text-emerald-500" />
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : customerSearchTerm.length >= 2 ? (
+                                        <div className="p-4 text-center">
+                                            <Users size={24} className="mx-auto text-muted-foreground mb-2" />
+                                            <p className="text-sm text-foreground font-bold">No customers found</p>
+                                            <p className="text-[10px] text-muted-foreground">Try a different search term</p>
+                                            <button
+                                                onClick={() => {
+                                                    setShowCustomerSearch(false);
+                                                    setCustomerName(customerSearchTerm);
+                                                }}
+                                                className="mt-3 text-xs text-primary font-bold hover:underline"
+                                            >
+                                                Use "{customerSearchTerm}" as customer name
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 text-center">
+                                            <p className="text-[10px] text-muted-foreground">Type at least 2 characters to search</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Payment Method Selection */}

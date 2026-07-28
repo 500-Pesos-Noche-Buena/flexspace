@@ -30,6 +30,7 @@ const ProfileIndex = () => {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showPaymentConfigModal, setShowPaymentConfigModal] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Form States with validation
     const [formData, setFormData] = useState({ name: '', email: '' });
@@ -428,40 +429,38 @@ const ProfileIndex = () => {
                             error={passwordErrors.current_password}
                         />
 
-                        <div>
-                            <div className="relative">
-                                <FormInput
-                                    label="New Password"
-                                    name="new_password"
-                                    type={showNewPassword ? "text" : "password"}
-                                    value={passwordData.new_password}
-                                    onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                                    onBlur={() => handlePasswordBlur('new_password')}
-                                    required={true}
-                                    placeholder="••••••••"
-                                    touched={passwordTouched.new_password}
-                                    error={passwordErrors.new_password}
-                                />
+                        <FormInput
+                            label="New Password"
+                            name="new_password"
+                            type={showNewPassword ? "text" : "password"}
+                            value={passwordData.new_password}
+                            onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                            onBlur={() => handlePasswordBlur('new_password')}
+                            required={true}
+                            placeholder="••••••••"
+                            touched={passwordTouched.new_password}
+                            error={passwordErrors.new_password}
+                            endAdornment={
                                 <button
                                     type="button"
                                     onClick={() => setShowNewPassword(!showNewPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                    className="text-muted-foreground hover:text-foreground transition-colors"
                                 >
-                                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
-                            </div>
+                            }
+                        />
 
-                            {passwordTouched.new_password && passwordData.new_password && !passwordErrors.new_password && (
-                                <div className="mt-2 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                                    <p className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">✓ Password meets requirements</p>
-                                </div>
-                            )}
-                        </div>
+                        {passwordTouched.new_password && passwordData.new_password && !passwordErrors.new_password && (
+                            <div className="mt-2 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                                <p className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">✓ Password meets requirements</p>
+                            </div>
+                        )}
 
                         <FormInput
                             label="Confirm New Password"
                             name="confirm_password"
-                            type="password"
+                            type={showConfirmPassword ? "text" : "password"}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             onBlur={() => handlePasswordBlur('confirm_password')}
@@ -469,6 +468,15 @@ const ProfileIndex = () => {
                             placeholder="••••••••"
                             touched={passwordTouched.confirm_password}
                             error={passwordErrors.confirm_password}
+                            endAdornment={
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            }
                         />
 
                         {/* Password strength meter */}

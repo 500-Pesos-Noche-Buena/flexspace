@@ -30,7 +30,8 @@ export const FormInput = ({
     max,
     maxLength,
     step,
-    className = ""
+    className = "",
+    endAdornment = null // ← NEW: For eye button or other elements
 }) => {
     // Built-in validation for numeric fields
     const getValidationError = (val) => {
@@ -94,29 +95,42 @@ export const FormInput = ({
                     </span>
                 )}
             </label>
-            <input
-                type={type}
-                name={name}
-                value={value}
-                onChange={handleChange}
-                onBlur={onBlur}
-                placeholder={placeholder}
-                readOnly={readOnly}
-                min={min !== undefined ? min : 0}
-                max={max}
-                maxLength={maxLength}
-                step={step}
-                className={cn(
-                    "w-full mt-2 px-4 py-3 rounded-2xl",
-                    "bg-background border",
-                    "text-foreground placeholder:text-muted-foreground",
-                    "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary",
-                    "transition-all text-sm font-bold",
-                    displayError ? 'border-red-500 dark:border-red-400' : 'border-border',
-                    readOnly && 'opacity-70 cursor-not-allowed',
-                    className
+            
+            {/* Input wrapper with relative positioning */}
+            <div className="relative mt-2">
+                <input
+                    type={type}
+                    name={name}
+                    value={value}
+                    onChange={handleChange}
+                    onBlur={onBlur}
+                    placeholder={placeholder}
+                    readOnly={readOnly}
+                    min={min !== undefined ? min : 0}
+                    max={max}
+                    maxLength={maxLength}
+                    step={step}
+                    className={cn(
+                        "w-full px-4 py-3 rounded-2xl",
+                        "bg-background border",
+                        "text-foreground placeholder:text-muted-foreground",
+                        "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                        "transition-all text-sm font-bold",
+                        displayError ? 'border-red-500 dark:border-red-400' : 'border-border',
+                        readOnly && 'opacity-70 cursor-not-allowed',
+                        endAdornment && 'pr-12', // ← Add padding when endAdornment exists
+                        className
+                    )}
+                />
+                
+                {/* Render endAdornment inside the relative container */}
+                {endAdornment && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {endAdornment}
+                    </div>
                 )}
-            />
+            </div>
+            
             <ValidationError error={displayError} touched={touched} />
         </div>
     );

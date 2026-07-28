@@ -7,9 +7,9 @@ import { cn } from '@/utils/cn';
 const ValidationError = ({ error, touched }) => {
     if (!error || !touched) return null;
     return (
-        <div className="text-red-500 dark:text-red-400 text-[10px] mt-1 flex items-center gap-1">
-            <AlertCircle size={10} />
-            <span>{error}</span>
+        <div className="text-red-500 dark:text-red-400 text-xs mt-1 flex items-center gap-1">
+            <AlertCircle size={12} />
+            <span className="font-medium">{error}</span>
         </div>
     );
 };
@@ -21,7 +21,7 @@ export const AmenitiesSelector = ({
     error, 
     touched,
     label = "Amenities & Services",
-    maxLength = 20
+    maxLength = 30
 }) => {
     const [inputValue, setInputValue] = useState('');
     const [inputError, setInputError] = useState('');
@@ -82,48 +82,51 @@ export const AmenitiesSelector = ({
     const isAtLimit = currentLength >= maxLength;
 
     return (
-        <div className="bg-linear-to-br from-muted/50 to-muted/80 rounded-2xl p-4 sm:p-6 border border-border">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
-                <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                        <span className="text-sm sm:text-base">✨</span>
+        <div className="bg-linear-to-br from-muted/50 to-muted/80 rounded-2xl p-5 sm:p-7 border border-border">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5 sm:mb-7">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                        <span className="text-base sm:text-lg">✨</span>
                     </div>
-                    <h3 className="text-xs sm:text-sm font-black text-foreground uppercase tracking-tighter">
+                    <h3 className="text-sm sm:text-base font-black text-foreground uppercase tracking-tighter">
                         {label}
                     </h3>
                 </div>
-                <span className="text-[8px] sm:text-[9px] text-muted-foreground">
+                <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
                     Click on any amenity to remove it
                 </span>
             </div>
 
+            {/* Current Amenities */}
             {amenities.length > 0 && (
-                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
-                    <p className="text-[8px] sm:text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 sm:mb-3">
+                <div className="mb-5 sm:mb-7 p-4 sm:p-5 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
+                    <p className="text-[10px] sm:text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3 sm:mb-4">
                         ✓ Current Amenities ({amenities.length})
                     </p>
-                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    <div className="flex flex-wrap gap-2 sm:gap-2.5">
                         {amenities.map((amenity, idx) => (
                             <span
                                 key={idx}
                                 onClick={() => onRemove(amenity)}
-                                className="group inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-medium cursor-pointer hover:bg-red-500/30 hover:text-red-600 dark:hover:text-red-300 transition-all"
+                                className="group inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium cursor-pointer hover:bg-red-500/30 hover:text-red-600 dark:hover:text-red-300 transition-all"
                             >
                                 <span className="max-w-37.5 truncate">{amenity}</span>
-                                <X size={10} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                <X size={14} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                             </span>
                         ))}
                     </div>
                 </div>
             )}
 
+            {/* Add New Amenity */}
             <div>
-                <div className="flex justify-between items-center mb-2">
-                    <label className="text-[8px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-wider">
+                <div className="flex justify-between items-center mb-2.5">
+                    <label className="text-[10px] sm:text-xs font-black text-muted-foreground uppercase tracking-wider">
                         Add New Amenity
                     </label>
                     <span className={cn(
-                        "text-[8px] font-mono",
+                        "text-[10px] sm:text-xs font-mono font-bold",
                         isAtLimit ? 'text-red-500 dark:text-red-400' : 
                         isNearLimit ? 'text-amber-600 dark:text-amber-400' : 
                         'text-muted-foreground'
@@ -131,7 +134,7 @@ export const AmenitiesSelector = ({
                         {currentLength}/{maxLength}
                     </span>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-col sm:flex-row gap-3">
                     <div className="flex-1">
                         <input
                             type="text"
@@ -142,10 +145,10 @@ export const AmenitiesSelector = ({
                             placeholder={`Type any amenity (max ${maxLength} chars)...`}
                             maxLength={maxLength}
                             className={cn(
-                                "w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl",
-                                "bg-background border",
+                                "w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl",
+                                "bg-background border-2",
                                 "text-foreground placeholder:text-muted-foreground",
-                                "text-xs sm:text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                                "text-sm sm:text-base font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20",
                                 "transition-all",
                                 (inputError && isTouched) || isAtLimit 
                                     ? 'border-red-500 dark:border-red-400' 
@@ -153,7 +156,7 @@ export const AmenitiesSelector = ({
                             )}
                         />
                         {currentLength > 0 && (
-                            <div className="mt-1 h-0.5 w-full bg-muted rounded-full overflow-hidden">
+                            <div className="mt-1.5 h-1 w-full bg-muted rounded-full overflow-hidden">
                                 <div 
                                     className={cn(
                                         "h-full transition-all duration-300 rounded-full",
@@ -170,20 +173,21 @@ export const AmenitiesSelector = ({
                         type="button"
                         onClick={handleAdd}
                         disabled={isAtLimit}
-                        className="px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-[11px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 sm:px-8 py-3 sm:py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm sm:text-base font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-900/20"
                     >
                         + Add
                     </button>
                 </div>
                 <ValidationError error={inputError} touched={isTouched} />
-                <p className="text-[7px] sm:text-[8px] text-muted-foreground mt-1.5 sm:mt-2">
+                <p className="text-[9px] sm:text-xs text-muted-foreground mt-2 sm:mt-2.5">
                     💡 Tip: You can add ANY amenity - be specific! (Max {maxLength} characters)
                 </p>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-border">
-                <p className="text-[7px] sm:text-[8px] text-muted-foreground mb-2">Quick add examples:</p>
-                <div className="flex flex-wrap gap-1">
+            {/* Quick Add Examples */}
+            <div className="mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-border">
+                <p className="text-[10px] sm:text-xs font-bold text-muted-foreground mb-3 sm:mb-4">Quick add examples:</p>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {quickAdds.map(ex => {
                         const isTooLong = ex.length > maxLength;
                         const displayText = isTooLong ? ex.substring(0, maxLength - 3) + '…' : ex;
@@ -215,17 +219,18 @@ export const AmenitiesSelector = ({
                                     showToast({ icon: 'success', title: `Added "${displayText}"`, duration: 800 });
                                 }}
                                 className={cn(
-                                    "text-[7px] sm:text-[8px] px-1.5 sm:px-2 py-1 rounded-full transition-all flex items-center gap-1",
+                                    "px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full transition-all flex items-center gap-1.5",
+                                    "text-[11px] sm:text-sm font-medium",
                                     isAlreadyAdded
                                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-60'
-                                        : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+                                        : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground hover:shadow-md'
                                 )}
                                 disabled={isAlreadyAdded}
                             >
                                 {isAlreadyAdded ? (
-                                    <Check size={8} className="text-emerald-600 dark:text-emerald-400" />
+                                    <Check size={14} className="text-emerald-600 dark:text-emerald-400" />
                                 ) : (
-                                    <span className="text-[8px]">+</span>
+                                    <span className="text-xs sm:text-sm font-bold">+</span>
                                 )}
                                 {displayText}
                             </button>

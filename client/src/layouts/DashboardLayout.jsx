@@ -5,7 +5,7 @@ import {
     ShoppingCart, Receipt, ChevronLeft, LogOut, User,
     DollarSign,
     Package,
-    ClipboardList,
+    ClipboardList, Bug, 
     Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity, Star, Database, CreditCard
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
@@ -145,7 +145,17 @@ export default function DashboardLayout() {
     }, [authUser?.role]);
 
     const isRouteActive = useCallback((path) => {
-        return location.pathname === path || location.pathname.startsWith(path + "/");
+        if (location.pathname === path) return true;
+        
+        const pathSegments = location.pathname.split('/').filter(Boolean);
+        const targetSegments = path.split('/').filter(Boolean);
+        
+        if (targetSegments.length < pathSegments.length) {
+            const matches = targetSegments.every((seg, i) => seg === pathSegments[i]);
+            return matches && pathSegments.length === targetSegments.length;
+        }
+        
+        return false;
     }, [location.pathname]);
 
     const handleLogout = async () => {
@@ -228,6 +238,7 @@ export default function DashboardLayout() {
                 title: "System",
                 items: [
                     { href: "/admin/logs", active: isRouteActive("/admin/logs"), icon: <History />, label: "Activity Logs" },
+                    { href: "/admin/logs/errors", active: isRouteActive("/admin/logs/errors"), icon: <Bug />, label: "Activity Logs Errors" },
                     { href: "/admin/queues", active: isRouteActive("/admin/queue"), icon: <Database />, label: "Queue Monitor" },
                 ],
             });

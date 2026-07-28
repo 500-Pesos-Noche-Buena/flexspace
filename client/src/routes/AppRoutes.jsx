@@ -34,6 +34,7 @@ import AdminVoucher from '@/pages/Admin/Voucher/Index';
 import Insights from '@/pages/Admin/Insights/Index';
 import QueueDashboard from '@/pages/Admin/Queue/Index';
 import Logs from '@/pages/Admin/Logs/Index';
+import ErrorLogs from '@/pages/Admin/Logs/ErrorLogs';
 import Location from '@/pages/Admin/Locations/Index';
 
 import SpaceDashboard from '@/pages/Space/Dashboard/Index';
@@ -118,6 +119,7 @@ export const AppRoutes = () => {
                     <Route path="insights" element={<Insights />} />
                     <Route path="queues" element={<QueueDashboard />} />
                     <Route path="logs" element={<Logs />} />
+                    <Route path="logs/errors" element={<ErrorLogs />} />
                     <Route path="locations" element={<Location />} />
                 </Route>
 

@@ -4,6 +4,16 @@ import { FormInput } from '@/components/FormValidation';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 
+// Helper to generate slug from name
+const generateSlug = (name) => {
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+};
+
 export const DistrictModal = ({ 
     isOpen, 
     onClose, 
@@ -14,7 +24,7 @@ export const DistrictModal = ({
     isSubmitting = false
 }) => {
     const { themeColor } = useTheme();
-    const [touched, setTouched] = useState({ name: false, code: false });
+    const [touched, setTouched] = useState({ name: false, slug: false });
     const [errors, setErrors] = useState({});
 
     const getButtonColor = () => {
@@ -34,6 +44,9 @@ export const DistrictModal = ({
         if (!formData.name || !formData.name.trim()) {
             newErrors.name = 'District name is required';
         }
+        if (formData.slug && !/^[a-z0-9-]+$/.test(formData.slug)) {
+            newErrors.slug = 'Slug can only contain lowercase letters, numbers, and hyphens';
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -41,6 +54,12 @@ export const DistrictModal = ({
     const handleBlur = (e) => {
         const { name } = e.target;
         setTouched(prev => ({ ...prev, [name]: true }));
+        
+        // Auto-generate slug from name when name field is blurred and no slug is set
+        if (name === 'name' && !editingItem && !formData.slug) {
+            const slug = generateSlug(formData.name);
+            setFormData(prev => ({ ...prev, slug }));
+        }
     };
 
     const handleChange = (e) => {
@@ -73,21 +92,21 @@ export const DistrictModal = ({
                     maxLength={50}
                 />
                 
-                <div>
-                    <label className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
-                        Code (Optional)
-                    </label>
-                    <input
-                        type="text"
-                        name="code"
-                        value={formData.code}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        placeholder="e.g., MOL, JAR, CTP"
-                        className="w-full mt-2 px-4 py-3 rounded-2xl bg-background border border-border text-foreground focus:border-primary transition-all outline-none uppercase placeholder:text-muted-foreground"
-                    />
-                    <p className="text-[7px] text-muted-foreground/60 mt-1 ml-1">Auto-generated from name if left empty</p>
-                </div>
+                <FormInput
+                    label="Slug (URL friendly)"
+                    name="slug"
+                    value={formData.slug}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    required={true}
+                    placeholder="e.g., molo, jaro, city-proper"
+                    touched={touched.slug}
+                    error={errors.slug}
+                    maxLength={50}
+                />
+                <p className="text-[7px] text-muted-foreground/60 mt-[-8px] ml-1">
+                    Auto-generated from name. Only lowercase letters, numbers, and hyphens.
+                </p>
 
                 <div className="flex gap-3 pt-4">
                     <button

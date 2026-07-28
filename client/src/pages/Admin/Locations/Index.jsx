@@ -10,6 +10,16 @@ import { cn } from '@/utils/cn';
 import { useTheme } from '@/hooks/useTheme';
 import { DistrictModal } from '@/components/modal';
 
+// Helper to generate slug from name
+const generateSlug = (name) => {
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '') // Remove special characters
+        .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+        .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+};
+
 const AdminLocations = () => {
     const { themeColor } = useTheme();
     const [districts, setDistricts] = useState([]);
@@ -18,7 +28,7 @@ const AdminLocations = () => {
     const [openModal, setOpenModal] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [formData, setFormData] = useState({ name: '', code: '' });
+    const [formData, setFormData] = useState({ name: '', slug: '' });
 
     const getButtonColor = () => {
         const colors = {
@@ -53,9 +63,12 @@ const AdminLocations = () => {
     const handleSave = async () => {
         setIsSubmitting(true);
         try {
+            // Generate slug from name if not provided
+            const slug = formData.slug || generateSlug(formData.name);
+            
             const data = {
                 name: formData.name,
-                code: formData.code.toUpperCase() || formData.name.substring(0, 3).toUpperCase()
+                slug: slug // Always send slug
             };
 
             if (editingItem) {
@@ -96,13 +109,16 @@ const AdminLocations = () => {
 
     const handleEdit = (item) => {
         setEditingItem(item);
-        setFormData({ name: item.name, code: item.code || '' });
+        setFormData({ 
+            name: item.name, 
+            slug: item.slug || '' 
+        });
         setOpenModal(true);
     };
 
     const resetForm = () => {
         setEditingItem(null);
-        setFormData({ name: '', code: '' });
+        setFormData({ name: '', slug: '' });
     };
 
     return (
@@ -143,7 +159,7 @@ const AdminLocations = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Active Districts</p>
-                            <p className="text-2xl font-[1000] italic mt-1 text-emerald-600 dark:text-emerald-400">{districts.filter(d => d.isActive !== false).length}</p>
+                            <p className="text-2xl font-[1000] italic mt-1 text-emerald-600 dark:text-emerald-400">{districts.filter(d => d.active !== false).length}</p>
                         </div>
                         <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
                             <CheckCircle size={18} className="text-muted-foreground" />
@@ -186,8 +202,8 @@ const AdminLocations = () => {
                                         </div>
                                         <div>
                                             <h3 className="text-sm font-black text-foreground">{item.name}</h3>
-                                            {item.code && (
-                                                <p className="text-[8px] font-mono text-muted-foreground mt-0.5">{item.code}</p>
+                                            {item.slug && (
+                                                <p className="text-[8px] font-mono text-muted-foreground mt-0.5">/{item.slug}</p>
                                             )}
                                         </div>
                                     </div>

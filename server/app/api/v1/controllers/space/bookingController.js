@@ -19,15 +19,54 @@ class BookingController {
         return userId;
     };
 
+    // Add this helper method to get the spaces a user can access
+    getAccessibleSpaceIds = async (req) => {
+        const userId = req.user?.sub || req.user?._id || req.user?.id;
+        const user = req.user;
+
+        // If user is staff, get their assigned space
+        if (user?.role === 'staff') {
+            // Check if staff has a direct space assignment
+            const staffUser = await User.findById(userId).select('space_id parent_id');
+
+            if (staffUser?.space_id) {
+                // Staff is directly assigned to a space
+                return [staffUser.space_id];
+            }
+
+            if (staffUser?.parent_id) {
+                // Staff belongs to a space owner, get all their spaces
+                const userSpaces = await Space.find({ user_id: staffUser.parent_id }).select('_id');
+                return userSpaces.map(s => s._id);
+            }
+
+            // Fallback: no assigned space
+            return [];
+        }
+
+        // If user is owner/admin, get all their spaces
+        const userSpaces = await Space.find({ user_id: userId }).select('_id');
+        return userSpaces.map(s => s._id);
+    };
+
     index = async (req, res, next) => {
         try {
-            // Use the helper to get the parent ID if staff
-            const ownerId = await this.getOwnerId(req);
             const { search = '', status = '', type = 'all', page = 1, limit = 10 } = req.query;
 
-            // Find spaces belonging to the parent owner
-            const userSpaces = await Space.find({ user_id: ownerId }).select('_id');
-            const spaceIds = userSpaces.map(s => s._id);
+            // Get accessible space IDs based on user role
+            const spaceIds = await this.getAccessibleSpaceIds(req);
+
+            // If user has no accessible spaces, return empty
+            if (spaceIds.length === 0) {
+                return res.status(HTTP_STATUS.OK).json({
+                    success: true,
+                    data: {
+                        bookings: [], total: 0, stats: {
+                            total: 0, pending: 0, active: 0, online: 0, walkin: 0, revenue: 0
+                        }
+                    }
+                });
+            }
 
             let query = { space_id: { $in: spaceIds } };
             if (status) query.status = status;
@@ -39,22 +78,26 @@ class BookingController {
                 ];
             }
 
+            // Log for debugging
+            console.log(`🔍 Fetching bookings for spaces: ${spaceIds.length} spaces, Query:`, JSON.stringify(query));
+
             const bookings = await Booking.find(query)
                 .populate({
                     path: 'space_id',
                     select: 'name rate_hour qr_payment_image user_id',
                     populate: {
                         path: 'user_id',
-                        select: 'name email business_payment_qr payment_methods'  // This gets the QR from user
+                        select: 'name email business_payment_qr payment_methods'
                     }
                 })
                 .populate('user_id', 'name email')
                 .sort({ created_at: -1 })
-                .limit(limit * 1).skip((page - 1) * limit);
+                .limit(limit * 1)
+                .skip((page - 1) * limit);
 
             const total = await Booking.countDocuments(query);
 
-            // Stats logic remains focused on the parent's spaces
+            // Stats logic
             const stats = {
                 total,
                 pending: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'pending' }),
@@ -78,6 +121,7 @@ class BookingController {
                 data: { bookings, total, stats }
             });
         } catch (error) {
+            console.error('❌ Error in index:', error);
             next(error);
         }
     };

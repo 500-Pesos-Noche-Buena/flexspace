@@ -15,6 +15,7 @@ const Room = require('./schema/Room');
 const Blog = require('./schema/Blog');
 const Order = require('./schema/Order');
 const Product = require('./schema/Product');
+const ErrorLog = require('./schema/ErrorLog');
 
 module.exports = {
     User,
@@ -33,5 +34,6 @@ module.exports = {
     Room,
     Blog,
     Order,
-    Product
+    Product,
+    ErrorLog,
 };

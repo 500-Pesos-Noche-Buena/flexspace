@@ -1,6 +1,7 @@
 const ApiError = require('@/api/v1/utils/ApiError');
 const logger = require('@/api/v1/utils/logger');
-const { HTTP_STATUS } = require('@/api/v1/utils/constants'); 
+const { HTTP_STATUS } = require('@/api/v1/utils/constants');
+const errorLogService = require('@/api/v1/services/errorLogService');
 
 const errorConverter = (err, req, res, next) => {
     let error = err;
@@ -9,7 +10,7 @@ const errorConverter = (err, req, res, next) => {
         const statusCode = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
         const message = error.message || 'Internal Server Error';
 
-        error = new ApiError(statusCode, message, false, err.stack); 
+        error = new ApiError(statusCode, message, false, err.stack);
     }
 
     next(error);
@@ -23,6 +24,9 @@ const errorHandler = (err, req, res, next) => {
     console.error(`Message: ${err.message}`);
     console.error(`Stack: ${err.stack}`);
     console.error('-----------------------');
+
+    // 🔥 LOG ERROR TO DATABASE (Async, don't await)
+    errorLogService.logBackendError(err, req).catch(() => {});
 
     if (statusCode >= 500 || !err.isOperational) {
         logger.error('Uncaught Exception details:', {
