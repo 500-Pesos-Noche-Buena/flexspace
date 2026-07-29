@@ -1,3 +1,4 @@
+// config/queue.js - FIXED
 const Queue = require('bull');
 const config = require('./config');
 
@@ -23,40 +24,23 @@ const cloudinaryQueue = new Queue('cloudinary-queue', {
             type: 'exponential',
             delay: 5000
         },
-        timeout: 60000, // Increased to 60s for Iloilo upload speeds
+        timeout: 60000,
         removeOnComplete: 100,
         removeOnFail: 500
     }
 });
 
-/**
- * The "Artisan Retry" equivalent for Node.js
- * Call this to move jobs from 'failed' back to 'waiting'
- */
-const retryFailedJobs = async (queueName = 'cloudinary') => {
-    const queue = queueName === 'email' ? emailQueue : cloudinaryQueue;
-    const failedJobs = await queue.getFailed();
-    
-    if (failedJobs.length === 0) {
-        console.log(`✨ No failed jobs found in ${queueName} queue.`);
-        return;
-    }
-
-    console.log(`re-running ${failedJobs.length} failed jobs in ${queueName}...`);
-    await Promise.all(failedJobs.map(job => job.retry()));
-};
-
-// Optional: Add queue monitoring
+// ✅ FIX: Define setupQueueEvents function
 const setupQueueEvents = () => {
     // Basic Error Listeners
-    emailQueue.on('error', (error) => console.error('Email queue error:', error));
-    cloudinaryQueue.on('error', (error) => console.error('Cloudinary queue error:', error));
+    emailQueue.on('error', (error) => console.error('❌ Email queue error:', error));
+    cloudinaryQueue.on('error', (error) => console.error('❌ Cloudinary queue error:', error));
 
-    // DETAILED FAILURE LOGGING (This shows you the actual error)
+    // Detailed failure logging
     cloudinaryQueue.on('failed', (job, err) => {
         console.error(`\n❌ [FAILED JOB] Cloudinary ID: ${job.id}`);
-        console.error(`   Reason: ${err.message}`); 
-        console.error(`   Data:`, job.data); // Shows which file/params failed
+        console.error(`   Reason: ${err.message}`);
+        console.error(`   Data:`, JSON.stringify(job.data).substring(0, 200));
         console.error(`-----------------------------------------\n`);
     });
 
@@ -67,11 +51,35 @@ const setupQueueEvents = () => {
     // Activity logging
     emailQueue.on('completed', (job) => console.log(`✅ Email ${job.id} sent`));
     cloudinaryQueue.on('completed', (job) => console.log(`✅ Cloudinary ${job.id} uploaded`));
+
+    // Stalled jobs
+    cloudinaryQueue.on('stalled', (job) => {
+        console.warn(`⚠️ [STALLED] Cloudinary job ${job.id} stalled`);
+    });
+
+    emailQueue.on('stalled', (job) => {
+        console.warn(`⚠️ [STALLED] Email job ${job.id} stalled`);
+    });
 };
 
+// ✅ Add retryFailedJobs function
+const retryFailedJobs = async (queueName = 'cloudinary') => {
+    const queue = queueName === 'email' ? emailQueue : cloudinaryQueue;
+    const failedJobs = await queue.getFailed();
+    
+    if (failedJobs.length === 0) {
+        console.log(`✨ No failed jobs found in ${queueName} queue.`);
+        return;
+    }
+
+    console.log(`🔄 Re-running ${failedJobs.length} failed jobs in ${queueName}...`);
+    await Promise.all(failedJobs.map(job => job.retry()));
+};
+
+// ✅ Export everything
 module.exports = { 
     emailQueue, 
     cloudinaryQueue, 
     setupQueueEvents, 
-    retryFailedJobs // Exported for use in your controller or console
+    retryFailedJobs 
 };

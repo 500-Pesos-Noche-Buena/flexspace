@@ -1,11 +1,35 @@
-const { emailQueue, cloudinaryQueue, setupQueueEvents } = require('@/config/queue');
+// queues/worker.js - FIXED
+const { emailQueue, cloudinaryQueue } = require('@/config/queue');
+
+// ✅ Define setupQueueEvents here if not exported
+const setupQueueEvents = () => {
+    // Basic Error Listeners
+    emailQueue.on('error', (error) => console.error('❌ Email queue error:', error));
+    cloudinaryQueue.on('error', (error) => console.error('❌ Cloudinary queue error:', error));
+
+    cloudinaryQueue.on('failed', (job, err) => {
+        console.error(`\n❌ [FAILED JOB] Cloudinary ID: ${job.id}`);
+        console.error(`   Reason: ${err.message}`);
+        console.error(`   Data:`, JSON.stringify(job.data).substring(0, 200));
+        console.error(`-----------------------------------------\n`);
+    });
+
+    emailQueue.on('failed', (job, err) => {
+        console.error(`❌ [FAILED JOB] Email ID: ${job.id} | Reason: ${err.message}`);
+    });
+
+    emailQueue.on('completed', (job) => console.log(`✅ Email ${job.id} sent`));
+    cloudinaryQueue.on('completed', (job) => console.log(`✅ Cloudinary ${job.id} uploaded`));
+};
+
+// ✅ Call setupQueueEvents
+setupQueueEvents();
+
+// Import processors
 const emailProcessor = require('./emailProcessor');
 const cloudinaryProcessor = require('./cloudinaryProcessor');
 
-// Setup event listeners
-setupQueueEvents();
-
-// IMPORTANT: Add processors for specific job types
+// Email processors
 emailQueue.process('welcome-email', async (job) => {
     console.log(`Processing email job ${job.id}:`, job.data.type);
     return await emailProcessor(job);
@@ -26,7 +50,7 @@ emailQueue.process('password_reset', async (job) => {
     return await emailProcessor(job);
 });
 
-// Process ANY email job (fallback)
+// Fallback for any email job
 emailQueue.process('*', async (job) => {
     console.log(`Processing email job ${job.id} (fallback):`, job.data.type);
     return await emailProcessor(job);
@@ -43,7 +67,7 @@ cloudinaryQueue.process('delete', async (job) => {
     return await cloudinaryProcessor(job);
 });
 
-// Process ANY cloudinary job (fallback)
+// Fallback for any cloudinary job
 cloudinaryQueue.process('*', async (job) => {
     console.log(`Processing cloudinary job ${job.id} (fallback):`, job.data.action);
     return await cloudinaryProcessor(job);

@@ -1,3 +1,4 @@
+// upload.js - FIXED with better error handling
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -9,7 +10,6 @@ if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// Use disk storage (temporary files)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, tempDir);
@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage,
     limits: { 
-        fileSize: 50 * 1024 * 1024,
+        fileSize: 10 * 1024 * 1024, // Reduced to 10MB for better performance
         files: 10
     },
     fileFilter: (req, file, cb) => {
@@ -47,101 +47,90 @@ const upload = multer({
 
 const processUploadedFiles = async (req, res, next) => {
     try {
-        console.log('📸 req.files:', req.files);
-        console.log('Type of req.files:', typeof req.files);
-        console.log('Is array:', Array.isArray(req.files));
-        
-        // Check if files exist
         if (!req.files) {
-            console.log('No files found');
             req.cloudinaryUrls = {};
             return next();
         }
 
         const cloudinaryUrls = {};
 
-        // Handle array format (from upload.array)
+        // Helper function to upload with timeout
+        const uploadWithTimeout = async (file, folder) => {
+            const fileBuffer = fs.readFileSync(file.path);
+            
+            console.log(`📤 Uploading: ${file.originalname}, size: ${fileBuffer.length} bytes`);
+            
+            // Add to queue with timeout
+            const job = await cloudinaryQueue.add('upload', {
+                action: 'upload',
+                data: {
+                    fileBuffer: fileBuffer,
+                    folder: folder,
+                    filename: file.filename,
+                    originalname: file.originalname,
+                    fieldname: file.fieldname || 'images',
+                    mimetype: file.mimetype
+                }
+            });
+            
+            // Wait for job with timeout
+            const result = await Promise.race([
+                job.finished(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Upload timeout after 2 minutes')), 120000)
+                )
+            ]);
+            
+            // Clean up temp file
+            try {
+                fs.unlinkSync(file.path);
+            } catch (err) {
+                console.warn('Could not delete temp file:', err.message);
+            }
+            
+            return result.url;
+        };
+
+        // Handle array format
         if (Array.isArray(req.files)) {
-            console.log(`Processing ${req.files.length} files from array`);
             cloudinaryUrls.images = [];
             
+            // Upload one by one with error handling
             for (const file of req.files) {
-                // Read file as Buffer
-                const fileBuffer = fs.readFileSync(file.path);
-                
-                console.log(`📤 Uploading: ${file.originalname}, size: ${fileBuffer.length} bytes`);
-                
-                // Add to queue
-                const job = await cloudinaryQueue.add('upload', {
-                    action: 'upload',
-                    data: {
-                        fileBuffer: fileBuffer,
-                        folder: `coworking/images`,
-                        filename: file.filename,
-                        originalname: file.originalname,
-                        fieldname: 'images',
-                        mimetype: file.mimetype
-                    }
-                });
-                
-                // Wait for job to complete
-                const result = await job.finished();
-                
-                console.log(`✅ Uploaded: ${result.url}`);
-                
-                cloudinaryUrls.images.push(result.url);
-                
-                // Clean up temp file
                 try {
-                    fs.unlinkSync(file.path);
-                } catch (err) {
-                    console.error('Failed to delete temp file:', err);
+                    const url = await uploadWithTimeout(file, 'coworking/images');
+                    cloudinaryUrls.images.push(url);
+                    console.log(`✅ Uploaded: ${url}`);
+                } catch (error) {
+                    console.error(`❌ Failed to upload ${file.originalname}:`, error.message);
+                    // Continue with other files
+                    cloudinaryUrls.images.push(null);
                 }
             }
-        } 
-        // Handle object format (from upload.fields)
-        else if (typeof req.files === 'object' && req.files !== null) {
-            console.log('Processing object with fields:', Object.keys(req.files));
             
+            // Filter out failed uploads
+            cloudinaryUrls.images = cloudinaryUrls.images.filter(url => url !== null);
+        } 
+        // Handle object format
+        else if (typeof req.files === 'object' && req.files !== null) {
             for (const [fieldName, files] of Object.entries(req.files)) {
                 if (Array.isArray(files) && files.length > 0) {
                     cloudinaryUrls[fieldName] = [];
                     
                     for (const file of files) {
-                        const fileBuffer = fs.readFileSync(file.path);
-                        
-                        console.log(`📤 Uploading ${fieldName}: ${file.originalname}, size: ${fileBuffer.length} bytes`);
-                        
-                        const job = await cloudinaryQueue.add('upload', {
-                            action: 'upload',
-                            data: {
-                                fileBuffer: fileBuffer,
-                                folder: `coworking/${fieldName}`,
-                                filename: file.filename,
-                                originalname: file.originalname,
-                                fieldname: fieldName,
-                                mimetype: file.mimetype
-                            }
-                        });
-                        
-                        const result = await job.finished();
-                        
-                        console.log(`✅ Uploaded ${fieldName}: ${result.url}`);
-                        
-                        cloudinaryUrls[fieldName].push(result.url);
-                        
                         try {
-                            fs.unlinkSync(file.path);
-                        } catch (err) {
-                            console.error('Failed to delete temp file:', err);
+                            const url = await uploadWithTimeout(file, `coworking/${fieldName}`);
+                            cloudinaryUrls[fieldName].push(url);
+                            console.log(`✅ Uploaded ${fieldName}: ${url}`);
+                        } catch (error) {
+                            console.error(`❌ Failed to upload ${fieldName}:`, error.message);
+                            cloudinaryUrls[fieldName].push(null);
                         }
                     }
+                    
+                    cloudinaryUrls[fieldName] = cloudinaryUrls[fieldName].filter(url => url !== null);
                 }
             }
-        } else {
-            console.log('Unknown req.files format:', req.files);
-            req.cloudinaryUrls = {};
-            return next();
         }
         
         console.log('✅ All files uploaded successfully:', cloudinaryUrls);
