@@ -62,12 +62,11 @@ const BlogDetail = () => {
 
     const getCategoryBadge = (category) => {
         const badges = {
-            weekly_insights: { label: '📊 Weekly Insights', color: 'bg-indigo-100 text-indigo-700' },
-            most_booked: { label: '🔥 Most Booked', color: 'bg-orange-100 text-orange-700' },
-            top_revenue: { label: '💰 Top Revenue', color: 'bg-emerald-100 text-emerald-700' },
-            top_rated: { label: '⭐ Top Rated', color: 'bg-amber-100 text-amber-700' },
-            insights: { label: '📈 Insights', color: 'bg-purple-100 text-purple-700' },
-            trending: { label: '📈 Trending', color: 'bg-blue-100 text-blue-700' }
+            weekly_insights: { label: 'Weekly Insights', color: 'bg-indigo-100 text-indigo-700' },
+            most_booked: { label: 'Most Booked', color: 'bg-orange-100 text-orange-700' },
+            top_rated: { label: 'Top Rated', color: 'bg-amber-100 text-amber-700' },
+            insights: { label: 'Insights', color: 'bg-purple-100 text-purple-700' },
+            trending: { label: 'Trending', color: 'bg-blue-100 text-blue-700' }
         };
         return badges[category] || { label: category || 'Insights', color: 'bg-slate-100 text-slate-700' };
     };
@@ -98,7 +97,7 @@ const BlogDetail = () => {
                         <ArrowLeft size={16} />
                         Back to Blogs
                     </Link>
-                    
+
                     <div className="flex items-center justify-center gap-3 mb-4">
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/20 backdrop-blur-sm`}>
                             {category.label}
@@ -107,11 +106,11 @@ const BlogDetail = () => {
                             <Clock size={14} /> {readingTime} min read
                         </span>
                     </div>
-                    
+
                     <h1 className="text-3xl md:text-4xl lg:text-5xl font-black mb-4">
                         {blog.title}
                     </h1>
-                    
+
                     <div className="flex items-center justify-center gap-4 text-sm text-white/80">
                         <span className="flex items-center gap-1">
                             <User size={14} /> {blog.author}
@@ -131,14 +130,35 @@ const BlogDetail = () => {
                 {/* Language Badge */}
                 <div className="mb-8 flex justify-end">
                     <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                        {blog.language === 'hiligaynon' ? '💜 Hiligaynon' : blog.language === 'tagalog' ? '🇵🇭 Filipino' : '🇬🇧 English'}
+                        {blog.language === 'hiligaynon' ? 'Hiligaynon' : blog.language === 'tagalog' ? 'Filipino' : 'English'}
                     </span>
                 </div>
 
-                {/* Blog Content */}
-                <article className="prose prose-lg prose-indigo max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: blog.content }} />
-                </article>
+                {/* Blog Content — pure Tailwind spacing, no plugin required */}
+                <article
+                    className="
+                        max-w-none text-slate-700
+
+                        [&_h1]:hidden
+
+                        [&_h2]:text-xl [&_h2]:md:text-2xl [&_h2]:font-black [&_h2]:text-slate-900
+                        [&_h2]:mt-10 [&_h2]:mb-4 [&_h2]:first:mt-0
+
+                        [&_h3]:text-lg [&_h3]:font-bold [&_h3]:text-slate-900
+                        [&_h3]:mt-8 [&_h3]:mb-3
+
+                        [&_p]:text-base [&_p]:md:text-lg [&_p]:leading-relaxed
+                        [&_p]:mb-5 [&_p]:text-slate-600
+
+                        [&_ul]:my-5 [&_ul]:ml-5 [&_ul]:space-y-2
+                        [&_li]:list-disc [&_li]:text-base [&_li]:md:text-lg [&_li]:leading-relaxed [&_li]:text-slate-600
+
+                        [&_strong]:font-bold [&_strong]:text-slate-900
+
+                        [&_a]:text-indigo-600 [&_a]:font-semibold [&_a]:underline [&_a]:underline-offset-2
+                    "
+                    dangerouslySetInnerHTML={{ __html: blog.content }}
+                />
 
                 {/* Tags */}
                 {blog.tags && blog.tags.length > 0 && (

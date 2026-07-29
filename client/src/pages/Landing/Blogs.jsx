@@ -25,9 +25,9 @@ const Blogs = () => {
 
     // Language options
     const languages = [
-        { code: 'english', name: 'English', flag: '🇬🇧', label: 'English' },
-        { code: 'tagalog', name: 'Filipino', flag: '🇵🇭', label: 'Filipino' },
-        { code: 'hiligaynon', name: 'Hiligaynon', flag: '💜', label: 'Hiligaynon' }
+        { code: 'english', name: 'English', flag: <Globe size={14} />, label: 'English' },
+        { code: 'tagalog', name: 'Filipino', flag: <Globe size={14} />, label: 'Filipino' },
+        { code: 'hiligaynon', name: 'Hiligaynon', flag: <Globe size={14} />, label: 'Hiligaynon' }
     ];
 
     // Category options
@@ -35,7 +35,6 @@ const Blogs = () => {
         { id: 'all', name: 'All Posts', icon: <Sparkles size={14} /> },
         { id: 'weekly_insights', name: 'Weekly Insights', icon: <TrendingUp size={14} /> },
         { id: 'most_booked', name: 'Most Booked', icon: <Award size={14} /> },
-        { id: 'top_revenue', name: 'Top Revenue', icon: <Award size={14} /> },
         { id: 'top_rated', name: 'Top Rated', icon: <Star size={14} /> }
     ];
 
@@ -71,16 +70,15 @@ const Blogs = () => {
 
     const getLanguageLabel = (lang) => {
         const found = languages.find(l => l.code === lang);
-        return found ? `${found.flag} ${found.label}` : '🇬🇧 English';
+        return found ? found.label : 'English';
     };
 
     const getCategoryBadge = (category) => {
         const badges = {
             weekly_insights: { label: 'Weekly Insights', color: 'bg-indigo-100 text-indigo-700' },
-            most_booked: { label: '🔥 Most Booked', color: 'bg-orange-100 text-orange-700' },
-            top_revenue: { label: '💰 Top Revenue', color: 'bg-emerald-100 text-emerald-700' },
-            top_rated: { label: '⭐ Top Rated', color: 'bg-amber-100 text-amber-700' },
-            trending: { label: '📈 Trending', color: 'bg-purple-100 text-purple-700' }
+            most_booked: { label: 'Most Booked', color: 'bg-orange-100 text-orange-700' },
+            top_rated: { label: 'Top Rated', color: 'bg-amber-100 text-amber-700' },
+            trending: { label: 'Trending', color: 'bg-purple-100 text-purple-700' }
         };
         return badges[category] || { label: category || 'Insights', color: 'bg-slate-100 text-slate-700' };
     };
@@ -148,10 +146,12 @@ const Blogs = () => {
     return (
         <div className="min-h-screen bg-linear-to-b from-slate-50 to-white">
             {/* Hero Section */}
-            <div className="relative bg-linear-to-r from-indigo-600 via-purple-600 to-pink-600 text-white overflow-hidden">
-                <div className="absolute inset-0 bg-black/20"></div>
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+            <div className="relative bg-linear-to-r from-indigo-600 via-purple-600 to-pink-600 text-white">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute inset-0 bg-black/20"></div>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+                </div>
 
                 <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24">
                     <div className="text-center max-w-3xl mx-auto">
@@ -194,7 +194,6 @@ const Blogs = () => {
                                                     : 'hover:bg-slate-50 text-slate-700'
                                                 }`}
                                         >
-                                            <span className="text-base">{lang.flag}</span>
                                             {lang.label}
                                         </button>
                                     ))}
@@ -329,8 +328,7 @@ const Blogs = () => {
 
                                             {/* Language Badge */}
                                             <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                                {blog.language === 'hiligaynon' ? '💜' : blog.language === 'tagalog' ? '🇵🇭' : '🇬🇧'}
-                                                {blog.language === 'hiligaynon' ? ' Hiligaynon' : blog.language === 'tagalog' ? ' Filipino' : ' English'}
+                                                {blog.language === 'hiligaynon' ? 'Hiligaynon' : blog.language === 'tagalog' ? 'Filipino' : 'English'}
                                             </span>
                                         </div>
 

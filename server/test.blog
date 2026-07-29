@@ -1,0 +1,3 @@
+curl -X POST http://localhost:5000/api/v1/blogs/generate \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: flexspace-secret-key"
