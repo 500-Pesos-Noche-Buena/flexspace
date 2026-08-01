@@ -14,6 +14,8 @@ class ReviewController {
      * Get all reviews for spaces owned by the logged-in space owner
      * GET /api/v1/space/reviews
      */
+    // controllers/space/reviewController.js - getMySpaceReviews method
+
     async getMySpaceReviews(req, res, next) {
         try {
             const userId = this.getUserId(req);
@@ -46,23 +48,23 @@ class ReviewController {
                 });
             }
 
-            // Build query
-            let query = { 
+            // ✅ FIX: Include both approved and pending reviews
+            let query = {
                 space_id: { $in: spaceIds },
-                status: 'approved'
+                status: { $in: ['approved', 'pending'] }  // ← Include pending reviews
             };
-            
+
             if (spaceId) {
                 query.space_id = spaceId;
             }
-            
+
             if (rating && [1, 2, 3, 4, 5].includes(parseInt(rating))) {
                 query.rating = parseInt(rating);
             }
-            
+
             // Sorting options
             let sortOption = {};
-            switch(sort) {
+            switch (sort) {
                 case 'newest':
                     sortOption = { created_at: -1 };
                     break;
@@ -81,7 +83,7 @@ class ReviewController {
                 default:
                     sortOption = { created_at: -1 };
             }
-            
+
             const skip = (parseInt(page) - 1) * parseInt(limit);
             const reviews = await Review.find(query)
                 .populate('user_id', 'name email avatar')
@@ -91,30 +93,42 @@ class ReviewController {
                 .skip(skip)
                 .limit(parseInt(limit))
                 .lean();
-            
+
             const total = await Review.countDocuments(query);
-            
-            // Calculate stats
+
+            // ✅ FIX: Calculate stats including both approved AND pending reviews
             const statsData = await Review.aggregate([
-                { $match: { space_id: { $in: spaceIds }, status: 'approved' } },
-                { $group: { 
-                    _id: null, 
-                    avgRating: { $avg: '$rating' },
-                    totalReviews: { $sum: 1 }
-                } }
+                {
+                    $match: {
+                        space_id: { $in: spaceIds },
+                        status: { $in: ['approved', 'pending'] }  // ← Include pending in stats
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        avgRating: { $avg: '$rating' },
+                        totalReviews: { $sum: 1 }
+                    }
+                }
             ]);
-            
+
             const ratingBreakdown = await Review.aggregate([
-                { $match: { space_id: { $in: spaceIds }, status: 'approved' } },
+                {
+                    $match: {
+                        space_id: { $in: spaceIds },
+                        status: { $in: ['approved', 'pending'] }  // ← Include pending in breakdown
+                    }
+                },
                 { $group: { _id: '$rating', count: { $sum: 1 } } },
                 { $sort: { _id: 1 } }
             ]);
-            
+
             const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
             ratingBreakdown.forEach(item => {
                 breakdown[item._id] = item.count;
             });
-            
+
             const formattedReviews = reviews.map(review => ({
                 _id: review._id,
                 rating: review.rating,
@@ -128,6 +142,7 @@ class ReviewController {
                 created_at: review.created_at,
                 space: review.space_id,
                 booking: review.booking_id,
+                status: review.status,  // ← Add status to show in UI
                 customer: review.user_id ? {
                     name: review.user_id.name,
                     email: review.user_id.email,
@@ -163,7 +178,6 @@ class ReviewController {
             next(error);
         }
     }
-
     /**
      * Get reviews for a specific space
      * GET /api/v1/space/spaces/:spaceId/reviews
@@ -180,20 +194,20 @@ class ReviewController {
             }
 
             let query = { space_id: spaceId, status: 'approved' };
-            
+
             if (rating && [1, 2, 3, 4, 5].includes(parseInt(rating))) {
                 query.rating = parseInt(rating);
             }
-            
+
             let sortOption = {};
-            switch(sort) {
+            switch (sort) {
                 case 'newest': sortOption = { created_at: -1 }; break;
                 case 'oldest': sortOption = { created_at: 1 }; break;
                 case 'highest': sortOption = { rating: -1, created_at: -1 }; break;
                 case 'lowest': sortOption = { rating: 1, created_at: -1 }; break;
                 default: sortOption = { created_at: -1 };
             }
-            
+
             const skip = (parseInt(page) - 1) * parseInt(limit);
             const reviews = await Review.find(query)
                 .populate('user_id', 'name email avatar')
@@ -202,15 +216,15 @@ class ReviewController {
                 .skip(skip)
                 .limit(parseInt(limit))
                 .lean();
-            
+
             const total = await Review.countDocuments(query);
-            
+
             const ratingBreakdown = await Review.aggregate([
                 { $match: { space_id: new mongoose.Types.ObjectId(spaceId), status: 'approved' } },
                 { $group: { _id: '$rating', count: { $sum: 1 } } },
                 { $sort: { _id: 1 } }
             ]);
-            
+
             const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
             ratingBreakdown.forEach(item => {
                 breakdown[item._id] = item.count;
@@ -268,7 +282,7 @@ class ReviewController {
                 created_at: review.reply?.created_at || new Date(),
                 updated_at: new Date()
             };
-            
+
             await review.save();
 
             return res.status(HTTP_STATUS.OK).json({

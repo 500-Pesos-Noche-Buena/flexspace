@@ -16,6 +16,8 @@ const VoucherController = require('@/api/v1/controllers/space/voucherController'
 const ReviewController = require('@/api/v1/controllers/space/reviewController');
 const RoomController = require('@/api/v1/controllers/space/roomController');
 const POSController = require('@/api/v1/controllers/space/posController');
+const PublicReviewController = require('@/api/v1/controllers/reviewController');
+const TotalOrdersController = require('@/api/v1/controllers/space/totalOrdersController');
 
 class SpaceRoutes {
     constructor() {
@@ -25,6 +27,20 @@ class SpaceRoutes {
 
     initializeRoutes() {
         console.log('--- 🛡️ Initializing Space Routes ---');
+
+        this.router.get('/total-orders', auth, (req, res, next) => TotalOrdersController.getTotalOrders(req, res, next));
+        this.router.get('/total-orders/stats', auth, (req, res, next) => TotalOrdersController.getOrderStats(req, res, next));
+        this.router.get('/total-orders/:id', auth, (req, res, next) => TotalOrdersController.getOrderById(req, res, next));
+
+        // Public review routes (No auth required)
+        this.router.get('/review/space/:spaceId', (req, res) => {
+            // Redirect to frontend review page
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            return res.redirect(`${frontendUrl}/review/space/${req.params.spaceId}`);
+        });
+
+        this.router.get('/public/spaces/:spaceId', (req, res, next) => PublicReviewController.getSpaceForReview(req, res, next));
+        this.router.post('/public/reviews', (req, res, next) => PublicReviewController.submitReview(req, res, next));
 
         // ============ PUBLIC ROUTES (No Auth) ============
         this.router.get('/qr/:token', (req, res, next) => BookingController.handleQRRedirect(req, res, next));
@@ -56,10 +72,12 @@ class SpaceRoutes {
 
         // ============ ROOM MANAGEMENT ============
         this.router.get('/spaces/:spaceId/rooms', auth, (req, res, next) => RoomController.getRooms(req, res, next));
+        this.router.get('/spaces/:spaceId/rooms/availability', auth, (req, res, next) => RoomController.getRoomsWithAvailability(req, res, next));
         this.router.post('/spaces/:spaceId/rooms', auth, (req, res, next) => RoomController.createRoom(req, res, next));
         this.router.put('/rooms/:roomId', auth, (req, res, next) => RoomController.updateRoom(req, res, next));
         this.router.delete('/rooms/:roomId', auth, (req, res, next) => RoomController.deleteRoom(req, res, next));
         this.router.post('/rooms/:roomId/delete', auth, (req, res, next) => RoomController.deleteRoom(req, res, next));
+        this.router.get('/rooms/:roomId/check-availability', auth, (req, res, next) => RoomController.checkRoomAvailability(req, res, next));
 
         // ============ BOOKINGS ============
         this.router.get('/bookings', auth, (req, res, next) => BookingController.index(req, res, next));

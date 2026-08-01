@@ -44,6 +44,92 @@ class RoomController {
         }
     };
 
+
+    // Replace the existing getRoomsWithAvailability method with this:
+    getRoomsWithAvailability = async (req, res, next) => {
+        try {
+            const { spaceId } = req.params;
+            const userId = this.getUserId(req);
+
+            // Verify space ownership
+            const space = await Space.findOne({ _id: spaceId, user_id: userId });
+            if (!space) {
+                return res.status(HTTP_STATUS.NOT_FOUND).json({
+                    success: false,
+                    message: 'Space not found'
+                });
+            }
+
+            // Get all rooms for this space
+            const rooms = await Room.find({
+                space_id: spaceId
+            }).sort({ name: 1 }).lean();
+
+            if (!rooms || rooms.length === 0) {
+                return res.status(HTTP_STATUS.OK).json({
+                    success: true,
+                    data: []
+                });
+            }
+
+            // Get today's date range (start to end of day)
+            const today = new Date();
+            const startOfDay = new Date(today);
+            startOfDay.setHours(0, 0, 0, 0);
+
+            const endOfDay = new Date(today);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            console.log('=== GET ROOMS WITH AVAILABILITY ===');
+            console.log('Space ID:', spaceId);
+            console.log('Start of day:', startOfDay);
+            console.log('End of day:', endOfDay);
+            console.log('Room IDs:', rooms.map(r => r._id));
+
+            // Get all bookings for these rooms today
+            // Using start_time and end_time instead of date field
+            const bookings = await Booking.find({
+                room_id: { $in: rooms.map(r => r._id) },
+                status: { $nin: ['cancelled', 'checked_out', 'expired'] },
+                $or: [
+                    // Booking overlaps with today
+                    {
+                        $and: [
+                            { start_time: { $lte: endOfDay } },
+                            { end_time: { $gte: startOfDay } }
+                        ]
+                    }
+                ]
+            }).lean();
+
+            // Create a map of room_id -> is_booked
+            const bookedRoomIds = new Set(bookings.map(b => b.room_id.toString()));
+
+            console.log(`Found ${bookings.length} active bookings today`);
+            console.log('Booked room IDs:', [...bookedRoomIds]);
+
+            // Add availability flag to each room
+            const roomsWithAvailability = rooms.map(room => ({
+                ...room,
+                is_available: !bookedRoomIds.has(room._id.toString())
+            }));
+
+            console.log(`Returning ${roomsWithAvailability.length} rooms with availability`);
+            roomsWithAvailability.forEach(room => {
+                console.log(`- ${room.name}: ${room.is_available ? 'AVAILABLE ✅' : 'BOOKED ❌'}`);
+            });
+            console.log('====================================');
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: roomsWithAvailability
+            });
+        } catch (error) {
+            console.error('Error in getRoomsWithAvailability:', error);
+            next(error);
+        }
+    };
+
     // Create a new room
     createRoom = async (req, res, next) => {
         try {
@@ -145,86 +231,86 @@ class RoomController {
         }
     };
 
-// Complete fixed checkRoomAvailability method for roomController.js
-checkRoomAvailability = async (req, res, next) => {
-    try {
-        const { roomId } = req.params;
-        const { date, start_time, end_time, is_open_time } = req.query;
+    // Complete fixed checkRoomAvailability method for roomController.js
+    checkRoomAvailability = async (req, res, next) => {
+        try {
+            const { roomId } = req.params;
+            const { date, start_time, end_time, is_open_time } = req.query;
 
-        const room = await Room.findById(roomId);
-        if (!room) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({
-                success: false,
-                message: 'Room not found'
-            });
-        }
-
-        // Parse the selected date (user's local date)
-        const selectedDate = new Date(date);
-        const year = selectedDate.getFullYear();
-        const month = selectedDate.getMonth();
-        const day = selectedDate.getDate();
-
-        let startDateTime, endDateTime;
-
-        if (is_open_time === 'true') {
-            // For open time: whole day from 00:00 to 23:59 in LOCAL time
-            startDateTime = new Date(year, month, day, 0, 0, 0);
-            endDateTime = new Date(year, month, day, 23, 59, 59);
-        } else {
-            // For fixed time: specific start and end in LOCAL time
-            const [startHour, startMinute] = (start_time || '00:00').split(':');
-            const [endHour, endMinute] = (end_time || '23:59').split(':');
-            
-            startDateTime = new Date(year, month, day, parseInt(startHour), parseInt(startMinute), 0);
-            endDateTime = new Date(year, month, day, parseInt(endHour), parseInt(endMinute), 0);
-        }
-
-        console.log('=== AVAILABILITY CHECK ===');
-        console.log('Room ID:', roomId);
-        console.log('Selected Date:', date);
-        console.log('Start DateTime (local):', startDateTime);
-        console.log('End DateTime (local):', endDateTime);
-        console.log('Is Open Time:', is_open_time);
-
-        // Find ALL conflicting bookings (including pending, confirmed, active, pending_payment)
-        const conflictingBookings = await Booking.find({
-            room_id: roomId,
-            status: { $in: ['pending', 'confirmed', 'active', 'pending_payment'] },
-            $or: [
-                // Booking overlaps with selected time range
-                {
-                    $and: [
-                        { start_time: { $lte: endDateTime } },
-                        { end_time: { $gte: startDateTime } }
-                    ]
-                }
-            ]
-        }).lean();
-
-        const isAvailable = conflictingBookings.length === 0;
-
-        console.log(`Found ${conflictingBookings.length} conflicting bookings:`);
-        conflictingBookings.forEach(booking => {
-            console.log(`- Booking ${booking._id}: ${booking.status}, ${booking.start_time} to ${booking.end_time}`);
-        });
-        console.log(`Result: ${isAvailable ? 'AVAILABLE ✅' : 'NOT AVAILABLE ❌'}`);
-        console.log('========================');
-
-        return res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: {
-                is_available: isAvailable,
-                conflicting_bookings: conflictingBookings.length,
-                available_slots: isAvailable ? 1 : 0,
-                total_capacity: room.capacity
+            const room = await Room.findById(roomId);
+            if (!room) {
+                return res.status(HTTP_STATUS.NOT_FOUND).json({
+                    success: false,
+                    message: 'Room not found'
+                });
             }
-        });
-    } catch (error) {
-        console.error('Check room availability error:', error);
-        next(error);
-    }
-};
+
+            // Parse the selected date (user's local date)
+            const selectedDate = new Date(date);
+            const year = selectedDate.getFullYear();
+            const month = selectedDate.getMonth();
+            const day = selectedDate.getDate();
+
+            let startDateTime, endDateTime;
+
+            if (is_open_time === 'true') {
+                // For open time: whole day from 00:00 to 23:59 in LOCAL time
+                startDateTime = new Date(year, month, day, 0, 0, 0);
+                endDateTime = new Date(year, month, day, 23, 59, 59);
+            } else {
+                // For fixed time: specific start and end in LOCAL time
+                const [startHour, startMinute] = (start_time || '00:00').split(':');
+                const [endHour, endMinute] = (end_time || '23:59').split(':');
+
+                startDateTime = new Date(year, month, day, parseInt(startHour), parseInt(startMinute), 0);
+                endDateTime = new Date(year, month, day, parseInt(endHour), parseInt(endMinute), 0);
+            }
+
+            console.log('=== AVAILABILITY CHECK ===');
+            console.log('Room ID:', roomId);
+            console.log('Selected Date:', date);
+            console.log('Start DateTime (local):', startDateTime);
+            console.log('End DateTime (local):', endDateTime);
+            console.log('Is Open Time:', is_open_time);
+
+            // Find ALL conflicting bookings (including pending, confirmed, active, pending_payment)
+            const conflictingBookings = await Booking.find({
+                room_id: roomId,
+                status: { $in: ['pending', 'confirmed', 'active', 'pending_payment'] },
+                $or: [
+                    // Booking overlaps with selected time range
+                    {
+                        $and: [
+                            { start_time: { $lte: endDateTime } },
+                            { end_time: { $gte: startDateTime } }
+                        ]
+                    }
+                ]
+            }).lean();
+
+            const isAvailable = conflictingBookings.length === 0;
+
+            console.log(`Found ${conflictingBookings.length} conflicting bookings:`);
+            conflictingBookings.forEach(booking => {
+                console.log(`- Booking ${booking._id}: ${booking.status}, ${booking.start_time} to ${booking.end_time}`);
+            });
+            console.log(`Result: ${isAvailable ? 'AVAILABLE ✅' : 'NOT AVAILABLE ❌'}`);
+            console.log('========================');
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: {
+                    is_available: isAvailable,
+                    conflicting_bookings: conflictingBookings.length,
+                    available_slots: isAvailable ? 1 : 0,
+                    total_capacity: room.capacity
+                }
+            });
+        } catch (error) {
+            console.error('Check room availability error:', error);
+            next(error);
+        }
+    };
 }
 
 module.exports = new RoomController();

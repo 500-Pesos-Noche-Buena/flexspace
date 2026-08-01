@@ -50,81 +50,91 @@ class BookingController {
     };
 
     index = async (req, res, next) => {
-        try {
-            const { search = '', status = '', type = 'all', page = 1, limit = 10 } = req.query;
+    try {
+        const { search = '', status = '', type = 'all', page = 1, limit = 10 } = req.query;
 
-            // Get accessible space IDs based on user role
-            const spaceIds = await this.getAccessibleSpaceIds(req);
+        // Get accessible space IDs based on user role
+        const spaceIds = await this.getAccessibleSpaceIds(req);
 
-            // If user has no accessible spaces, return empty
-            if (spaceIds.length === 0) {
-                return res.status(HTTP_STATUS.OK).json({
-                    success: true,
-                    data: {
-                        bookings: [], total: 0, stats: {
-                            total: 0, pending: 0, active: 0, online: 0, walkin: 0, revenue: 0
-                        }
-                    }
-                });
-            }
-
-            let query = { space_id: { $in: spaceIds } };
-            if (status) query.status = status;
-            if (type !== 'all') query.booking_type = type;
-            if (search) {
-                query.$or = [
-                    { ticket_number: { $regex: search, $options: 'i' } },
-                    { guest_name: { $regex: search, $options: 'i' } }
-                ];
-            }
-
-            // Log for debugging
-            console.log(`🔍 Fetching bookings for spaces: ${spaceIds.length} spaces, Query:`, JSON.stringify(query));
-
-            const bookings = await Booking.find(query)
-                .populate({
-                    path: 'space_id',
-                    select: 'name rate_hour qr_payment_image user_id',
-                    populate: {
-                        path: 'user_id',
-                        select: 'name email business_payment_qr payment_methods'
-                    }
-                })
-                .populate('user_id', 'name email')
-                .sort({ created_at: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit);
-
-            const total = await Booking.countDocuments(query);
-
-            // Stats logic
-            const stats = {
-                total,
-                pending: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'pending' }),
-                active: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'active' }),
-                online: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'online' }),
-                walkin: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'walkin' }),
-                revenue: (await Booking.aggregate([
-                    {
-                        $match: {
-                            space_id: { $in: spaceIds },
-                            status: 'completed',
-                            updated_at: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-                        }
-                    },
-                    { $group: { _id: null, total: { $sum: "$total_amount" } } }
-                ]))[0]?.total || 0
-            };
-
+        // If user has no accessible spaces, return empty
+        if (spaceIds.length === 0) {
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
-                data: { bookings, total, stats }
+                data: {
+                    bookings: [], total: 0, stats: {
+                        total: 0, pending: 0, active: 0, online: 0, walkin: 0, revenue: 0
+                    }
+                }
             });
-        } catch (error) {
-            console.error('❌ Error in index:', error);
-            next(error);
         }
-    };
+
+        let query = { space_id: { $in: spaceIds } };
+        
+        // 🆕 Handle multiple status values (comma-separated)
+        if (status) {
+            const statusArray = status.split(',').map(s => s.trim());
+            if (statusArray.length === 1) {
+                query.status = statusArray[0];
+            } else {
+                query.status = { $in: statusArray };
+            }
+        }
+        
+        if (type !== 'all') query.booking_type = type;
+        if (search) {
+            query.$or = [
+                { ticket_number: { $regex: search, $options: 'i' } },
+                { guest_name: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Log for debugging
+        console.log(`🔍 Fetching bookings for spaces: ${spaceIds.length} spaces, Query:`, JSON.stringify(query));
+
+        const bookings = await Booking.find(query)
+            .populate({
+                path: 'space_id',
+                select: 'name rate_hour qr_payment_image user_id',
+                populate: {
+                    path: 'user_id',
+                    select: 'name email business_payment_qr payment_methods'
+                }
+            })
+            .populate('user_id', 'name email')
+            .sort({ created_at: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        const total = await Booking.countDocuments(query);
+
+        // Stats logic
+        const stats = {
+            total,
+            pending: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'pending' }),
+            active: await Booking.countDocuments({ space_id: { $in: spaceIds }, status: 'active' }),
+            online: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'online' }),
+            walkin: await Booking.countDocuments({ space_id: { $in: spaceIds }, booking_type: 'walkin' }),
+            revenue: (await Booking.aggregate([
+                {
+                    $match: {
+                        space_id: { $in: spaceIds },
+                        status: 'completed',
+                        updated_at: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+                    }
+                },
+                { $group: { _id: null, total: { $sum: "$total_amount" } } }
+            ]))[0]?.total || 0
+        };
+
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            data: { bookings, total, stats }
+        });
+    } catch (error) {
+        console.error('❌ Error in index:', error);
+        next(error);
+    }
+};
 
     updateStatus = async (req, res, next) => {
         try {
@@ -249,102 +259,124 @@ class BookingController {
         }
     };
     calculateBill = async (req, res, next) => {
-        try {
-            const { id } = req.params;
-            const ownerId = await this.getOwnerId(req);
+    try {
+        const { id } = req.params;
+        const ownerId = await this.getOwnerId(req);
 
-            let booking = await Booking.findById(id).populate('space_id').populate('user_id');
+        let booking = await Booking.findById(id).populate('space_id').populate('user_id');
 
-            if (!booking || String(booking.space_id.user_id) !== String(ownerId)) {
-                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Unauthorized access.');
-            }
-
-            const now = new Date();
-
-            // USE ONLY check_in_at and check_out_at
-            if (!booking.check_in_at) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No check-in recorded. User must scan QR code first.');
-            }
-
-            const checkInTime = new Date(booking.check_in_at);
-
-            // Use existing check_out_at or current time
-            let checkOutTime;
-            if (booking.check_out_at) {
-                checkOutTime = new Date(booking.check_out_at);
-            } else {
-                checkOutTime = now;
-            }
-
-            // Validate check-out is after check-in
-            if (checkOutTime <= checkInTime) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Check-out time must be after check-in time.');
-            }
-
-            // Calculate actual time spent (ONLY using check_in_at and check_out_at)
-            const timeDiffMs = checkOutTime - checkInTime;
-            const hoursSpent = timeDiffMs / (1000 * 60 * 60);
-            const hourlyRate = parseFloat(booking.space_id.rate_hour || 0);
-
-            // Calculate total based on ACTUAL time
-            let totalAmount = hoursSpent * hourlyRate;
-            totalAmount = parseFloat(totalAmount.toFixed(2));
-
-            console.log(`=== BILL CALCULATION ===`);
-            console.log(`Check-in (actual): ${checkInTime}`);
-            console.log(`Check-out (actual): ${checkOutTime}`);
-            console.log(`Actual duration: ${hoursSpent.toFixed(2)} hours (${Math.floor(timeDiffMs / 60000)} minutes)`);
-            console.log(`Rate: ₱${hourlyRate}/hour`);
-            console.log(`Total: ₱${totalAmount}`);
-            console.log(`=======================`);
-
-            // Apply voucher if exists
-            const hasVoucher = booking.voucher_applied && booking.voucher_discount > 0;
-            let discount = 0;
-            let finalAmount = totalAmount;
-
-            if (hasVoucher) {
-                discount = booking.voucher_discount;
-                finalAmount = Math.max(0, totalAmount - discount);
-                console.log(`Voucher discount: -₱${discount}, Final: ₱${finalAmount}`);
-            }
-
-            // Update booking with calculated amount and check_out_at
-            const updateData = {
-                total_amount: finalAmount,
-                status: 'pending_payment',
-                payment_status: 'unpaid',
-                check_out_at: checkOutTime  // Save the actual check-out time
-            };
-
-            const updated = await Booking.findByIdAndUpdate(
-                id,
-                { $set: updateData },
-                { new: true }
-            ).populate('space_id').populate('user_id');
-
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: {
-                    booking: updated,
-                    sub_total: totalAmount,
-                    discount: discount,
-                    total_amount: finalAmount,
-                    has_voucher: hasVoucher,
-                    voucher_code: booking.voucher_applied,
-                    actual_duration: {
-                        hours: Math.floor(timeDiffMs / 3600000),
-                        minutes: Math.floor((timeDiffMs % 3600000) / 60000),
-                        seconds: Math.floor((timeDiffMs % 60000) / 1000),
-                        total_hours: hoursSpent
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('Calculate bill error:', error);
-            next(error);
+        if (!booking || String(booking.space_id.user_id) !== String(ownerId)) {
+            throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Unauthorized access.');
         }
-    };
+
+        const now = new Date();
+
+        // USE ONLY check_in_at and check_out_at
+        if (!booking.check_in_at) {
+            throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No check-in recorded. User must scan QR code first.');
+        }
+
+        const checkInTime = new Date(booking.check_in_at);
+
+        // Use existing check_out_at or current time
+        let checkOutTime;
+        if (booking.check_out_at) {
+            checkOutTime = new Date(booking.check_out_at);
+        } else {
+            checkOutTime = now;
+        }
+
+        // Validate check-out is after check-in
+        if (checkOutTime <= checkInTime) {
+            throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Check-out time must be after check-in time.');
+        }
+
+        // Calculate actual time spent (ONLY using check_in_at and check_out_at)
+        const timeDiffMs = checkOutTime - checkInTime;
+        const hoursSpent = timeDiffMs / (1000 * 60 * 60);
+        const minutesSpent = timeDiffMs / (1000 * 60);
+        const hourlyRate = parseFloat(booking.space_id.rate_hour || 0);
+
+        // ⭐ NEW: Minimum charge rule - if 31 minutes or more, charge for full hour
+        let totalAmount;
+        let billingMinutes = minutesSpent;
+        
+        if (minutesSpent >= 31) {
+            // Charge for full hour (round up to next hour)
+            const hoursToCharge = Math.ceil(minutesSpent / 60);
+            totalAmount = hoursToCharge * hourlyRate;
+            billingMinutes = hoursToCharge * 60;
+            console.log(`⏰ Minimum charge applied: ${minutesSpent.toFixed(0)} minutes → charged for ${hoursToCharge} hour(s)`);
+        } else {
+            // Less than 31 minutes, charge per minute (pro-rated)
+            totalAmount = hoursSpent * hourlyRate;
+            console.log(`⏰ Pro-rated charge: ${minutesSpent.toFixed(0)} minutes → charged for ${hoursSpent.toFixed(2)} hour(s)`);
+        }
+        
+        totalAmount = parseFloat(totalAmount.toFixed(2));
+
+        console.log(`=== BILL CALCULATION ===`);
+        console.log(`Check-in (actual): ${checkInTime}`);
+        console.log(`Check-out (actual): ${checkOutTime}`);
+        console.log(`Actual duration: ${minutesSpent.toFixed(0)} minutes (${hoursSpent.toFixed(2)} hours)`);
+        console.log(`Billing duration: ${billingMinutes.toFixed(0)} minutes (${(billingMinutes / 60).toFixed(2)} hours)`);
+        console.log(`Rate: ₱${hourlyRate}/hour`);
+        console.log(`Total: ₱${totalAmount}`);
+        console.log(`=======================`);
+
+        // Apply voucher if exists
+        const hasVoucher = booking.voucher_applied && booking.voucher_discount > 0;
+        let discount = 0;
+        let finalAmount = totalAmount;
+
+        if (hasVoucher) {
+            discount = booking.voucher_discount;
+            finalAmount = Math.max(0, totalAmount - discount);
+            console.log(`Voucher discount: -₱${discount}, Final: ₱${finalAmount}`);
+        }
+
+        // Update booking with calculated amount and check_out_at
+        const updateData = {
+            total_amount: finalAmount,
+            status: 'pending_payment',
+            payment_status: 'unpaid',
+            check_out_at: checkOutTime  // Save the actual check-out time
+        };
+
+        const updated = await Booking.findByIdAndUpdate(
+            id,
+            { $set: updateData },
+            { new: true }
+        ).populate('space_id').populate('user_id');
+
+        return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            data: {
+                booking: updated,
+                sub_total: totalAmount,
+                discount: discount,
+                total_amount: finalAmount,
+                has_voucher: hasVoucher,
+                voucher_code: booking.voucher_applied,
+                actual_duration: {
+                    hours: Math.floor(timeDiffMs / 3600000),
+                    minutes: Math.floor((timeDiffMs % 3600000) / 60000),
+                    seconds: Math.floor((timeDiffMs % 60000) / 1000),
+                    total_hours: hoursSpent,
+                    total_minutes: minutesSpent
+                },
+                billing_duration: {
+                    minutes: billingMinutes,
+                    hours: billingMinutes / 60,
+                    charge_type: minutesSpent >= 31 ? 'full_hour' : 'pro_rated'
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Calculate bill error:', error);
+        next(error);
+    }
+};
 
     checkout = async (req, res, next) => {
         try {

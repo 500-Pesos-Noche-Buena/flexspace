@@ -5,7 +5,8 @@ import {
     ShoppingCart, Plus, Minus, Trash2, CreditCard,
     Banknote, QrCode, Search, Package, Coffee,
     Sandwich, Cookie, Users, Loader2, Percent, History, X, CheckCircle,
-    ExternalLink, Copy, Download, User, Smartphone, Receipt, Calendar, Clock
+    ExternalLink, Copy, Download, User, Smartphone, Receipt, Calendar, Clock,
+    AlertTriangle
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
@@ -53,7 +54,7 @@ const POS = () => {
     const [showHistory, setShowHistory] = useState(false);
     const [spaceId, setSpaceId] = useState(null);
 
-    // NEW: Customer search states
+    // Customer search states
     const [showCustomerSearch, setShowCustomerSearch] = useState(false);
     const [customerSearchTerm, setCustomerSearchTerm] = useState('');
     const [customerBookings, setCustomerBookings] = useState([]);
@@ -64,15 +65,17 @@ const POS = () => {
     const [paymentLink, setPaymentLink] = useState('');
     const [showPaymentLink, setShowPaymentLink] = useState(false);
     const [copied, setCopied] = useState(false);
-
     const [hasPayMongoKey, setHasPayMongoKey] = useState(false);
-
     const [generatedPaymentLink, setGeneratedPaymentLink] = useState('');
     const [showPaymentQR, setShowPaymentQR] = useState(false);
     const [currentOrderId, setCurrentOrderId] = useState('');
-
     const [paymentCompleted, setPaymentCompleted] = useState(false);
     const [pollingInterval, setPollingInterval] = useState(null);
+
+    // 🆕 Pay Later states
+    const [payLaterModal, setPayLaterModal] = useState(false);
+    const [payLaterNotes, setPayLaterNotes] = useState('');
+    const [showPayLaterConfirm, setShowPayLaterConfirm] = useState(false);
 
     const getThemeColorClass = () => {
         const colors = {
@@ -112,7 +115,7 @@ const POS = () => {
         }
     };
 
-    // NEW: Fetch customer bookings
+    // In POS.jsx - fetchCustomerBookings function
     const fetchCustomerBookings = async (searchTerm) => {
         if (!searchTerm || searchTerm.length < 2) {
             setCustomerBookings([]);
@@ -121,7 +124,8 @@ const POS = () => {
 
         setSearchingCustomers(true);
         try {
-            const res = await apiGet(`/space/bookings?search=${encodeURIComponent(searchTerm)}&status=completed`);
+            // Remove status filter - search ALL bookings
+            const res = await apiGet(`/space/bookings?search=${encodeURIComponent(searchTerm)}`);
             if (res.success) {
                 const bookings = res.data?.bookings || [];
                 // Filter unique customers
@@ -135,7 +139,8 @@ const POS = () => {
                             phone: booking.user_id?.phone || booking.guest_phone,
                             bookingId: booking._id,
                             lastVisit: booking.created_at,
-                            totalSpent: booking.total_amount || 0
+                            totalSpent: booking.total_amount || 0,
+                            status: booking.status
                         });
                     }
                     return acc;
@@ -191,7 +196,6 @@ const POS = () => {
         }
     }, [showPaymentQR, currentOrderId]);
 
-    // NEW: Debounce customer search
     useEffect(() => {
         const timer = setTimeout(() => {
             if (customerSearchTerm.length >= 2) {
@@ -320,9 +324,9 @@ const POS = () => {
         return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     };
 
-    const calculateTax = () => {
-        return calculateSubtotal() * 0.12;
-    };
+    // const calculateTax = () => {
+    //     return calculateSubtotal() * 0.12;
+    // };
 
     const calculateDiscountAmount = () => {
         if (discountType === 'percentage') {
@@ -331,8 +335,9 @@ const POS = () => {
         return discount;
     };
 
+    // Remove + calculateTax() for tax
     const calculateTotal = () => {
-        return calculateSubtotal() + calculateTax() - calculateDiscountAmount();
+        return calculateSubtotal()  - calculateDiscountAmount();
     };
 
     const applyDiscount = () => {
@@ -361,6 +366,79 @@ const POS = () => {
         setPaymentLink('');
     };
 
+    // 🆕 Handle Pay Later
+    const handlePayLater = () => {
+        if (cart.length === 0) {
+            showToast({ icon: 'warning', title: 'Cart is empty' });
+            return;
+        }
+        if (!customerName) {
+            showToast({ icon: 'warning', title: 'Customer name is required' });
+            return;
+        }
+        setPayLaterModal(true);
+    };
+
+    // 🆕 Confirm Pay Later Order
+    const confirmPayLaterOrder = async () => {
+        setIsProcessing(true);
+        try {
+            const orderData = {
+                items: cart.map(item => ({
+                    product_id: item.id,
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.price
+                })),
+                subtotal: calculateSubtotal(),
+                tax: 0, // calculateTax(),
+                discount_type: discountType,
+                discount_value: discount,
+                discount_amount: calculateDiscountAmount(),
+                total: calculateTotal(),
+                payment_method: 'pay_later',
+                amount_received: 0,
+                customer_name: customerName || 'Walk-in Customer',
+                status: 'confirmed',
+                payment_status: 'unpaid',
+                order_type: 'pos',
+                space_id: spaceId
+            };
+
+            const res = await apiPost('/space/orders', orderData);
+
+            if (res.success) {
+                showToast({
+                    icon: 'success',
+                    title: 'Pay Later order created!',
+                    text: `Order #${res.data.order_number} - ₱${calculateTotal().toFixed(2)}`
+                });
+
+                const orderForReceipt = {
+                    ...orderData,
+                    order_number: res.data.order_number,
+                    _id: res.data._id,
+                    is_pay_later: true
+                };
+
+                printReceipt(orderForReceipt);
+                resetOrder();
+                fetchRecentOrders();
+                setPayLaterModal(false);
+                setPayLaterNotes('');
+            }
+        } catch (err) {
+            console.error('Pay Later error:', err);
+            showToast({
+                icon: 'error',
+                title: 'Failed to create Pay Later order',
+                text: err.message || 'Please try again'
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const generatePaymentLink = async () => {
         if (cart.length === 0) {
             showToast({ icon: 'warning', title: 'Cart is empty' });
@@ -384,7 +462,7 @@ const POS = () => {
                     price: item.price
                 })),
                 subtotal: calculateSubtotal(),
-                tax: calculateTax(),
+                tax: 0, //calculateTax(),
                 discount_type: discountType,
                 discount_value: discount,
                 discount_amount: calculateDiscountAmount(),
@@ -472,6 +550,8 @@ const POS = () => {
             await generatePaymentLink();
             return;
         }
+
+        // 🆕 Pay Later handled separately via handlePayLater
     };
 
     const completeOrder = async (method, amount, status = 'completed') => {
@@ -491,7 +571,7 @@ const POS = () => {
                     price: item.price
                 })),
                 subtotal: calculateSubtotal(),
-                tax: calculateTax(),
+                tax: 0, //calculateTax(),
                 discount_type: discountType,
                 discount_value: discount,
                 discount_amount: calculateDiscountAmount(),
@@ -545,6 +625,8 @@ const POS = () => {
         setShowPaymentQR(false);
         setGeneratedPaymentLink('');
         setCurrentOrderId('');
+        setPayLaterModal(false);
+        setPayLaterNotes('');
         fetchRecentOrders();
         fetchProducts();
     };
@@ -559,6 +641,7 @@ const POS = () => {
         const receiptWindow = window.open('', '_blank');
 
         const isCash = order.payment_method === 'cash';
+        const isPayLater = order.payment_method === 'pay_later' || order.is_pay_later;
         const changeAmount = isCash && order.amount_received ? (order.amount_received - order.total).toFixed(2) : '0.00';
         const amountReceived = order.amount_received ? order.amount_received.toFixed(2) : order.total.toFixed(2);
 
@@ -566,7 +649,8 @@ const POS = () => {
             cash: 'CASH',
             qr: 'GCASH / QR',
             online: 'ONLINE PAYMENT',
-            card: 'CARD'
+            card: 'CARD',
+            pay_later: 'PAY LATER ⏰'
         }[order.payment_method] || order.payment_method.toUpperCase();
 
         const orderNumber = order.order_number || `TEMP-${Date.now()}`;
@@ -586,6 +670,8 @@ const POS = () => {
                     .footer { text-align: center; margin-top: 20px; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
                     .payment-details { margin-top: 10px; font-size: 11px; }
                     .thankyou { font-size: 12px; font-weight: bold; margin-top: 15px; }
+                    .pay-later-warning { background: #fef3c7; padding: 10px; border: 1px solid #f59e0b; border-radius: 8px; margin: 10px 0; }
+                    .pay-later-warning strong { color: #d97706; }
                 </style>
             </head>
             <body>
@@ -599,6 +685,14 @@ const POS = () => {
                     <strong>Order #:</strong> ${orderNumber}<br>
                     <strong>Customer:</strong> ${order.customer_name || 'Walk-in Customer'}
                 </div>
+                
+                ${isPayLater ? `
+                    <div class="pay-later-warning">
+                        <strong>⏰ PAY LATER ORDER</strong><br>
+                        <span style="font-size: 9px;">This order is on credit. Please settle payment when ready.</span>
+                    </div>
+                ` : ''}
+                
                 <table class="items">
                     <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
                     <tbody>
@@ -614,20 +708,33 @@ const POS = () => {
                 </table>
                 <div class="total">
                     <div><strong>Subtotal:</strong> ₱${order.subtotal.toFixed(2)}</div>
-                    <div><strong>Tax (12% VAT):</strong> ₱${order.tax.toFixed(2)}</div>
                     ${order.discount_amount > 0 ? `<div><strong>Discount:</strong> -₱${order.discount_amount.toFixed(2)}</div>` : ''}
                     <div style="font-size: 14px; margin-top: 5px;"><strong>TOTAL:</strong> ₱${order.total.toFixed(2)}</div>
+                    ${isPayLater ? `
+                        <div style="margin-top: 5px; color: #d97706;">
+                            <strong>Status:</strong> PENDING PAYMENT ⏰
+                        </div>
+                    ` : ''}
                 </div>
                 <div class="payment-details">
                     <div><strong>Payment Method:</strong> ${paymentMethodDisplay}</div>
                     ${isCash ? `<div><strong>Amount Received:</strong> ₱${amountReceived}</div>` : ''}
                     ${isCash ? `<div><strong>Change:</strong> ₱${changeAmount}</div>` : ''}
                     ${order.payment_method === 'online' ? `<div><strong>Status:</strong> PAID ✓</div>` : ''}
+                    ${isPayLater ? `
+                        <div style="color: #d97706; font-weight: bold; margin-top: 5px;">
+                            ⚠️ Unpaid - Please settle when ready
+                        </div>
+                    ` : ''}
                 </div>
                 <div class="footer">
                     <div>Thank you for your purchase!</div>
                     <div>✨ Come back again! ✨</div>
-                    <div style="font-size: 8px; margin-top: 5px;">${order.payment_method === 'online' ? 'Online payment confirmed' : 'Keep this receipt for reference'}</div>
+                    ${isPayLater ? `
+                        <div style="font-size: 8px; color: #d97706; margin-top: 5px;">
+                            ⏰ This is a Pay Later order. Payment is pending.
+                        </div>
+                    ` : ''}
                 </div>
                 <div class="thankyou">Have a productive day! 💪</div>
             </body>
@@ -748,24 +855,6 @@ const POS = () => {
                                     </div>
                                     <p className="text-foreground font-bold text-sm truncate">{product.name}</p>
                                     <p className={`text-${color}-400 font-bold text-xs`}>₱{product.price}</p>
-
-                                    {/* Profit Display */}
-                                    {product.purchase_price > 0 && (
-                                        (() => {
-                                            const profitPerUnit = (product.price || 0) - (product.purchase_price || 0);
-                                            const profitMargin = product.price > 0 ? (profitPerUnit / product.price) * 100 : 0;
-                                            return (
-                                                <div className="mt-1">
-                                                    <span className={cn(
-                                                        "text-[8px] font-black",
-                                                        profitPerUnit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                                                    )}>
-                                                        ₱{profitPerUnit.toFixed(2)} ({profitMargin.toFixed(1)}%)
-                                                    </span>
-                                                </div>
-                                            );
-                                        })()
-                                    )}
                                     {product.stock !== undefined && (
                                         <p className={cn(
                                             "text-[10px] mt-1",
@@ -838,9 +927,6 @@ const POS = () => {
                                         </div>
                                         <p className="text-foreground font-bold">₱{(item.price * item.quantity).toFixed(2)}</p>
                                     </div>
-                                    {product?.stock !== undefined && product.stock < 5 && product.stock > 0 && (
-                                        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">Low stock: {product.stock} left</p>
-                                    )}
                                 </div>
                             );
                         })
@@ -854,10 +940,10 @@ const POS = () => {
                                 <span className="text-muted-foreground">Subtotal</span>
                                 <span className="text-foreground">₱{calculateSubtotal().toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between">
+                            {/* <div className="flex justify-between">
                                 <span className="text-muted-foreground">Tax (12% VAT)</span>
                                 <span className="text-foreground">₱{calculateTax().toFixed(2)}</span>
-                            </div>
+                            </div> */}
                             {discount > 0 && (
                                 <div className="flex justify-between">
                                     <span className="text-emerald-600 dark:text-emerald-400">Discount</span>
@@ -1021,7 +1107,7 @@ const POS = () => {
                                 </button>
                             </div>
 
-                            {/* Customer Search Results Dropdown */}
+                            {/* Customer Search Results Dropdown - Update the display */}
                             {showCustomerSearch && (
                                 <div className="absolute z-50 mt-2 w-full bg-card border border-border rounded-xl shadow-2xl max-h-60 overflow-y-auto">
                                     {searchingCustomers ? (
@@ -1042,7 +1128,7 @@ const POS = () => {
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-foreground font-bold text-sm truncate">{customer.name}</p>
-                                                        <div className="flex flex-wrap gap-2 mt-1">
+                                                        <div className="flex flex-wrap items-center gap-2 mt-1">
                                                             {customer.email && (
                                                                 <span className="text-[8px] text-muted-foreground">{customer.email}</span>
                                                             )}
@@ -1052,6 +1138,17 @@ const POS = () => {
                                                             <span className="text-[8px] text-primary font-bold">
                                                                 ₱{customer.totalSpent.toFixed(2)} spent
                                                             </span>
+                                                            {/* 🆕 Show booking status */}
+                                                            {customer.status && (
+                                                                <span className={cn(
+                                                                    "text-[8px] px-1.5 py-0.5 rounded font-bold",
+                                                                    customer.status === 'active' ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" :
+                                                                        customer.status === 'completed' ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" :
+                                                                            "bg-muted text-muted-foreground"
+                                                                )}>
+                                                                    {customer.status}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <p className="text-[8px] text-muted-foreground mt-1 flex items-center gap-1">
                                                             <Calendar size={8} />
@@ -1093,7 +1190,7 @@ const POS = () => {
                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-2 mb-3">
                                 <CreditCard size={12} /> Payment Method
                             </label>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-4 gap-3">
                                 {/* Cash */}
                                 <button
                                     onClick={() => setPaymentMethod('cash')}
@@ -1135,8 +1232,26 @@ const POS = () => {
                                     )}
                                 >
                                     <CreditCard size={28} className={cn("mx-auto mb-2 transition-all", paymentMethod === 'online' ? "text-purple-600 dark:text-purple-400" : "text-muted-foreground group-hover:text-purple-400")} />
-                                    <p className={cn("text-xs font-bold", paymentMethod === 'online' ? "text-purple-600 dark:text-purple-400" : "text-foreground")}>Card/PayMongo</p>
-                                    <p className="text-[8px] text-muted-foreground mt-1">Online payment</p>
+                                    <p className={cn("text-xs font-bold", paymentMethod === 'online' ? "text-purple-600 dark:text-purple-400" : "text-foreground")}>Card/Online</p>
+                                    <p className="text-[8px] text-muted-foreground mt-1">PayMongo</p>
+                                </button>
+
+                                {/* 🆕 Pay Later */}
+                                <button
+                                    onClick={() => {
+                                        setPaymentMethod('pay_later');
+                                        handlePayLater();
+                                    }}
+                                    className={cn(
+                                        "p-4 rounded-xl border-2 transition-all group",
+                                        paymentMethod === 'pay_later'
+                                            ? "bg-amber-500/20 border-amber-500 shadow-lg shadow-amber-900/20"
+                                            : "bg-muted border-border hover:border-amber-500/50"
+                                    )}
+                                >
+                                    <Receipt size={28} className={cn("mx-auto mb-2 transition-all", paymentMethod === 'pay_later' ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground group-hover:text-amber-400")} />
+                                    <p className={cn("text-xs font-bold", paymentMethod === 'pay_later' ? "text-amber-600 dark:text-amber-400" : "text-foreground")}>Pay Later</p>
+                                    <p className="text-[8px] text-muted-foreground mt-1">Add to tab</p>
                                 </button>
                             </div>
                         </div>
@@ -1338,6 +1453,69 @@ const POS = () => {
                         </div>
                     </div>
                 )}
+            </Modal>
+
+            {/* 🆕 Pay Later Modal */}
+            <Modal open={payLaterModal} onClose={() => setPayLaterModal(false)} title="Pay Later Order" size="md">
+                <div className="space-y-4">
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle size={20} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Pay Later Confirmation</p>
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                    Customer: <span className="text-foreground font-bold">{customerName}</span>
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">
+                                    This order will be added to the customer's tab for later payment.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-2">
+                            <Receipt size={12} /> Notes (Optional)
+                        </label>
+                        <textarea
+                            value={payLaterNotes}
+                            onChange={(e) => setPayLaterNotes(e.target.value)}
+                            placeholder="Add notes about this order..."
+                            rows="2"
+                            className="w-full mt-2 px-4 py-3 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground focus:border-primary outline-none resize-none"
+                        />
+                    </div>
+
+                    <div className="bg-linear-to-r from-amber-500/20 to-amber-600/20 rounded-xl p-4 border border-amber-500/30">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="text-[8px] text-amber-600 dark:text-amber-400 font-black uppercase">Order Total</p>
+                                <p className="text-xl font-black text-foreground">₱{calculateTotal().toFixed(2)}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[8px] text-muted-foreground">Status</p>
+                                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Pending Payment</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            onClick={() => setPayLaterModal(false)}
+                            className="flex-1 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmPayLaterOrder}
+                            disabled={isProcessing}
+                            className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-lg shadow-amber-900/20"
+                        >
+                            {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
+                            Confirm Pay Later
+                        </button>
+                    </div>
+                </div>
             </Modal>
 
             <PaymentQRModal

@@ -84,29 +84,50 @@ const BookingsIndex = () => {
         }
     }, []);
 
-    // Fetch rooms with availability
-    const fetchRoomsWithAvailability = async (spaceId) => {
-        if (!spaceId) return;
+    // Replace the existing fetchRoomsWithAvailability function with this:
+    const fetchRoomsWithAvailability = useCallback(async (spaceId) => {
+        if (!spaceId) {
+            setRoomsWithAvailability([]);
+            return;
+        }
+        
         try {
-            const today = new Date().toISOString().split('T')[0];
-            const roomsRes = await apiGet(`/space/spaces/${spaceId}/rooms`);
-            const rooms = roomsRes.data || [];
-            const roomsWithStatus = await Promise.all(
-                rooms.map(async (room) => {
-                    try {
-                        const availRes = await apiGet(`/landing/rooms/${room._id}/availability?date=${today}&is_open_time=true`);
-                        return { ...room, is_available: availRes.success ? availRes.data.is_available : true };
-                    } catch {
-                        return { ...room, is_available: true };
-                    }
-                })
-            );
-            setRoomsWithAvailability(roomsWithStatus);
+            // Use the new endpoint we created
+            const res = await apiGet(`/space/spaces/${spaceId}/rooms/availability`);
+            if (res.success) {
+                setRoomsWithAvailability(res.data || []);
+            } else {
+                setRoomsWithAvailability([]);
+            }
         } catch (err) {
-            console.error('Failed to fetch rooms:', err);
+            console.error('Failed to fetch rooms with availability:', err);
+            // Fallback: get rooms without availability check
+            try {
+                const roomsRes = await apiGet(`/space/spaces/${spaceId}/rooms`);
+                const rooms = roomsRes.data || [];
+                // Mark all as available by default
+                setRoomsWithAvailability(rooms.map(room => ({ ...room, is_available: true })));
+            } catch (fallbackErr) {
+                console.error('Fallback failed:', fallbackErr);
+                setRoomsWithAvailability([]);
+            }
+        }
+    }, []);
+
+    // Add this after your useEffect declarations
+    useEffect(() => {
+        if (walkinForm.space_id) {
+            fetchRoomsWithAvailability(walkinForm.space_id);
+        } else {
             setRoomsWithAvailability([]);
         }
-    };
+    }, [walkinForm.space_id, fetchRoomsWithAvailability]);
+
+    useEffect(() => {
+        if (walkinForm.space_id) {
+            setWalkinForm(prev => ({ ...prev, room_id: '' }));
+        }
+    }, [walkinForm.space_id]);
 
     // Fetch booking details
     const fetchBookingDetails = async (bookingId) => {
@@ -448,13 +469,13 @@ const BookingsIndex = () => {
                 spaces={spaces}
                 roomsWithAvailability={roomsWithAvailability}
                 submitting={submitting}
-                fetchRoomsWithAvailability={fetchRoomsWithAvailability}
+                loadingRooms={false} // Add this - you can manage loading state
             />
 
             <ReviewQRModal
                 isOpen={showReviewModal}
                 onClose={closeReviewModal}
-                booking={selectedReviewBooking}
+                space={selectedReviewBooking?.space_id}
             />
 
             <BookingDetailsModal

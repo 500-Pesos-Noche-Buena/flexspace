@@ -1,7 +1,8 @@
+// src/pages/Public/SpaceReviewPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiGet, apiPost } from '@/utils/Api';
-import { Star, Loader2, CheckCircle, ArrowLeft, MapPin, Users, Calendar } from 'lucide-react';
+import { Star, Loader2, CheckCircle, ArrowLeft, MapPin, Users } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,8 +31,7 @@ const SpaceReviewPage = () => {
     const fetchSpaceDetails = async () => {
         try {
             setLoading(true);
-            // Public endpoint to get space info
-            const res = await apiGet(`/landing/spaces/${spaceId}`);
+            const res = await apiGet(`/space/public/spaces/${spaceId}`);
             if (res.success) {
                 setSpace(res.data);
             } else {
@@ -65,7 +65,7 @@ const SpaceReviewPage = () => {
         
         setSubmitting(true);
         try {
-            const res = await apiPost('/public/reviews', {
+            const res = await apiPost('/space/public/reviews', {
                 space_id: spaceId,
                 rating,
                 title,

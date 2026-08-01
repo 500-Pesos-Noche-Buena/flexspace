@@ -1,3 +1,4 @@
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Layouts
@@ -8,8 +9,8 @@ import DashboardLayout from '@/layouts/DashboardLayout';
 // Pages
 import LandingPage from '@/pages/Landing/Index';
 import { NotFound } from '@/error/404';
-import Profile from '@/pages/Profile/Index'; // shared or admin/space profile
-import UserProfile from '@/pages/User/Profile/Index'; // New dedicated user profile page
+import Profile from '@/pages/Profile/Index';
+import UserProfile from '@/pages/User/Profile/Index';
 import Login from '@/pages/Auth/Login';
 import GoogleCallback from '@/pages/Auth/GoogleCallback';
 import Register from '@/pages/Auth/Register';
@@ -30,7 +31,7 @@ import SpaceManagement from '@/pages/Admin/Space/Index';
 import SpaceApplication from '@/pages/Admin/Space/Application';
 import SystemSettings from '@/pages/Settings/Index';
 import AdminEarnings from '@/pages/Admin/Earnings/Index';
-import AdminVoucher from '@/pages/Admin/Voucher/Index'; 
+import AdminVoucher from '@/pages/Admin/Voucher/Index';
 import Insights from '@/pages/Admin/Insights/Index';
 import QueueDashboard from '@/pages/Admin/Queue/Index';
 import Logs from '@/pages/Admin/Logs/Index';
@@ -53,6 +54,7 @@ import Products from '@/pages/Space/Pos/Products';
 import PaymentSettings from '@/pages/Space/PaymentSettings/Index';
 import CreateSpace from '@/pages/Space/MySpaces/Create';
 import EditSpace from '@/pages/Space/MySpaces/Edit';
+import TotalOrders from '@/pages/Space/TotalOrders/Index';
 
 // Regular User Pages
 import UserDashboard from '@/pages/User/Dashboard/Index';
@@ -60,23 +62,26 @@ import UserSpace from '@/pages/User/Space/Index';
 import UserBookings from '@/pages/User/Bookings/Index';
 import UserRedeem from '@/pages/User/Redeem/Index';
 
-
+// Public Review Pages
 import ReviewPage from '@/pages/Public/ReviewPage';
+import SpaceReviewPage from '@/pages/Public/SpaceReviewPage'; // ✅ NEW: Space review page
 import AlreadyReviewedPage from '@/pages/Public/AlreadyReviewedPage';
 import InvalidQrPage from '@/pages/Public/InvalidQrPage';
 import NotCompletedPage from '@/pages/Public/NotCompletedPage';
 import PaymentSuccess from '@/pages/Payment/Success';
 import PaymentFailed from '@/pages/Payment/Failed';
-import { i } from 'framer-motion/client';
-import { Settings } from 'lucide-react';
 
 export const AppRoutes = () => {
     return (
         <Routes>
+            {/* 🆕 Public Review Routes */}
+            <Route path="/review/space/:spaceId" element={<SpaceReviewPage />} />
             <Route path="/review/booking/:bookingId" element={<ReviewPage />} />
             <Route path="/review/already-reviewed" element={<AlreadyReviewedPage />} />
             <Route path="/review/invalid" element={<InvalidQrPage />} />
             <Route path="/review/not-completed" element={<NotCompletedPage />} />
+            
+            {/* Payment Routes */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/failed" element={<PaymentFailed />} />
 
@@ -86,8 +91,8 @@ export const AppRoutes = () => {
                 <Route path="spaces" element={<Spaces />} />
                 <Route path="/explore/:id" element={<SpaceDetails />} />
                 <Route path="contact" element={<Contact />} />
-                <Route path="privacy" element={<PrivacyPolicy />} />\
-                <Route path="terms" element={<TermsOfService />} />\
+                <Route path="privacy" element={<PrivacyPolicy />} />
+                <Route path="terms" element={<TermsOfService />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/blogs" element={<Blogs />} />
                 <Route path="/blog/:slug" element={<BlogDetail />} />
@@ -128,6 +133,8 @@ export const AppRoutes = () => {
                     <Route index element={<Navigate to="dashboard" replace />} />
                     <Route path="dashboard" element={<SpaceDashboard />} />
                     <Route path="my-spaces" element={<MySpaces />} />
+                    <Route path="my-spaces/create" element={<CreateSpace />} />
+                    <Route path="my-spaces/edit/:id" element={<EditSpace />} />
                     <Route path="bookings" element={<Bookings />} />
                     <Route path="walkins" element={<Walkins />} />
                     <Route path="earnings" element={<EarningsTracker />} />
@@ -140,8 +147,7 @@ export const AppRoutes = () => {
                     <Route path="orders" element={<Orders />} />
                     <Route path="products" element={<Products />} />
                     <Route path="payment-settings" element={<PaymentSettings />} />
-                    <Route path="my-spaces/create" element={<CreateSpace />} />
-                    <Route path="my-spaces/edit/:id" element={<EditSpace />} />
+                    <Route path="total-orders" element={<TotalOrders />} />
                 </Route>
             </Route>
 

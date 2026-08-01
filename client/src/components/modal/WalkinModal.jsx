@@ -13,8 +13,8 @@ export const WalkinModal = ({
     setFormData, 
     spaces, 
     roomsWithAvailability, 
-    submitting, 
-    fetchRoomsWithAvailability 
+    submitting,
+    loadingRooms = false // New prop with default
 }) => {
     const { themeColor } = useTheme();
 
@@ -45,6 +45,16 @@ export const WalkinModal = ({
         label: space.name
     }));
 
+    // Get room rate helper
+    const getRoomRate = () => {
+        if (formData.room_id) {
+            const room = roomsWithAvailability.find(r => r._id === formData.room_id);
+            return room?.rate_hour || 0;
+        }
+        const space = spaces.find(s => s._id === formData.space_id);
+        return space?.rate_hour || 0;
+    };
+
     return (
         <Modal open={isOpen} onClose={onClose} title="New Walk-in Check-in" size="md">
             <form onSubmit={onSubmit} className="space-y-4">
@@ -66,7 +76,12 @@ export const WalkinModal = ({
                             Select Room (Optional - Leave empty for hot desk)
                         </label>
                         <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
-                            {roomsWithAvailability.length === 0 ? (
+                            {loadingRooms ? (
+                                <div className="p-3 bg-muted rounded-xl text-center">
+                                    <Loader2 size={24} className="animate-spin mx-auto text-primary" />
+                                    <p className="text-[10px] text-muted-foreground mt-2">Loading rooms...</p>
+                                </div>
+                            ) : roomsWithAvailability.length === 0 ? (
                                 <div className="p-3 bg-muted rounded-xl text-center">
                                     <p className="text-[10px] text-muted-foreground">No rooms available today</p>
                                 </div>
@@ -172,9 +187,7 @@ export const WalkinModal = ({
                 <div className="p-3 bg-primary/10 border border-primary/20 rounded-2xl">
                     <p className="text-[8px] text-primary font-black uppercase tracking-widest">Rate Info</p>
                     <p className="text-xs text-foreground font-bold mt-1">
-                        ₱{formData.room_id
-                            ? roomsWithAvailability.find(r => r._id === formData.room_id)?.rate_hour
-                            : spaces.find(s => s._id === formData.space_id)?.rate_hour || 0}/hour
+                        ₱{getRoomRate()}/hour
                     </p>
                     <p className="text-[8px] text-muted-foreground mt-1">
                         {formData.room_id ? 'Private room rate applied' : 'Open area / hot desk rate applied'}

@@ -20,9 +20,23 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number, required: true },
     payment_method: { 
         type: String, 
-        enum: ['cash', 'qr', 'card', 'online'],
+        enum: ['cash', 'qr', 'card', 'online', 'pay_later'],
         required: true 
     },
+    
+    is_pay_later: { type: Boolean, default: false },
+    pay_later_status: { 
+        type: String, 
+        enum: ['pending', 'partially_paid', 'settled'], 
+        default: 'pending' 
+    },
+    pay_later_total_accumulated: { type: Number, default: 0 },
+    pay_later_payments: [{
+        amount: { type: Number, required: true },
+        payment_method: { type: String, enum: ['cash', 'qr', 'online'], default: 'cash' },
+        paid_at: { type: Date, default: Date.now },
+        processed_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }],
     amount_received: { type: Number, required: true },
     change: { type: Number, default: 0 },
     customer_name: { type: String, required: true },

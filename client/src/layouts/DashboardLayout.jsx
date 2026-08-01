@@ -5,7 +5,7 @@ import {
     ShoppingCart, Receipt, ChevronLeft, LogOut, User,
     DollarSign,
     Package,
-    ClipboardList, Bug, 
+    ClipboardList, Bug,
     Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity, Star, Database, CreditCard
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
@@ -20,7 +20,7 @@ export default function DashboardLayout() {
     const { themeColor } = useTheme();
     const location = useLocation();
     const navigate = useNavigate();
-        const { hasPendingFees, pendingFees } = usePendingFees(); // Add this
+    const { hasPendingFees, pendingFees } = usePendingFees(); // Add this
 
 
     // Load sidebar state from localStorage with default true
@@ -146,15 +146,15 @@ export default function DashboardLayout() {
 
     const isRouteActive = useCallback((path) => {
         if (location.pathname === path) return true;
-        
+
         const pathSegments = location.pathname.split('/').filter(Boolean);
         const targetSegments = path.split('/').filter(Boolean);
-        
+
         if (targetSegments.length < pathSegments.length) {
             const matches = targetSegments.every((seg, i) => seg === pathSegments[i]);
             return matches && pathSegments.length === targetSegments.length;
         }
-        
+
         return false;
     }, [location.pathname]);
 
@@ -261,15 +261,22 @@ export default function DashboardLayout() {
                         { href: "/space/reviews", active: isRouteActive("/space/reviews"), icon: <Star />, label: "Reviews" },
                     ] : []),
                     { href: "/space/bookings", active: isRouteActive("/space/bookings"), icon: <Calendar />, label: "Bookings" },
+                    // 🆕 New: Total Orders (All Bookings + Pay Later)
+                    { href: "/space/total-orders", active: isRouteActive("/space/total-orders"), icon: <ClipboardList />, label: "Total Orders" },
                 ],
             });
 
+            // ⭐ Point of Sale section - Show for BOTH owners AND staff
             sections.push({
                 title: "Point of Sale",
                 items: [
                     { href: "/space/pos", active: isRouteActive("/space/pos"), icon: <ShoppingCart />, label: "Point of Sale" },
-                    { href: "/space/inventory", active: isRouteActive("/space/inventory"), icon: <Package />, label: "Inventory" },
+                    // 🆕 Customer Orders - Show for BOTH owners AND staff
                     { href: "/space/orders", active: isRouteActive("/space/orders"), icon: <ClipboardList />, label: "Customer Orders" },
+                    // ❌ Inventory - ONLY for owners (isActualOwner)
+                    ...(isActualOwner ? [
+                        { href: "/space/inventory", active: isRouteActive("/space/inventory"), icon: <Package />, label: "Inventory" },
+                    ] : []),
                 ],
             });
 
@@ -470,7 +477,7 @@ function NavLink({ to, active, label, icon, isOpen }) {
                 {React.cloneElement(icon, { size: 18, strokeWidth: active ? 3 : 2 })}
             </div>
             {isOpen && <span className="text-[13px] font-semibold whitespace-nowrap">{label}</span>}
-            
+
             {/* Tooltip when sidebar is collapsed */}
             {!isOpen && (
                 <>

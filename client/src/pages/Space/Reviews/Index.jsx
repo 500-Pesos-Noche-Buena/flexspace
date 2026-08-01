@@ -302,20 +302,27 @@ const SpaceReviewList = () => {
                             {/* Review Header */}
                             <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
                                 <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                                        <StarRating rating={review.rating} size={18} />
-                                        {review.is_verified_booking && (
-                                            <span className="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
-                                                Verified Booking
-                                            </span>
-                                        )}
-                                        {review.is_edited && (
-                                            <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                                                Edited
-                                            </span>
-                                        )}
-                                    </div>
-                                    
+                                   {/* In the review card header */}
+<div className="flex items-center gap-3 mb-2 flex-wrap">
+    <StarRating rating={review.rating} size={18} />
+    {review.is_verified_booking && (
+        <span className="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+            Verified Booking
+        </span>
+    )}
+    {/* ✅ Add this pending badge */}
+    {review.status === 'pending' && (
+        <span className="text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-bold animate-pulse">
+            Pending Approval
+        </span>
+    )}
+    {review.is_edited && (
+        <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+            Edited
+        </span>
+    )}
+</div>
+
                                     {review.title && (
                                         <h4 className="font-bold text-foreground text-base mb-2">
                                             {review.title}
