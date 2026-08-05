@@ -14,8 +14,12 @@ let attackStartTime = null;
 // Helper to check if IP is localhost/development
 const isLocalhost = (ip) => {
     if (!ip) return false;
+    
+    // Convert array or non-string inputs safely to a string
+    const safeIp = Array.isArray(ip) ? String(ip[0]) : String(ip);
+
     const localIps = ['::1', '127.0.0.1', '::ffff:127.0.0.1', 'localhost'];
-    return localIps.includes(ip) || ip.startsWith('192.168.') || ip.startsWith('10.');
+    return localIps.includes(safeIp) || safeIp.startsWith('192.168.') || safeIp.startsWith('10.');
 };
 
 // Safe helper to resolve client IP using express-rate-limit's built-in helper
