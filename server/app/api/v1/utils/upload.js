@@ -1,29 +1,16 @@
-// upload.js - FIXED with better error handling
+// upload.js - FIXED for Vercel compatibility
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { cloudinaryQueue } = require('@/config/queue');
 
-// Create temp directory
-const tempDir = path.join(process.cwd(), 'server/temp');
-if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, tempDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// Use memory storage for Vercel compatibility
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
     storage,
     limits: { 
-        fileSize: 10 * 1024 * 1024, // Reduced to 10MB for better performance
+        fileSize: 10 * 1024 * 1024, // 10MB
         files: 10
     },
     fileFilter: (req, file, cb) => {
@@ -54,9 +41,14 @@ const processUploadedFiles = async (req, res, next) => {
 
         const cloudinaryUrls = {};
 
-        // Helper function to upload with timeout
+        // Helper function to upload with timeout - using buffer directly
         const uploadWithTimeout = async (file, folder) => {
-            const fileBuffer = fs.readFileSync(file.path);
+            // Get buffer from memory storage
+            const fileBuffer = file.buffer;
+            
+            if (!fileBuffer || fileBuffer.length === 0) {
+                throw new Error('Empty file buffer');
+            }
             
             console.log(`📤 Uploading: ${file.originalname}, size: ${fileBuffer.length} bytes`);
             
@@ -64,9 +56,9 @@ const processUploadedFiles = async (req, res, next) => {
             const job = await cloudinaryQueue.add('upload', {
                 action: 'upload',
                 data: {
-                    fileBuffer: fileBuffer,
+                    fileBuffer: fileBuffer.toString('base64'), // Convert to base64 for queue
                     folder: folder,
-                    filename: file.filename,
+                    filename: file.filename || file.originalname,
                     originalname: file.originalname,
                     fieldname: file.fieldname || 'images',
                     mimetype: file.mimetype
@@ -80,13 +72,6 @@ const processUploadedFiles = async (req, res, next) => {
                     setTimeout(() => reject(new Error('Upload timeout after 2 minutes')), 120000)
                 )
             ]);
-            
-            // Clean up temp file
-            try {
-                fs.unlinkSync(file.path);
-            } catch (err) {
-                console.warn('Could not delete temp file:', err.message);
-            }
             
             return result.url;
         };

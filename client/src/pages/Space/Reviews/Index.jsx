@@ -413,7 +413,7 @@ const SpaceReviewList = () => {
                                                 onChange={(e) => setReplyText(e.target.value)}
                                                 placeholder="Write your reply to this customer..."
                                                 rows="3"
-                                                className="flex-1 min-w-[200px] px-4 py-2 bg-background border border-border rounded-xl text-foreground text-sm focus:border-primary outline-none resize-none"
+                                                className="flex-1 min-w-50 px-4 py-2 bg-background border border-border rounded-xl text-foreground text-sm focus:border-primary outline-none resize-none"
                                                 autoFocus
                                             />
                                             <div className="flex gap-2">

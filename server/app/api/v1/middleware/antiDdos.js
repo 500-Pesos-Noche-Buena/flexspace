@@ -1,5 +1,6 @@
+// middleware/antiDdos.js - FINAL FIXED VERSION (No warnings)
 const { Blocklist } = require('@/api/v1/models');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 
 // In-memory tracking for temporary bans
 const tempBans = new Map();
@@ -15,6 +16,11 @@ const isLocalhost = (ip) => {
     if (!ip) return false;
     const localIps = ['::1', '127.0.0.1', '::ffff:127.0.0.1', 'localhost'];
     return localIps.includes(ip) || ip.startsWith('192.168.') || ip.startsWith('10.');
+};
+
+// Safe helper to resolve client IP using express-rate-limit's built-in helper
+const getClientIp = (req) => {
+    return ipKeyGenerator(req);
 };
 
 // Check if we're in production mode
@@ -57,9 +63,7 @@ const antiDdos = {
     },
 
     gatekeeper: async (req, res, next) => {
-        const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-            req.socket.remoteAddress ||
-            req.ip;
+        const clientIp = getClientIp(req);
 
         // Skip anti-DDoS for localhost or development environment
         if (!isProduction || isLocalhost(clientIp)) {
@@ -91,9 +95,7 @@ const antiDdos = {
     },
 
     responseMonitor: (req, res, next) => {
-        const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-            req.socket.remoteAddress ||
-            req.ip;
+        const clientIp = getClientIp(req);
 
         // Skip monitoring for development
         if (!isProduction || isLocalhost(clientIp)) {
@@ -128,9 +130,7 @@ const antiDdos = {
     globalLimiter: rateLimit({
         windowMs: 1 * 60 * 1000,
         max: (req) => {
-            const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                req.socket.remoteAddress ||
-                req.ip;
+            const clientIp = getClientIp(req);
 
             // No limit for localhost or development
             if (!isProduction || isLocalhost(clientIp)) {
@@ -141,19 +141,14 @@ const antiDdos = {
             return isUnderAttack ? 60 : 200;
         },
         skipSuccessfulRequests: true,
-        keyGenerator: (req) => {
-            return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                req.socket.remoteAddress ||
-                req.ip;
-        },
+        // Using built-in ipKeyGenerator directly eliminates the ERR_ERL_KEY_GEN_IPV6 warning
+        keyGenerator: (req) => ipKeyGenerator(req),
         message: {
             success: false,
             message: "Too many requests. Please wait."
         },
-        handler: async (req, res) => {
-            const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                req.socket.remoteAddress ||
-                req.ip;
+        handler: async (req, res, next) => {
+            const clientIp = getClientIp(req);
 
             if (!isProduction || isLocalhost(clientIp)) {
                 return next();
@@ -188,17 +183,14 @@ const antiDdos = {
     strictLimiter: rateLimit({
         windowMs: 15 * 60 * 1000,
         max: (req) => {
-            // No limit in development
             if (!isProduction) return 999999;
-            return 10; // 10 attempts per 15 minutes in production
+            return 10;
         },
         skipSuccessfulRequests: true,
         keyGenerator: (req) => {
-            const email = req.body.email || 'unknown';
-            const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                req.socket.remoteAddress ||
-                req.ip;
-            return `${email}_${ip}`;
+            const email = req.body?.email || req.query?.email || 'unknown';
+            const safeIp = ipKeyGenerator(req);
+            return `strict_${email}_${safeIp}`;
         },
         message: {
             success: false,

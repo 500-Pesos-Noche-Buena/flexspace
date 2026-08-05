@@ -26,7 +26,6 @@ class DashboardController {
                     .limit(6)
             ]);
 
-            // Map the data for SpaceCard component
             const formattedTrending = trendingSpaces.map(space => ({
                 _id: space._id,
                 name: space.name,
@@ -46,7 +45,6 @@ class DashboardController {
 
             const userPoints = userDetails?.points || 0;
             
-            // Get redemption ratio from rewardService (you'll need to expose it)
             const redemptionRatio = rewardService.REDEMPTION_RATIO || 20;
             const minPointsToRedeem = rewardService.MIN_POINTS_TO_REDEEM || 100;
 

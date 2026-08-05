@@ -1,4 +1,4 @@
-// queues/cloudinaryProcessor.js - FIXED
+// queues/cloudinaryProcessor.js - FIXED for buffer handling
 const cloudinary = require('cloudinary').v2;
 
 cloudinary.config({
@@ -17,34 +17,35 @@ const cloudinaryProcessor = async (job) => {
         if (action === 'upload') {
             const { fileBuffer, folder, originalname, fieldname, mimetype } = data;
             
-            console.log(`☁️ Uploading ${fieldname}: ${originalname} (${fileBuffer?.length || 0} bytes)`);
+            console.log(`☁️ Uploading ${fieldname}: ${originalname} (${fileBuffer?.length || 0} chars)`);
             
-            // Validate buffer
-            if (!fileBuffer) {
-                throw new Error('No file buffer provided');
-            }
-            
+            // Convert base64 back to buffer
             let buffer;
-            if (Buffer.isBuffer(fileBuffer)) {
+            if (typeof fileBuffer === 'string') {
+                // Check if it's base64
+                if (fileBuffer.startsWith('data:image')) {
+                    // Extract base64 part
+                    const base64Data = fileBuffer.split(',')[1] || fileBuffer;
+                    buffer = Buffer.from(base64Data, 'base64');
+                } else {
+                    buffer = Buffer.from(fileBuffer, 'base64');
+                }
+            } else if (Buffer.isBuffer(fileBuffer)) {
                 buffer = fileBuffer;
-            } else if (fileBuffer && fileBuffer.data) {
-                buffer = Buffer.from(fileBuffer.data);
-            } else if (typeof fileBuffer === 'string') {
-                buffer = Buffer.from(fileBuffer, 'base64');
             } else {
                 throw new Error(`Invalid buffer format: ${typeof fileBuffer}`);
             }
             
-            if (buffer.length === 0) {
+            if (!buffer || buffer.length === 0) {
                 throw new Error('Empty file buffer');
             }
             
             const folderPath = folder || `coworking/${fieldname}`;
             const publicId = `${fieldname}_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
             
-            console.log(`☁️ Uploading to folder: ${folderPath}, public_id: ${publicId}`);
+            console.log(`☁️ Uploading to folder: ${folderPath}, public_id: ${publicId}, size: ${buffer.length} bytes`);
             
-            // Upload to Cloudinary with better timeout
+            // Upload to Cloudinary
             const result = await new Promise((resolve, reject) => {
                 const uploadStream = cloudinary.uploader.upload_stream(
                     {
