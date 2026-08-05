@@ -88,7 +88,12 @@ async function apiRequest(method, endpoint, data = null) {
         const responseData = responseText ? JSON.parse(responseText) : {};
 
         if (!response.ok) {
-            throw new Error(responseData.message || `Error: ${response.status}`);
+            // ✅ Preserve response metadata on the error instance
+            const error = new Error(responseData.message || `Error: ${response.status}`);
+            error.status = response.status;
+            error.requiresGoogle = responseData.requiresGoogle || false; // Explicitly attach requiresGoogle flag
+            error.data = responseData; // Attach full backend response object
+            throw error;
         }
 
         return responseData;

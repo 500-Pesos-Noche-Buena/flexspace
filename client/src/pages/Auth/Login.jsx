@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { apiPost, apiGet } from '@/utils/Api'; 
+import { apiPost, apiGet } from '@/utils/Api';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -20,13 +20,13 @@ const Login = () => {
     const [turnstileError, setTurnstileError] = useState(false);
     const turnstileContainerRef = useRef(null);
     const widgetIdRef = useRef(null);
-    
+
     // Form validation states
     const [touched, setTouched] = useState({ email: false, password: false });
     const [errors, setErrors] = useState({});
-    
+
     const { login } = useAuth();
-    
+
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -48,19 +48,19 @@ const Login = () => {
     // Form validation function
     const validateForm = () => {
         const newErrors = {};
-        
+
         if (!formData.email) {
             newErrors.email = 'Email is required';
         } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
             newErrors.email = 'Please enter a valid email address';
         }
-        
+
         if (!formData.password) {
             newErrors.password = 'Password is required';
         } else if (formData.password.length < 6) {
             newErrors.password = 'Password must be at least 6 characters';
         }
-        
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -69,7 +69,7 @@ const Login = () => {
     const handleBlur = (e) => {
         const { name } = e.target;
         setTouched(prev => ({ ...prev, [name]: true }));
-        
+
         // Validate on blur
         if (name === 'email') {
             if (!formData.email) {
@@ -80,7 +80,7 @@ const Login = () => {
                 setErrors(prev => ({ ...prev, email: '' }));
             }
         }
-        
+
         if (name === 'password') {
             if (!formData.password) {
                 setErrors(prev => ({ ...prev, password: 'Password is required' }));
@@ -96,7 +96,7 @@ const Login = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-        
+
         // Clear error when user starts typing
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: '' }));
@@ -122,7 +122,7 @@ const Login = () => {
     const initTurnstile = () => {
         if (window.turnstile && turnstileContainerRef.current && !widgetIdRef.current) {
             const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADKRTC20ldH2jxH_';
-            
+
             widgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
                 sitekey: siteKey,
                 callback: (token) => {
@@ -146,47 +146,47 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         // Validate form
         if (!validateForm()) {
             // Mark all fields as touched to show errors
             setTouched({ email: true, password: true });
-            showToast({ 
-                icon: 'error', 
-                title: 'Validation Error', 
-                message: 'Please check the form for errors.' 
+            showToast({
+                icon: 'error',
+                title: 'Validation Error',
+                message: 'Please check the form for errors.'
             });
             return;
         }
-        
+
         // Check Turnstile verification
         if (!turnstileToken) {
-            showToast({ 
-                icon: 'error', 
-                title: 'Security Check Required', 
-                message: 'Please complete the security verification.' 
+            showToast({
+                icon: 'error',
+                title: 'Security Check Required',
+                message: 'Please complete the security verification.'
             });
             return;
         }
-        
+
         setIsLoading(true);
-        
+
         try {
             // First, check maintenance status
             const maintenanceRes = await apiGet('/maintenance/status');
-            
+
             const response = await apiPost('/auth/login', {
                 ...formData,
                 'cf-turnstile-response': turnstileToken
             });
-            
+
             if (response.status === 'success') {
                 // If maintenance mode is ON, only allow admin to login
                 if (maintenanceRes.maintenance && response.user.role !== 'admin') {
-                    showToast({ 
-                        icon: 'error', 
-                        title: 'System Under Maintenance', 
-                        message: 'Only administrators can access the system during maintenance.' 
+                    showToast({
+                        icon: 'error',
+                        title: 'System Under Maintenance',
+                        message: 'Only administrators can access the system during maintenance.'
                     });
                     // Reset Turnstile
                     if (widgetIdRef.current && window.turnstile) {
@@ -196,34 +196,39 @@ const Login = () => {
                     setIsLoading(false);
                     return;
                 }
-                
-                login(response.user, response.token); 
+
+                login(response.user, response.token);
                 showToast({ icon: 'success', title: `Welcome back, ${response.user.name}!` });
-                
+
                 const roleRedirects = {
                     admin: '/admin/dashboard',
                     space: '/space/dashboard',
                     staff: '/space/dashboard',
                     user: '/dashboard'
                 };
-                
+
                 navigate(roleRedirects[response.user.role] || '/dashboard');
-            } 
+            }
             else if (response.status === 'pending') {
                 localStorage.setItem('pending_name', response.name);
                 navigate('/registration-status');
             }
+            // ✅ FIXED CATCH BLOCK
         } catch (error) {
-            // Check if error is from Google-only account
-            if (error.message?.includes('Google') || error.requiresGoogle) {
-                showToast({ 
-                    icon: 'info', 
-                    title: 'Google Account Detected', 
-                    message: 'Please sign in with Google for this account.' 
+            // Strictly check if backend explicitly flagged requiresGoogle as true
+            if (error.requiresGoogle === true || error.data?.requiresGoogle === true) {
+                showToast({
+                    icon: 'info',
+                    title: 'Google Account Detected',
+                    message: 'Please sign in with Google for this account.'
                 });
             } else {
-                showToast({ icon: 'error', title: error.message || 'Login failed' });
+                showToast({
+                    icon: 'error',
+                    title: error.message || 'Login failed'
+                });
             }
+
             // Reset Turnstile on failed login
             if (widgetIdRef.current && window.turnstile) {
                 window.turnstile.reset(widgetIdRef.current);
@@ -233,14 +238,14 @@ const Login = () => {
             setIsLoading(false);
         }
     };
-    
+
     const handleGoogleLogin = () => {
         const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
         window.location.href = `${backendUrl}/api/v1/auth/google`;
     };
-    
+
     const buttonColorClass = getButtonColor();
-    
+
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center mb-6 md:mb-10">
@@ -251,7 +256,7 @@ const Login = () => {
                 <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">Sign in</h1>
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Access your coworking dashboard</p>
             </div>
-            
+
             {/* Google Sign In Button */}
             <div className="mb-6">
                 <button
@@ -260,15 +265,15 @@ const Login = () => {
                     className="w-full flex items-center justify-center gap-3 py-3.5 md:py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
                 >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Continue with Google</span>
                 </button>
             </div>
-            
+
             {/* Divider */}
             <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
@@ -278,21 +283,21 @@ const Login = () => {
                     <span className="px-3 bg-white dark:bg-slate-950 text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">OR</span>
                 </div>
             </div>
-            
+
             {/* Email/Password Form */}
             <form className="space-y-4 md:space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 ml-1">Email Address</label>
                     <div className="relative group">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors" size={18} />
-                        <input 
-                            type="email" 
+                        <input
+                            type="email"
                             name="email"
-                            required 
+                            required
                             value={formData.email}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            placeholder="name@email.com" 
+                            placeholder="name@email.com"
                             className={cn(
                                 "w-full pl-12 pr-4 py-3.5 md:py-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 outline-none transition font-bold text-sm",
                                 errors.email && touched.email
@@ -303,12 +308,12 @@ const Login = () => {
                     </div>
                     <ValidationError error={errors.email} touched={touched.email} />
                 </div>
-                
+
                 <div className="space-y-1.5">
                     <div className="flex justify-between items-center ml-1">
                         <label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">Password</label>
-                        <Link 
-                            to="#" 
+                        <Link
+                            to="#"
                             onClick={(e) => { e.preventDefault(); setShowForgotPassword(true); }}
                             className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline"
                         >
@@ -317,14 +322,14 @@ const Login = () => {
                     </div>
                     <div className="relative group">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors" size={18} />
-                        <input 
-                            type={showPassword ? "text" : "password"} 
+                        <input
+                            type={showPassword ? "text" : "password"}
                             name="password"
-                            required 
+                            required
                             value={formData.password}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            placeholder="••••••••" 
+                            placeholder="••••••••"
                             className={cn(
                                 "w-full pl-12 pr-12 py-3.5 md:py-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 outline-none transition font-bold text-sm",
                                 errors.password && touched.password
@@ -332,9 +337,9 @@ const Login = () => {
                                     : "border-slate-200 dark:border-slate-700 focus:border-indigo-400 dark:focus:border-indigo-500"
                             )}
                         />
-                        <button 
-                            type="button" 
-                            onClick={() => setShowPassword(!showPassword)} 
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-300 transition-colors"
                         >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -342,7 +347,7 @@ const Login = () => {
                     </div>
                     <ValidationError error={errors.password} touched={touched.password} />
                 </div>
-                
+
                 {/* Cloudflare Turnstile Widget */}
                 <div className="flex justify-center py-2">
                     <div ref={turnstileContainerRef} className="dark:[&_iframe]:bg-slate-800" />
@@ -352,8 +357,8 @@ const Login = () => {
                         Security verification failed. Please refresh and try again.
                     </p>
                 )}
-                
-                <Button 
+
+                <Button
                     type="submit"
                     disabled={isLoading || !turnstileToken}
                     className={cn(
@@ -364,14 +369,14 @@ const Login = () => {
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : <>Sign in <ArrowRight size={20} /></>}
                 </Button>
             </form>
-            
+
             <p className="text-center mt-8 md:mt-12 text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 New to FlexSpace? <Link to="/register" className="text-indigo-600 dark:text-indigo-400 hover:underline underline-offset-4 decoration-2">Create account</Link>
             </p>
-            
-            <ForgotPasswordModal 
-                isOpen={showForgotPassword} 
-                onClose={() => setShowForgotPassword(false)} 
+
+            <ForgotPasswordModal
+                isOpen={showForgotPassword}
+                onClose={() => setShowForgotPassword(false)}
             />
         </div>
     );
