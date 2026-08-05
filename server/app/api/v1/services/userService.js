@@ -6,7 +6,13 @@ class UserService {
         const user = await User.findOne({ email });
 
         if (user) {
+            // Return explicit status if account is Google-only (no local password)
             if (user.authProvider === 'google' && !user.password) {
+                return { user, type: 'google_only' };
+            }
+
+            // If user has a password (or set one later), verify it safely
+            if (!user.password) {
                 return null;
             }
 
@@ -57,7 +63,7 @@ class UserService {
             business_permit: data.business_permit,
             dti_sec_reg: data.dti_sec_reg,
             status: 'pending',
-            business_payment_qr: data.business_payment_qr || null, 
+            business_payment_qr: data.business_payment_qr || null,
             payment_methods: data.payment_methods || ['cash']
         });
 
@@ -71,7 +77,7 @@ class UserService {
         ]);
         return !!(user || pending);
     }
-    
+
     async createStaff(data) {
         if (!data.password) throw new Error("Password missing for hashing");
 
