@@ -43,19 +43,27 @@ const config = {
     redis: {
         // Support both REDIS_URL and individual config
         url: process.env.REDIS_URL,
-        host: process.env.REDIS_HOST || 'localhost',
+        // 🔑 FIX 1: Change default 'localhost' to '127.0.0.1' (IPv4)
+        host: process.env.REDIS_HOST || '127.0.0.1',
         port: parseInt(process.env.REDIS_PORT) || 6379,
         password: process.env.REDIS_PASSWORD,
         
         // Helper method to get connection config
         getConnectionConfig() {
             if (this.url) {
-                return { url: this.url };
+                return this.url;
             }
             return {
-                host: this.host,
+                host: this.host === 'localhost' ? '127.0.0.1' : this.host,
                 port: this.port,
                 password: this.password,
+                // 🔑 FIX 2: Force IPv4 for Node 20 compatibility
+                family: 4,
+                enableReadyCheck: false,
+                maxRetriesPerRequest: null,
+                retryStrategy(times) {
+                    return Math.min(times * 100, 3000); // Reconnect loop if Redis is starting
+                }
             };
         }
     },

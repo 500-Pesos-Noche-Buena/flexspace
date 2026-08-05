@@ -28,7 +28,7 @@ COPY supervisor/supervisor.conf /etc/supervisord.conf
 # 7. Set environment variables
 ENV NODE_ENV=production
 ENV PORT=5000
-ENV REDIS_HOST=localhost
+ENV REDIS_HOST=127.0.0.1
 ENV REDIS_PORT=6379
 ENV USE_QUEUES=true
 ENV BLOG_API_KEY=flexspace-secret-key
