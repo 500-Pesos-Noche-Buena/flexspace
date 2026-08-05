@@ -1,7 +1,16 @@
 const { ActivityLog } = require('@/api/v1/models');
 
+const extractIp = (req) => {
+    return String(
+        req.headers['cf-connecting-ip'] || 
+        req.headers['x-forwarded-for']?.split(',')[0].trim() || 
+        req.ip || 
+        req.socket?.remoteAddress || 
+        '127.0.0.1'
+    );
+};
+
 const autoLogger = (req, res, next) => {
-    // Capture user from req.user (set by auth middleware)
     let capturedUser = null;
     
     if (req.user) {
@@ -11,14 +20,6 @@ const autoLogger = (req, res, next) => {
             email: req.user.email
         };
     }
-    
-    // For debugging
-    console.log('🔍 [AutoLogger] Request:', {
-        path: req.path,
-        method: req.method,
-        hasUser: !!req.user,
-        userData: capturedUser
-    });
     
     const originalEnd = res.end;
     const originalJson = res.json;
@@ -46,7 +47,6 @@ const autoLogger = (req, res, next) => {
             
             if (isLogin) {
                 type = 'user_login';
-                // For login, get user from response or request
                 if (responseBody?.user) {
                     userId = responseBody.user._id || responseBody.user.id;
                     userName = responseBody.user.name;
@@ -60,7 +60,6 @@ const autoLogger = (req, res, next) => {
             }
             else if (isRegister) {
                 type = 'user_register';
-                // For register, get user from response
                 if (responseBody?.user) {
                     userId = responseBody.user._id || responseBody.user.id;
                     userName = responseBody.user.name;
@@ -73,7 +72,6 @@ const autoLogger = (req, res, next) => {
             }
             else if (isLogout) {
                 type = 'user_logout';
-                // For logout, use captured user from req.user (set by auth middleware)
                 if (capturedUser) {
                     userId = capturedUser._id;
                     userName = capturedUser.name;
@@ -87,14 +85,6 @@ const autoLogger = (req, res, next) => {
             }
             
             if (type) {
-                console.log('📝 [AutoLogger] Creating log:', { 
-                    type, 
-                    description, 
-                    userId, 
-                    userName, 
-                    userEmail 
-                });
-                
                 ActivityLog.create({
                     type,
                     description,
@@ -102,7 +92,7 @@ const autoLogger = (req, res, next) => {
                     userId: userId,
                     userName: userName,
                     userEmail: userEmail,
-                    ipAddress: req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress,
+                    ipAddress: extractIp(req),
                     userAgent: req.headers['user-agent'],
                     details: success ? null : { error: responseBody?.message }
                 }).catch(err => console.error('Failed to create log:', err));
