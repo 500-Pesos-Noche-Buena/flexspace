@@ -25,15 +25,19 @@ const errorHandler = (err, req, res, next) => {
     console.error(`Stack: ${err.stack}`);
     console.error('-----------------------');
 
-    // 🔥 LOG ERROR TO DATABASE (Async, don't await)
-    errorLogService.logBackendError(err, req).catch(() => {});
+    // 🔥 LOG ERROR TO DATABASE (Safely catch any logging error)
+    if (errorLogService && typeof errorLogService.logBackendError === 'function') {
+        errorLogService.logBackendError(err, req).catch((logErr) => {
+            console.warn('⚠️ Failed to store backend error log:', logErr.message);
+        });
+    }
 
     if (statusCode >= 500 || !err.isOperational) {
         logger.error('Uncaught Exception details:', {
             message: err.message,
             stack: err.stack,
-            requestUrl: req.originalUrl,
-            method: req.method,
+            requestUrl: req ? req.originalUrl : 'N/A',
+            method: req ? req.method : 'N/A',
         });
     }
 

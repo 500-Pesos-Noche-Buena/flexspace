@@ -20,7 +20,8 @@ const activityLogSchema = new mongoose.Schema({
             'region_create', 'region_update', 'region_delete',
             'country_create', 'country_update', 'country_delete',
             // Export action
-            'export_logs'
+            'export_logs',
+            'errorlog_update',
         ],
         index: true
     },
@@ -60,7 +61,6 @@ const activityLogSchema = new mongoose.Schema({
 
 // Create indexes for faster queries
 activityLogSchema.index({ createdAt: -1 });
-activityLogSchema.index({ type: 1, createdAt: -1 });
 activityLogSchema.index({ userName: 'text', description: 'text', userEmail: 'text' });
 
 module.exports = mongoose.model('ActivityLog', activityLogSchema);

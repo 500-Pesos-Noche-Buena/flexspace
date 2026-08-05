@@ -2,6 +2,23 @@ const ErrorLog = require('@/api/v1/models/schema/ErrorLog');
 
 class ErrorLogService {
     /**
+     * Safely extract client IP as a guaranteed string
+     */
+    extractClientIp(req) {
+        if (!req) return '127.0.0.1';
+
+        const rawIp = req.ip ||
+            req.headers?.['x-forwarded-for'] ||
+            req.connection?.remoteAddress ||
+            req.socket?.remoteAddress ||
+            '127.0.0.1';
+
+        // Express x-forwarded-for or multi-proxy IPs can be an Array
+        const ipString = Array.isArray(rawIp) ? rawIp[0] : String(rawIp);
+        return ipString.split(',')[0].trim();
+    }
+
+    /**
      * Log a backend error
      */
     async logBackendError(error, req = null, user = null) {
@@ -18,10 +35,10 @@ class ErrorLogService {
                 error_stack: error.stack || null,
                 error_code: error.code || null,
                 status_code: error.statusCode || 500,
-                method: req?.method,
-                url: req?.originalUrl || req?.url,
-                ip: req?.ip || req?.connection?.remoteAddress,
-                user_agent: req?.headers?.['user-agent'],
+                method: req?.method || 'UNKNOWN',
+                url: req?.originalUrl || req?.url || 'unknown',
+                ip: this.extractClientIp(req),
+                user_agent: req?.headers?.['user-agent'] || 'unknown',
                 user_id: user?._id || req?.user?._id || null,
                 request_data: this.sanitizeRequestData(req?.body),
                 tags: ['backend', 'server'],
@@ -32,7 +49,7 @@ class ErrorLogService {
             console.log(`📝 Error logged: ${logData.error_message} (${logData.severity})`);
             return log;
         } catch (err) {
-            console.error('Failed to log error:', err);
+            console.error('Failed to log error:', err.message);
             return null;
         }
     }
@@ -49,8 +66,8 @@ class ErrorLogService {
                 error_code: errorData.code || null,
                 method: req?.method || 'GET',
                 url: req?.originalUrl || req?.url || errorData.url || 'unknown',
-                ip: req?.ip || req?.connection?.remoteAddress,
-                user_agent: req?.headers?.['user-agent'] || errorData.userAgent,
+                ip: this.extractClientIp(req),
+                user_agent: req?.headers?.['user-agent'] || errorData.userAgent || 'unknown',
                 user_id: user?._id || req?.user?._id || null,
                 browser: errorData.browser,
                 browser_version: errorData.browserVersion,
@@ -68,7 +85,7 @@ class ErrorLogService {
             console.log(`📝 Frontend error logged: ${logData.error_message}`);
             return log;
         } catch (err) {
-            console.error('Failed to log frontend error:', err);
+            console.error('Failed to log frontend error:', err.message);
             return null;
         }
     }
@@ -77,17 +94,17 @@ class ErrorLogService {
      * Sanitize request data
      */
     sanitizeRequestData(data) {
-        if (!data) return null;
-        
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return data || null;
+
         const sensitiveFields = ['password', 'token', 'secret', 'key', 'authorization', 'api_key'];
         const sanitized = { ...data };
-        
+
         for (const field of sensitiveFields) {
-            if (sanitized[field]) {
+            if (Object.prototype.hasOwnProperty.call(sanitized, field)) {
                 sanitized[field] = '***REDACTED***';
             }
         }
-        
+
         return sanitized;
     }
 
@@ -206,12 +223,12 @@ class ErrorLogService {
     async deleteOldLogs(days = 30) {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - days);
-        
+
         const result = await ErrorLog.deleteMany({
             created_at: { $lt: cutoff },
             resolved: true
         });
-        
+
         return result.deletedCount;
     }
 }
