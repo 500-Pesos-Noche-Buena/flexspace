@@ -408,6 +408,8 @@ class SpaceController {
             next(error);
         }
     };
+
+    
 }
 
 module.exports = new SpaceController();

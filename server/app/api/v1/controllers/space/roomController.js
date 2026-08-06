@@ -7,6 +7,26 @@ class RoomController {
         return req.user?.id || req.user?._id || req.user?.sub;
     };
 
+    // ✅ Helper to update space available_rooms count
+    updateSpaceRoomCount = async (spaceId) => {
+        try {
+            const availableRooms = await Room.countDocuments({
+                space_id: spaceId,
+                is_available: true
+            });
+
+            await Space.findByIdAndUpdate(spaceId, {
+                available_rooms: availableRooms
+            });
+
+            console.log(`✅ Updated space ${spaceId} available_rooms to ${availableRooms}`);
+            return availableRooms;
+        } catch (error) {
+            console.error('Failed to update room count:', error);
+            return 0;
+        }
+    };
+
     // EXISTING METHOD - For space owners (requires auth)
     getRooms = async (req, res, next) => {
         try {
@@ -44,8 +64,7 @@ class RoomController {
         }
     };
 
-
-    // Replace the existing getRoomsWithAvailability method with this:
+    // Get rooms with availability for today
     getRoomsWithAvailability = async (req, res, next) => {
         try {
             const { spaceId } = req.params;
@@ -72,7 +91,7 @@ class RoomController {
                 });
             }
 
-            // Get today's date range (start to end of day)
+            // Get today's date range
             const today = new Date();
             const startOfDay = new Date(today);
             startOfDay.setHours(0, 0, 0, 0);
@@ -82,17 +101,13 @@ class RoomController {
 
             console.log('=== GET ROOMS WITH AVAILABILITY ===');
             console.log('Space ID:', spaceId);
-            console.log('Start of day:', startOfDay);
-            console.log('End of day:', endOfDay);
             console.log('Room IDs:', rooms.map(r => r._id));
 
             // Get all bookings for these rooms today
-            // Using start_time and end_time instead of date field
             const bookings = await Booking.find({
                 room_id: { $in: rooms.map(r => r._id) },
                 status: { $nin: ['cancelled', 'checked_out', 'expired'] },
                 $or: [
-                    // Booking overlaps with today
                     {
                         $and: [
                             { start_time: { $lte: endOfDay } },
@@ -113,12 +128,6 @@ class RoomController {
                 ...room,
                 is_available: !bookedRoomIds.has(room._id.toString())
             }));
-
-            console.log(`Returning ${roomsWithAvailability.length} rooms with availability`);
-            roomsWithAvailability.forEach(room => {
-                console.log(`- ${room.name}: ${room.is_available ? 'AVAILABLE ✅' : 'BOOKED ❌'}`);
-            });
-            console.log('====================================');
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
@@ -151,12 +160,8 @@ class RoomController {
 
             const room = await Room.create(roomData);
 
-            // Update space room count
-            const roomCount = await Room.countDocuments({ space_id: spaceId });
-            await Space.findByIdAndUpdate(spaceId, {
-                has_rooms: true,
-                room_count: roomCount
-            });
+            // ✅ Update space room count
+            await this.updateSpaceRoomCount(spaceId);
 
             return res.status(HTTP_STATUS.CREATED).json({
                 success: true,
@@ -191,6 +196,9 @@ class RoomController {
 
             const updatedRoom = await Room.findByIdAndUpdate(roomId, updates, { new: true });
 
+            // ✅ Update space room count
+            await this.updateSpaceRoomCount(room.space_id._id);
+
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 message: 'Room updated',
@@ -213,14 +221,11 @@ class RoomController {
             const space = await Space.findOne({ _id: room.space_id._id, user_id: userId });
             if (!space) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Unauthorized');
 
+            const spaceId = room.space_id._id;
             await Room.findByIdAndDelete(roomId);
 
-            // Update space room count
-            const roomCount = await Room.countDocuments({ space_id: room.space_id._id });
-            await Space.findByIdAndUpdate(room.space_id._id, {
-                room_count: roomCount,
-                has_rooms: roomCount > 0
-            });
+            // ✅ Update space room count
+            await this.updateSpaceRoomCount(spaceId);
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
@@ -231,7 +236,7 @@ class RoomController {
         }
     };
 
-    // Complete fixed checkRoomAvailability method for roomController.js
+    // Check room availability
     checkRoomAvailability = async (req, res, next) => {
         try {
             const { roomId } = req.params;
@@ -273,12 +278,11 @@ class RoomController {
             console.log('End DateTime (local):', endDateTime);
             console.log('Is Open Time:', is_open_time);
 
-            // Find ALL conflicting bookings (including pending, confirmed, active, pending_payment)
+            // Find ALL conflicting bookings
             const conflictingBookings = await Booking.find({
                 room_id: roomId,
                 status: { $in: ['pending', 'confirmed', 'active', 'pending_payment'] },
                 $or: [
-                    // Booking overlaps with selected time range
                     {
                         $and: [
                             { start_time: { $lte: endDateTime } },
@@ -290,10 +294,7 @@ class RoomController {
 
             const isAvailable = conflictingBookings.length === 0;
 
-            console.log(`Found ${conflictingBookings.length} conflicting bookings:`);
-            conflictingBookings.forEach(booking => {
-                console.log(`- Booking ${booking._id}: ${booking.status}, ${booking.start_time} to ${booking.end_time}`);
-            });
+            console.log(`Found ${conflictingBookings.length} conflicting bookings`);
             console.log(`Result: ${isAvailable ? 'AVAILABLE ✅' : 'NOT AVAILABLE ❌'}`);
             console.log('========================');
 

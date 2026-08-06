@@ -170,14 +170,12 @@ const compressImage = (file, maxWidth = 1200, maxHeight = 1200, quality = 0.8) =
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                
+
                 canvas.toBlob((blob) => {
                     if (!blob) {
                         reject(new Error('Failed to compress image'));
                         return;
                     }
-                    // Keep original file extension
-                    const ext = file.name.split('.').pop();
                     const fileName = file.name.replace(/\.[^/.]+$/, '') + '.jpg';
                     resolve(new File([blob], fileName, { type: 'image/jpeg' }));
                 }, 'image/jpeg', quality);
@@ -201,7 +199,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
     const [detectingDistrict, setDetectingDistrict] = useState(false);
     const [errors, setErrors] = useState({});
 
-    // Room management states
+    // Room management states - FETCHED FROM DATABASE
     const [rooms, setRooms] = useState([]);
     const [showRoomModal, setShowRoomModal] = useState(false);
     const [editingRoom, setEditingRoom] = useState(null);
@@ -253,26 +251,49 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
         return colors[themeColor] || colors.indigo;
     };
 
-    // Fetch rooms when editing
+    // In CreateSpace.jsx, add this useEffect to auto-calculate available rooms
     useEffect(() => {
-        if (isEditing && spaceId) {
-            fetchRooms(spaceId);
+        // Auto-update available_rooms based on actual rooms count
+        const availableCount = rooms.filter(room => room.is_available !== false).length;
+        if (availableCount > 0) {
+            setFormData(prev => ({
+                ...prev,
+                available_rooms: availableCount.toString()
+            }));
         }
-    }, [isEditing, spaceId]);
+    }, [rooms]);
 
+    // Also, when fetching rooms, update the available_rooms
     const fetchRooms = async (spaceId) => {
+        if (!spaceId) return;
         setLoadingRooms(true);
         try {
             const res = await apiGet(`/space/spaces/${spaceId}/rooms`);
             if (res.success) {
                 setRooms(res.data || []);
+                // Auto-update available_rooms
+                const availableCount = (res.data || []).filter(room => room.is_available !== false).length;
+                if (availableCount > 0) {
+                    setFormData(prev => ({
+                        ...prev,
+                        available_rooms: availableCount.toString()
+                    }));
+                }
             }
         } catch (err) {
             console.error('Failed to fetch rooms:', err);
+            showToast({ icon: 'error', title: 'Failed to load rooms' });
         } finally {
             setLoadingRooms(false);
         }
     };
+
+    // ✅ FETCH ROOMS WHEN EDITING
+    useEffect(() => {
+        if (isEditing && (spaceId || initialData?._id)) {
+            fetchRooms(spaceId || initialData._id);
+        }
+    }, [isEditing, spaceId, initialData]);
 
     // Populate form with existing data when editing
     useEffect(() => {
@@ -349,7 +370,6 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             return;
         }
 
-        // Compress room images
         const compressed = await Promise.all(
             files.map(file => compressImage(file, 800, 800, 0.8))
         );
@@ -371,6 +391,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
         return errors;
     };
 
+    // ✅ SAVE ROOM TO DATABASE
     const handleSaveRoom = async () => {
         const validationErrors = validateRoomForm();
         if (Object.keys(validationErrors).length > 0) {
@@ -387,17 +408,23 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                 floor_number: parseInt(roomForm.floor_number)
             };
 
-            const url = editingRoom 
-                ? `/space/rooms/${editingRoom._id}` 
-                : `/space/spaces/${spaceId || initialData?._id}/rooms`;
-            
+            const spaceIdToUse = spaceId || initialData?._id;
+            if (!spaceIdToUse) {
+                showToast({ icon: 'error', title: 'Please save the space first before adding rooms' });
+                return;
+            }
+
+            const url = editingRoom
+                ? `/space/rooms/${editingRoom._id}`
+                : `/space/spaces/${spaceIdToUse}/rooms`;
+
             const res = await apiPost(url, roomData);
 
             if (res.success) {
-                showToast({ 
-                    icon: 'success', 
+                showToast({
+                    icon: 'success',
                     title: editingRoom ? 'Room updated!' : 'Room added!',
-                    duration: 2000 
+                    duration: 2000
                 });
                 setShowRoomModal(false);
                 setRoomForm({
@@ -414,15 +441,15 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                 });
                 setRoomImages([]);
                 setEditingRoom(null);
-                if (spaceId || initialData?._id) {
-                    fetchRooms(spaceId || initialData._id);
-                }
+                // ✅ REFRESH ROOMS FROM DATABASE
+                await fetchRooms(spaceIdToUse);
             }
         } catch (err) {
             showToast({ icon: 'error', title: err.message || 'Failed to save room' });
         }
     };
 
+    // ✅ EDIT ROOM
     const handleEditRoom = (room) => {
         setEditingRoom(room);
         setRoomForm({
@@ -438,17 +465,23 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             is_available: room.is_available !== undefined ? room.is_available : true
         });
         setRoomImages([]);
+        setRoomErrors({});
+        setRoomTouched({});
         setShowRoomModal(true);
     };
 
+    // ✅ DELETE ROOM FROM DATABASE
     const handleDeleteRoom = async (roomId) => {
         if (!confirm('Are you sure you want to delete this room?')) return;
-        
+
         try {
             const res = await apiPost(`/space/rooms/${roomId}/delete`);
             if (res.success) {
                 showToast({ icon: 'success', title: 'Room deleted' });
-                fetchRooms(spaceId || initialData._id);
+                const spaceIdToUse = spaceId || initialData?._id;
+                if (spaceIdToUse) {
+                    await fetchRooms(spaceIdToUse);
+                }
             }
         } catch (err) {
             showToast({ icon: 'error', title: err.message || 'Failed to delete room' });
@@ -565,14 +598,13 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
         }));
     };
 
-    // 🚀 OPTIMIZED: Handle image upload with compression and progress tracking
     const handleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
         const totalFiles = files.length;
         const maxImages = 10 - images.length;
-        
+
         if (maxImages <= 0) {
             showToast({ icon: 'warning', title: 'Maximum 10 images allowed' });
             return;
@@ -586,18 +618,17 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             const compressedFiles = [];
             for (let i = 0; i < filesToUpload.length; i++) {
                 const file = filesToUpload[i];
-                // Compress image (max 1200px, quality 0.8)
                 const compressed = await compressImage(file, 1200, 1200, 0.8);
                 compressedFiles.push(compressed);
                 setUploadProgress(Math.round(((i + 1) / filesToUpload.length) * 100));
             }
 
             setImages(prev => [...prev, ...compressedFiles]);
-            showToast({ 
-                icon: 'success', 
+            showToast({
+                icon: 'success',
                 title: `${compressedFiles.length} image(s) ready`,
                 text: `Compressed and ready to upload`,
-                duration: 1500 
+                duration: 1500
             });
         } catch (error) {
             console.error('Image compression error:', error);
@@ -613,11 +644,9 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
         setImages(prev => prev.filter((_, i) => i !== index));
     };
 
-    // 🚀 OPTIMIZED: Submit with image compression and faster upload
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Validation
         if (!formData.name || !formData.area || !formData.rate_hour || !formData.capacity) {
             showToast({ icon: 'error', title: 'Please fill in all required fields' });
             return;
@@ -656,17 +685,15 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             if (formData.district_id) submitData.append('district_id', formData.district_id);
             if (formData.available_rooms) submitData.append('available_rooms', formData.available_rooms);
 
-            // Only upload image files (not existing URLs)
             const imageFiles = images.filter(img => img instanceof File);
             imageFiles.forEach(img => {
                 submitData.append('images', img);
             });
 
             const url = isEditing ? `/space/spaces/${spaceId}/update` : '/space/spaces';
-            
-            // Show uploading toast
-            showToast({ 
-                icon: 'info', 
+
+            showToast({
+                icon: 'info',
                 title: isEditing ? 'Updating space...' : 'Creating space...',
                 text: 'Uploading images...',
                 duration: 2000
@@ -675,8 +702,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             const response = await apiPost(url, submitData);
 
             if (response.success) {
-                showToast({ 
-                    icon: 'success', 
+                showToast({
+                    icon: 'success',
                     title: isEditing ? 'Space updated!' : 'Space created!',
                     text: `${imageFiles.length} image(s) uploaded successfully`,
                     duration: 3000
@@ -687,8 +714,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             }
         } catch (error) {
             console.error('Submit error:', error);
-            showToast({ 
-                icon: 'error', 
+            showToast({
+                icon: 'error',
                 title: error.message || `Failed to ${isEditing ? 'update' : 'create'} space`,
                 text: 'Please try again'
             });
@@ -718,7 +745,6 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
         return found ? found.label : type;
     };
 
-    // Count how many images are actually files (to upload)
     const imageFilesCount = images.filter(img => img instanceof File).length;
     const existingImagesCount = images.filter(img => typeof img === 'string').length;
 
@@ -735,7 +761,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
 
             <form onSubmit={handleSubmit} className="max-w-7xl mx-auto">
                 <div className="bg-card border border-border rounded-3xl p-6 space-y-6">
-                    {/* Form fields - same as before */}
+                    {/* Form fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormInput
                             label="Space Name"
@@ -794,17 +820,21 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                         <FormInput
                             label="Available Rooms"
                             name="available_rooms"
-                            type="number"
+                            type="text"
                             value={formData.available_rooms}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            placeholder="e.g., 5"
+                            placeholder="Auto-calculated from rooms"
                             touched={touched.available_rooms}
                             error={errors.rate_hour}
+                            readOnly
+                            className="bg-muted cursor-not-allowed"
+                            helperText="Auto-calculated based on available rooms added below"
                         />
+
                     </div>
 
-                    {/* Location Map - same as before */}
+                    {/* Location Map */}
                     <div className="bg-linear-to-br from-primary/10 to-purple-500/10 rounded-2xl p-4 md:p-6 border border-primary/20">
                         <div className="flex items-center gap-2 mb-4 md:mb-6">
                             <MapPin size={16} className="text-primary" />
@@ -918,7 +948,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                         maxLength={30}
                     />
 
-                    {/* ROOMS MANAGEMENT SECTION */}
+                    {/* ✅ ROOMS MANAGEMENT SECTION - FETCHED FROM DATABASE */}
                     <div className="bg-linear-to-br from-purple-500/10 to-indigo-500/10 rounded-2xl p-4 md:p-6 border border-purple-500/20">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
                             <div className="flex items-center gap-2">
@@ -930,13 +960,21 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                         Rooms & Spaces
                                     </h3>
                                     <p className="text-[7px] sm:text-[8px] text-muted-foreground mt-0.5">
-                                        {rooms.length} room(s) configured
+                                        {loadingRooms ? 'Loading...' : `${rooms.length} room(s) configured`}
                                     </p>
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => {
+                                    if (!spaceId && !initialData?._id) {
+                                        showToast({
+                                            icon: 'warning',
+                                            title: 'Save Space First',
+                                            text: 'Please save the space before adding rooms'
+                                        });
+                                        return;
+                                    }
                                     setEditingRoom(null);
                                     setRoomForm({
                                         name: '',
@@ -976,6 +1014,14 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        if (!spaceId && !initialData?._id) {
+                                            showToast({
+                                                icon: 'warning',
+                                                title: 'Save Space First',
+                                                text: 'Please save the space before adding rooms'
+                                            });
+                                            return;
+                                        }
                                         setEditingRoom(null);
                                         setRoomForm({
                                             name: '',
@@ -1097,9 +1143,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                         touched={touched.description}
                     />
 
-                    {/* Weekly Schedule - same as before */}
+                    {/* Weekly Schedule */}
                     <div className="bg-muted rounded-2xl p-3 sm:p-6 border border-border">
-                        {/* Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary/20 flex items-center justify-center">
@@ -1154,7 +1199,6 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                             </div>
                         </div>
 
-                        {/* Schedule List */}
                         <div className="space-y-2 sm:space-y-3">
                             {days.map((day, index) => {
                                 const isActive = formData.hours_json[day]?.active ?? true;
@@ -1166,8 +1210,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                     <div
                                         key={day}
                                         className={`block p-3 sm:p-4 rounded-xl transition-all duration-200 ${isActive
-                                                ? 'bg-primary/5 border border-primary/20'
-                                                : 'bg-muted border border-border opacity-60'
+                                            ? 'bg-primary/5 border border-primary/20'
+                                            : 'bg-muted border border-border opacity-60'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between mb-3">
@@ -1190,8 +1234,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                                     </span>
                                                 )}
                                                 <span className={`text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase ${isActive
-                                                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                                                        : 'bg-slate-500/20 text-muted-foreground'
+                                                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                                    : 'bg-slate-500/20 text-muted-foreground'
                                                     }`}>
                                                     {isActive ? 'Open' : 'Closed'}
                                                 </span>
@@ -1247,8 +1291,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                                         }
                                                     }}
                                                     className={`px-2 py-1 rounded-lg text-[7px] sm:text-[8px] font-black uppercase whitespace-nowrap transition-all ${is247
-                                                            ? 'bg-slate-600/20 hover:bg-slate-600/30 text-muted-foreground'
-                                                            : 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-400'
+                                                        ? 'bg-slate-600/20 hover:bg-slate-600/30 text-muted-foreground'
+                                                        : 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-400'
                                                         }`}
                                                 >
                                                     {is247 ? 'Cancel 24hrs' : '24hrs'}
@@ -1305,7 +1349,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                         </div>
                     </div>
 
-                    {/* 🚀 OPTIMIZED: Images section with compression info */}
+                    {/* Images section */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
@@ -1334,7 +1378,7 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                             <Loader2 size={32} className="text-primary mx-auto animate-spin" />
                                             <p className="text-[10px] font-black text-primary uppercase tracking-widest">Processing images...</p>
                                             <div className="w-full max-w-xs mx-auto bg-muted rounded-full h-1.5">
-                                                <div 
+                                                <div
                                                     className="bg-primary h-1.5 rounded-full transition-all duration-300"
                                                     style={{ width: `${uploadProgress}%` }}
                                                 />
@@ -1374,13 +1418,13 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                                     const isFile = img instanceof File;
                                     const imageUrl = isFile ? URL.createObjectURL(img) : img;
                                     const isExisting = typeof img === 'string';
-                                    
+
                                     return (
                                         <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-muted border border-border group/image">
-                                            <img 
-                                                src={imageUrl} 
-                                                className="w-full h-full object-cover" 
-                                                alt={`Preview ${idx + 1}`} 
+                                            <img
+                                                src={imageUrl}
+                                                className="w-full h-full object-cover"
+                                                alt={`Preview ${idx + 1}`}
                                             />
                                             {isFile && (
                                                 <div className="absolute top-1 left-1 bg-emerald-500/80 text-white text-[6px] font-black px-1 py-0.5 rounded-full">

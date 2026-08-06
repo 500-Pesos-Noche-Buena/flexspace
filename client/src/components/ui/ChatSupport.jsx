@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-    MessageSquare, X, Send, Bot, Maximize2, ShoppingCart, 
-    Coffee, Sandwich, Cookie, Package, Sparkles, Zap, 
-    Plus, Minus, Trash2, Banknote, QrCode, CheckCircle, Loader2, Store, Clock 
+import {
+    MessageSquare, X, Send, Bot, Maximize2, ShoppingCart,
+    Coffee, Sandwich, Cookie, Package, Sparkles, Zap,
+    Plus, Minus, Trash2, Banknote, QrCode, CheckCircle, Loader2, Store, Clock,
+    Search, MapPin, Wifi, Users
 } from 'lucide-react';
 import { apiPost, apiGet } from '@/utils/Api';
 import ReactMarkdown from 'react-markdown';
@@ -10,26 +11,41 @@ import { useAuth } from '@/context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { showToast } from '@/components/ui/SweetAlert2';
 
-// Quick chat suggestions
-const QUICK_CHATS = [
-    { id: 'menu', label: '📋 Show Menu', icon: '📋', action: 'show_menu' },
-    { id: 'order', label: '🛒 Place Order', icon: '🛒', action: 'place_order' },
-    { id: 'food', label: '🍔 Food Items', icon: '🍔', action: 'food_items' },
-    { id: 'drinks', label: '☕ Drinks', icon: '☕', action: 'drinks' },
-    { id: 'snacks', label: '🍿 Snacks', icon: '🍿', action: 'snacks' },
-    { id: 'how_to_order', label: '❓ How to Order', icon: '❓', action: 'how_to_order' },
-    { id: 'special', label: '✨ Specials', icon: '✨', action: 'specials' },
-];
+// Quick chat suggestions based on auth status
+const getQuickChats = (isAuthenticated, hasActiveBooking) => {
+    const baseChats = [
+        { id: 'spaces', label: '🏢 Find Spaces', icon: '🏢', action: 'find_spaces' },
+        { id: 'districts', label: '📍 Districts', icon: '📍', action: 'districts' },
+        { id: 'how_to_book', label: '📖 How to Book', icon: '📖', action: 'how_to_book' },
+        { id: 'faq', label: '❓ FAQ', icon: '❓', action: 'faq' },
+    ];
+
+    // Only show food ordering if authenticated AND has active booking
+    if (isAuthenticated && hasActiveBooking) {
+        return [
+            ...baseChats,
+            { id: 'menu', label: '📋 Show Menu', icon: '📋', action: 'show_menu' },
+            { id: 'order', label: '🛒 Place Order', icon: '🛒', action: 'place_order' },
+            { id: 'food', label: '🍔 Food Items', icon: '🍔', action: 'food_items' },
+            { id: 'drinks', label: '☕ Drinks', icon: '☕', action: 'drinks' },
+            { id: 'snacks', label: '🍿 Snacks', icon: '🍿', action: 'snacks' },
+        ];
+    }
+
+    return baseChats;
+};
 
 // AI prompts
-const AI_ORDER_PROMPTS = {
+const AI_PROMPTS = {
+    find_spaces: "Can you show me available coworking spaces in Iloilo City?",
+    districts: "What districts in Iloilo City have coworking spaces?",
+    how_to_book: "How do I book a coworking space?",
+    faq: "What are the frequently asked questions about FlexSpace?",
     show_menu: "Can you show me the full menu of food and drinks available?",
     place_order: "I want to place an order for food. Can you help me?",
     food_items: "What food items are available on the menu?",
     drinks: "What drinks and beverages are available?",
     snacks: "What snacks and merchandise are available?",
-    how_to_order: "How do I order food on FlexSpace?",
-    specials: "Do you have any special offers or recommended items today?"
 };
 
 // Categories
@@ -43,7 +59,7 @@ const CATEGORIES = [
 
 const ChatSupport = () => {
     const { user, isAuthenticated } = useAuth();
-    
+
     // Chat state
     const [isOpen, setIsOpen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
@@ -57,7 +73,11 @@ const ChatSupport = () => {
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
 
-    // Order state
+    // Auth & Booking state
+    const [hasActiveBooking, setHasActiveBooking] = useState(false);
+    const [checkingBooking, setCheckingBooking] = useState(true);
+
+    // Order state (only used when authenticated and has active booking)
     const [cart, setCart] = useState([]);
     const [products, setProducts] = useState([]);
     const [activeSpace, setActiveSpace] = useState(null);
@@ -73,9 +93,38 @@ const ChatSupport = () => {
     const [currentOrderNumber, setCurrentOrderNumber] = useState('');
     const [paymentStatus, setPaymentStatus] = useState('pending');
     const [showOrderPanel, setShowOrderPanel] = useState(false);
-    
+
     const pollingRef = useRef(null);
     const fetchedRef = useRef(false);
+
+    // Check if user has active booking
+    useEffect(() => {
+        const checkActiveBooking = async () => {
+            if (!isAuthenticated) {
+                setHasActiveBooking(false);
+                setCheckingBooking(false);
+                return;
+            }
+
+            try {
+                const res = await apiGet('/user/active-booking-fast');
+                if (res.success && res.data?.booking) {
+                    setHasActiveBooking(true);
+                    setActiveBooking(res.data.booking);
+                    setActiveSpace(res.data.space);
+                } else {
+                    setHasActiveBooking(false);
+                }
+            } catch (err) {
+                console.error('Error checking active booking:', err);
+                setHasActiveBooking(false);
+            } finally {
+                setCheckingBooking(false);
+            }
+        };
+
+        checkActiveBooking();
+    }, [isAuthenticated]);
 
     // Check backend connectivity
     useEffect(() => {
@@ -106,13 +155,13 @@ const ChatSupport = () => {
         };
     }, []);
 
-    // Load products when order panel opens
+    // Load products when order panel opens (only if authenticated and has active booking)
     useEffect(() => {
-        if (showOrderPanel && !fetchedRef.current) {
+        if (showOrderPanel && !fetchedRef.current && isAuthenticated && hasActiveBooking) {
             fetchedRef.current = true;
             fetchProducts();
         }
-    }, [showOrderPanel]);
+    }, [showOrderPanel, isAuthenticated, hasActiveBooking]);
 
     // Payment polling
     useEffect(() => {
@@ -133,7 +182,7 @@ const ChatSupport = () => {
                     console.error('Polling error:', err);
                 }
             };
-            
+
             pollingRef.current = setInterval(checkStatus, 3000);
             return () => {
                 if (pollingRef.current) clearInterval(pollingRef.current);
@@ -145,27 +194,26 @@ const ChatSupport = () => {
     const statusText = !isOnline ? 'Offline' : !isBackendOnline ? 'Server Down' : 'Online';
     const statusColor = !isOnline ? 'bg-red-500' : !isBackendOnline ? 'bg-orange-500' : 'bg-emerald-500';
 
-    // Fetch products
+    // Check if user can order food
+    const canOrderFood = isAuthenticated && hasActiveBooking && activeSpace;
+
+    // Fetch products (only for authenticated users with active booking)
     const fetchProducts = async () => {
+        if (!canOrderFood) {
+            showToast({
+                icon: 'warning',
+                title: 'Cannot Order Food',
+                text: 'You need an active booking to order food.'
+            });
+            setShowOrderPanel(false);
+            return;
+        }
+
         setLoadingProducts(true);
         try {
-            const bookingRes = await apiGet('/user/active-booking-fast');
-            
-            if (bookingRes.success && bookingRes.data?.space) {
-                setActiveBooking(bookingRes.data.booking);
-                setActiveSpace(bookingRes.data.space);
-                
-                const productsRes = await apiGet('/landing/products');
-                if (productsRes.success && productsRes.data) {
-                    setProducts(productsRes.data);
-                }
-            } else {
-                showToast({ 
-                    icon: 'warning', 
-                    title: 'No Active Session', 
-                    text: 'You need an active booking to order food.' 
-                });
-                setShowOrderPanel(false);
+            const productsRes = await apiGet('/landing/products');
+            if (productsRes.success && productsRes.data) {
+                setProducts(productsRes.data);
             }
         } catch (err) {
             console.error('Fetch error:', err);
@@ -175,9 +223,9 @@ const ChatSupport = () => {
         }
     };
 
-    // Cart functions
+    // Cart functions (only used when canOrderFood is true)
     const addToCart = (product) => {
-        if (!activeSpace) {
+        if (!canOrderFood) {
             showToast({ icon: 'warning', title: 'No active booking found' });
             return;
         }
@@ -236,7 +284,7 @@ const ChatSupport = () => {
 
     // Order functions
     const handleCheckout = () => {
-        if (!activeSpace) {
+        if (!canOrderFood) {
             showToast({ icon: 'warning', title: 'No Active Session', text: 'You need an active booking to order food.' });
             return;
         }
@@ -248,6 +296,8 @@ const ChatSupport = () => {
     };
 
     const processOrder = async () => {
+        if (!canOrderFood) return;
+
         setIsProcessing(true);
         try {
             const orderData = {
@@ -285,7 +335,7 @@ const ChatSupport = () => {
                         showToast({ icon: 'error', title: paymentRes.message || 'Failed to create payment link' });
                     }
                 } else {
-                    showToast({ icon: 'success', title: 'Order placed successfully! Your order is being prepared.' });
+                    showToast({ icon: 'success', title: 'Order placed successfully!' });
                     handleOrderComplete();
                 }
             }
@@ -318,9 +368,10 @@ Your order has been received and our staff is preparing it.
 
     // Chat functions
     const handleQuickChat = (action) => {
-        const prompt = AI_ORDER_PROMPTS[action];
+        const prompt = AI_PROMPTS[action];
         if (!prompt) return;
-        
+
+        // Don't hide quick chats automatically - let user control it
         setInput(prompt);
         setTimeout(() => {
             handleSendWithMessage(prompt);
@@ -340,7 +391,6 @@ Your order has been received and our staff is preparing it.
         setMessages(prev => [...prev, userMsg]);
         setInput("");
         setIsTyping(true);
-        setShowQuickChats(false);
 
         try {
             const response = await apiPost('/chat/support', { message: messageText });
@@ -375,6 +425,11 @@ Your order has been received and our staff is preparing it.
         await handleSendWithMessage(input);
     };
 
+    // Toggle quick chats visibility - MANUAL CONTROL
+    const toggleQuickChats = () => {
+        setShowQuickChats(!showQuickChats);
+    };
+
     // Welcome message
     useEffect(() => {
         if (isOpen && messages.length === 0 && isWelcomeTyping) {
@@ -382,9 +437,9 @@ Your order has been received and our staff is preparing it.
                 if (!isFullyOnline) {
                     let offlineMessage = "";
                     if (!isOnline) {
-                        offlineMessage = "⚠️ No internet connection. Please check your network, gid! 📡";
+                        offlineMessage = "⚠️ No internet connection. Please check your network! 📡";
                     } else if (!isBackendOnline) {
-                        offlineMessage = "⚠️ Server is currently offline. Please try again later, gid! 🔌";
+                        offlineMessage = "⚠️ Server is currently offline. Please try again later! 🔌";
                     }
                     setMessages([{
                         id: 1,
@@ -393,16 +448,24 @@ Your order has been received and our staff is preparing it.
                         time: new Date().toLocaleTimeString()
                     }]);
                 } else {
-                    setMessages([{
-                        id: 1,
-                        text: `👋 Welcome to FlexSpace AI! I'm here to help you with:
+                    let welcomeMessage = `👋 Welcome to FlexSpace AI! I'm here to help you with:
 
 • 🏢 Finding coworking spaces in Iloilo City
-• 📋 Viewing our menu and ordering food
-• ❓ Answering questions about bookings
-• 💬 Quick chat options below
+• 📍 Exploring districts (Molo, Jaro, Mandurriao, City Proper)
+• ❓ Answering questions about bookings`;
 
-**Tap a quick chat button below or type your question!** 🍔☕`,
+                    if (canOrderFood) {
+                        welcomeMessage += `
+• 🍔 Ordering food & drinks from ${activeSpace?.name || 'your space'}`;
+                    }
+
+                    welcomeMessage += `
+
+**Tap a quick chat button below or type your question!**`;
+
+                    setMessages([{
+                        id: 1,
+                        text: welcomeMessage,
                         sender: 'bot',
                         time: new Date().toLocaleTimeString()
                     }]);
@@ -411,7 +474,7 @@ Your order has been received and our staff is preparing it.
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [isOpen, messages.length, isWelcomeTyping, isFullyOnline, isOnline, isBackendOnline]);
+    }, [isOpen, messages.length, isWelcomeTyping, isFullyOnline, isOnline, isBackendOnline, canOrderFood, activeSpace]);
 
     // Auto-scroll
     useEffect(() => {
@@ -427,17 +490,14 @@ Your order has been received and our staff is preparing it.
         }
     }, [isOpen, isMinimized, isWelcomeTyping, showOrderPanel]);
 
-    // Hide quick chats after first message
-    useEffect(() => {
-        if (messages.length > 1 && showQuickChats) {
-            setShowQuickChats(false);
-        }
-    }, [messages.length, showQuickChats]);
-
-    // Toggle order panel
+    // Toggle order panel (only if canOrderFood)
     const toggleOrderPanel = () => {
         if (!isAuthenticated) {
             showToast({ icon: 'warning', title: 'Please login to order food' });
+            return;
+        }
+        if (!hasActiveBooking) {
+            showToast({ icon: 'warning', title: 'No Active Booking', text: 'You need an active booking to order food.' });
             return;
         }
         setShowOrderPanel(!showOrderPanel);
@@ -480,11 +540,15 @@ Your order has been received and our staff is preparing it.
                                 <span className={`text-[10px] font-medium ${!isOnline ? 'text-red-400' : !isBackendOnline ? 'text-orange-400' : 'text-emerald-400'}`}>
                                     {statusText}
                                 </span>
+                                {isAuthenticated && hasActiveBooking && (
+                                    <span className="text-[8px] text-emerald-400 ml-2">✓ Active Session</span>
+                                )}
                             </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-1">
-                        {!showOrderPanel && (
+                        {/* Only show order button if authenticated AND has active booking */}
+                        {!showOrderPanel && canOrderFood && (
                             <button
                                 onClick={toggleOrderPanel}
                                 className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors relative"
@@ -524,7 +588,7 @@ Your order has been received and our staff is preparing it.
                 {!isMinimized && (
                     <>
                         {showOrderPanel ? (
-                            // Order Panel
+                            // Order Panel - Only shown when canOrderFood is true
                             <div className="flex-1 overflow-hidden flex flex-col">
                                 {loadingProducts ? (
                                     <div className="flex-1 flex items-center justify-center">
@@ -673,7 +737,7 @@ Your order has been received and our staff is preparing it.
                                 )}
                             </div>
                         ) : (
-                            // Chat Panel
+                            // Chat Panel - Always visible
                             <>
                                 {/* Messages */}
                                 <div
@@ -696,8 +760,8 @@ Your order has been received and our staff is preparing it.
                                     {messages.map((msg) => (
                                         <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
                                             <div className={`max-w-[85%] rounded-2xl shadow-sm ${msg.sender === 'user'
-                                                    ? 'bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-br-none'
-                                                    : 'bg-white/10 text-gray-200 border border-white/10 rounded-bl-none'
+                                                ? 'bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-br-none'
+                                                : 'bg-white/10 text-gray-200 border border-white/10 rounded-bl-none'
                                                 }`}>
                                                 <div className="px-4 py-3">
                                                     {msg.sender === 'user' ? (
@@ -755,12 +819,14 @@ Your order has been received and our staff is preparing it.
                                     )}
                                 </div>
 
-                                {/* Quick Chats */}
-                                {showQuickChats && messages.length <= 1 && isFullyOnline && (
+                                {/* Quick Chats - Now only hidden by user toggle */}
+                                {showQuickChats && isFullyOnline && (
                                     <div className="px-4 py-2 border-t border-white/10 bg-linear-to-t from-indigo-950/5 to-transparent shrink-0">
-                                        <p className="text-[8px] text-slate-400 uppercase tracking-wider mb-2 font-bold">Quick Actions</p>
+                                        <p className="text-[8px] text-slate-400 uppercase tracking-wider mb-2 font-bold">
+                                            {canOrderFood ? 'Quick Actions' : 'Get Started'}
+                                        </p>
                                         <div className="flex flex-wrap gap-1.5">
-                                            {QUICK_CHATS.map((item) => (
+                                            {getQuickChats(isAuthenticated, hasActiveBooking).map((item) => (
                                                 <button
                                                     key={item.id}
                                                     onClick={() => handleQuickChat(item.action)}
@@ -771,6 +837,16 @@ Your order has been received and our staff is preparing it.
                                                 </button>
                                             ))}
                                         </div>
+                                        {!isAuthenticated && (
+                                            <p className="text-[8px] text-slate-500 mt-2 text-center">
+                                                🔑 Sign in to order food and book spaces
+                                            </p>
+                                        )}
+                                        {isAuthenticated && !hasActiveBooking && (
+                                            <p className="text-[8px] text-amber-400 mt-2 text-center">
+                                                📅 Book a space to order food
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 
@@ -782,7 +858,7 @@ Your order has been received and our staff is preparing it.
                                             type="text"
                                             value={input}
                                             onChange={(e) => setInput(e.target.value)}
-                                            placeholder={!isFullyOnline ? "No connection. Please try again later..." : "Type your message..."}
+                                            placeholder={!isFullyOnline ? "No connection..." : canOrderFood ? "Ask about spaces or order food..." : "Ask about coworking spaces..."}
                                             disabled={!isFullyOnline}
                                             className={`w-full bg-[#1a1a24] border border-white/10 rounded-xl py-3 px-4 pr-12 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all ${!isFullyOnline ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         />
@@ -798,7 +874,7 @@ Your order has been received and our staff is preparing it.
                                         <p className="text-[8px] text-slate-500 font-mono">Powered by Gemini AI | FlexSpace</p>
                                         <button
                                             type="button"
-                                            onClick={() => setShowQuickChats(!showQuickChats)}
+                                            onClick={toggleQuickChats}
                                             className="text-[8px] text-indigo-400 hover:text-indigo-300 transition-colors"
                                         >
                                             {showQuickChats ? 'Hide quick chats' : 'Show quick chats'}
@@ -811,7 +887,7 @@ Your order has been received and our staff is preparing it.
                 )}
             </div>
 
-            {/* Payment Modal */}
+            {/* Payment Modal - Only shown when canOrderFood */}
             {paymentModal && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-10002 p-4">
                     <div className="bg-[#0f0f12] rounded-2xl border border-white/10 w-full max-w-md p-6">
@@ -861,7 +937,7 @@ Your order has been received and our staff is preparing it.
                                 <p className="text-white font-bold text-sm">Scan to Pay</p>
                                 <p className="text-slate-400 text-xs mb-2">Amount: ₱{calculateTotal().toFixed(2)}</p>
                                 <p className="text-emerald-400 text-xs mb-4">Order #{currentOrderNumber}</p>
-                                
+
                                 <div className="bg-amber-500/10 rounded-xl p-3 mb-4 flex items-center justify-center gap-2">
                                     <Loader2 size={14} className="animate-spin text-amber-400" />
                                     <p className="text-[10px] text-amber-400 font-black uppercase">Waiting for payment...</p>
