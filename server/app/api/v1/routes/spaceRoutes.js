@@ -178,7 +178,7 @@ class SpaceRoutes {
         // ============ EARNINGS ============
         this.router.get('/earnings', auth, (req, res, next) => EarningsController.index(req, res, next));
         this.router.get('/earnings/export/csv', auth, (req, res, next) => EarningsController.exportCSV(req, res, next));
-        this.router.get('/earnings/pending-fees', auth, (req, res, next) => PaymentController.getPendingPlatformFees(req, res, next)); // ← ADD THIS LINE
+        this.router.get('/earnings/pending-fees', auth, (req, res, next) => PaymentController.getPendingPlatformFees(req, res, next));
         
         // ============ STAFF MANAGEMENT ============
         this.router.get('/staff', auth, (req, res, next) => StaffController.index(req, res, next));
@@ -199,6 +199,10 @@ class SpaceRoutes {
         this.router.post('/reviews/:reviewId/reply', auth, (req, res, next) => ReviewController.replyToReview(req, res, next));
         this.router.put('/reviews/:reviewId/reply', auth, (req, res, next) => ReviewController.updateReply(req, res, next));
         this.router.delete('/reviews/:reviewId/reply', auth, (req, res, next) => ReviewController.deleteReply(req, res, next));
+        
+        // ✅ NEW ROUTES FOR REVIEW APPROVAL/REJECTION
+        this.router.post('/reviews/:reviewId/approve', auth, (req, res, next) => ReviewController.approveReview(req, res, next));
+        this.router.post('/reviews/:reviewId/reject', auth, (req, res, next) => ReviewController.rejectReview(req, res, next));
 
         // ============ POS / PRODUCTS / ORDERS ============
         this.router.get('/products', auth, (req, res, next) => POSController.getProducts(req, res, next));
@@ -220,14 +224,10 @@ class SpaceRoutes {
         this.router.get('/payment/verify/:paymentIntentId', auth, (req, res, next) => PaymentController.verifyPayment(req, res, next));
         this.router.get('/payment/key-status', auth, (req, res, next) => PaymentController.getPaymentKeyStatus(req, res, next));
 
-
-        // Add to spaceRoutes.js
-        
         this.router.get('/payment/check-status/:payment_intent_id', auth, (req, res, next) => PaymentController.checkFeePaymentStatus(req, res, next));
         this.router.post('/payment/confirm-fee-payment', auth, (req, res, next) => PaymentController.confirmFeePayment(req, res, next));
         this.router.get('/earnings/pending', auth, (req, res, next) => PaymentController.getPendingPlatformFees(req, res, next));
         this.router.post('/earnings/pay-platform-fees', auth, (req, res, next) => PaymentController.payPlatformFees(req, res, next));
-
     }
 
     getRouter() {

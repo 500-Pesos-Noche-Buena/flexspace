@@ -3,7 +3,8 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/Api';
 import { EditReplyModal } from '@/components/modal';
 import { 
     Star, StarOff, ThumbsUp, MessageCircle, Calendar, User, Loader2, 
-    Reply, Edit2, Trash2, X, Send, Filter, ChevronDown, AlertCircle
+    Reply, Edit2, Trash2, X, Send, Filter, ChevronDown, AlertCircle,
+    CheckCircle, XCircle
 } from 'lucide-react';
 import { showToast, showConfirm } from '@/components/ui/SweetAlert2';
 import { cn } from '@/lib/utils';
@@ -17,9 +18,12 @@ const SpaceReviewList = () => {
     const [loading, setLoading] = useState(true);
     const [selectedSpaceId, setSelectedSpaceId] = useState('');
     const [filterRating, setFilterRating] = useState(null);
-    const [sortBy, setSortBy] = useState('newest');
+    const [filterStatus, setFilterStatus] = useState('all'); // ✅ New: all, pending, approved
+    const [sortBy, setSortBy] = useState('pending_first'); // ✅ New: pending_first by default
     const [stats, setStats] = useState({
         total_reviews: 0,
+        pending_reviews: 0,
+        approved_reviews: 0,
         average_rating: 0,
         rating_breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
     });
@@ -38,6 +42,7 @@ const SpaceReviewList = () => {
             const params = new URLSearchParams();
             if (selectedSpaceId) params.append('spaceId', selectedSpaceId);
             if (filterRating) params.append('rating', filterRating);
+            if (filterStatus !== 'all') params.append('status', filterStatus);
             if (sortBy) params.append('sort', sortBy);
             params.append('page', pagination.page);
             params.append('limit', 10);
@@ -49,6 +54,8 @@ const SpaceReviewList = () => {
                 setSpaces(response.data.spaces || []);
                 setStats(response.data.stats || {
                     total_reviews: 0,
+                    pending_reviews: 0,
+                    approved_reviews: 0,
                     average_rating: 0,
                     rating_breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
                 });
@@ -64,11 +71,43 @@ const SpaceReviewList = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedSpaceId, filterRating, sortBy, pagination.page]);
+    }, [selectedSpaceId, filterRating, filterStatus, sortBy, pagination.page]);
 
     useEffect(() => {
         fetchReviews();
     }, [fetchReviews]);
+
+    // ✅ Approve review
+    const handleApproveReview = async (reviewId) => {
+        if (await showConfirm('Approve this review?', 'This review will be published and visible to all users.')) {
+            try {
+                const response = await apiPost(`/space/reviews/${reviewId}/approve`);
+                if (response.success) {
+                    showToast({ icon: 'success', title: 'Review approved successfully!' });
+                    fetchReviews();
+                }
+            } catch (error) {
+                console.error('Failed to approve review:', error);
+                showToast({ icon: 'error', title: error.response?.data?.message || 'Failed to approve review' });
+            }
+        }
+    };
+
+    // ✅ Reject review
+    const handleRejectReview = async (reviewId) => {
+        if (await showConfirm('Reject this review?', 'This review will be hidden and not visible to users.')) {
+            try {
+                const response = await apiPost(`/space/reviews/${reviewId}/reject`);
+                if (response.success) {
+                    showToast({ icon: 'success', title: 'Review rejected' });
+                    fetchReviews();
+                }
+            } catch (error) {
+                console.error('Failed to reject review:', error);
+                showToast({ icon: 'error', title: error.response?.data?.message || 'Failed to reject review' });
+            }
+        }
+    };
 
     const handleReply = async (reviewId) => {
         if (!replyText.trim()) {
@@ -182,7 +221,7 @@ const SpaceReviewList = () => {
 
             {/* Stats Cards */}
             {stats.total_reviews > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
                     <div className="bg-linear-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-5 rounded-2xl">
                         <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Total Reviews</p>
                         <p className="text-3xl font-[1000] text-foreground italic mt-2">{stats.total_reviews}</p>
@@ -198,11 +237,13 @@ const SpaceReviewList = () => {
                         <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">5-Star Reviews</p>
                         <p className="text-3xl font-[1000] text-foreground italic mt-2">{stats.rating_breakdown?.[5] || 0}</p>
                     </div>
-                    <div className="bg-linear-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-5 rounded-2xl">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Response Rate</p>
-                        <p className="text-3xl font-[1000] text-foreground italic mt-2">
-                            {Math.round((reviews.filter(r => r.reply).length / (stats.total_reviews || 1)) * 100)}%
-                        </p>
+                    <div className="bg-linear-to-r from-emerald-500/10 to-emerald-600/10 border border-emerald-500/20 p-5 rounded-2xl">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Approved</p>
+                        <p className="text-3xl font-[1000] text-emerald-600 dark:text-emerald-400 italic mt-2">{stats.approved_reviews || 0}</p>
+                    </div>
+                    <div className="bg-linear-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20 p-5 rounded-2xl">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Pending Approval</p>
+                        <p className="text-3xl font-[1000] text-amber-600 dark:text-amber-400 italic mt-2">{stats.pending_reviews || 0}</p>
                     </div>
                 </div>
             )}
@@ -228,6 +269,22 @@ const SpaceReviewList = () => {
                             </select>
                             <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         </div>
+                    </div>
+
+                    {/* Status Filter - NEW */}
+                    <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                            Status
+                        </label>
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            className="px-4 py-2 rounded-xl bg-background border border-border text-foreground text-sm focus:border-primary outline-none"
+                        >
+                            <option value="all">All</option>
+                            <option value="pending">Pending Approval</option>
+                            <option value="approved">Approved</option>
+                        </select>
                     </div>
 
                     {/* Rating Filter */}
@@ -274,6 +331,7 @@ const SpaceReviewList = () => {
                             onChange={(e) => setSortBy(e.target.value)}
                             className="px-4 py-2 rounded-xl bg-background border border-border text-foreground text-sm focus:border-primary outline-none"
                         >
+                            <option value="pending_first">Pending First</option>
                             <option value="newest">Newest First</option>
                             <option value="oldest">Oldest First</option>
                             <option value="highest">Highest Rated</option>
@@ -302,26 +360,25 @@ const SpaceReviewList = () => {
                             {/* Review Header */}
                             <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
                                 <div className="flex-1">
-                                   {/* In the review card header */}
-<div className="flex items-center gap-3 mb-2 flex-wrap">
-    <StarRating rating={review.rating} size={18} />
-    {review.is_verified_booking && (
-        <span className="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
-            Verified Booking
-        </span>
-    )}
-    {/* ✅ Add this pending badge */}
-    {review.status === 'pending' && (
-        <span className="text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-bold animate-pulse">
-            Pending Approval
-        </span>
-    )}
-    {review.is_edited && (
-        <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-            Edited
-        </span>
-    )}
-</div>
+                                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                                        <StarRating rating={review.rating} size={18} />
+                                        {review.is_verified_booking && (
+                                            <span className="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                                                Verified Booking
+                                            </span>
+                                        )}
+                                        {/* ✅ Pending Badge */}
+                                        {review.status === 'pending' && (
+                                            <span className="text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-bold animate-pulse">
+                                                Pending Approval
+                                            </span>
+                                        )}
+                                        {review.is_edited && (
+                                            <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                                                Edited
+                                            </span>
+                                        )}
+                                    </div>
 
                                     {review.title && (
                                         <h4 className="font-bold text-foreground text-base mb-2">
@@ -336,6 +393,22 @@ const SpaceReviewList = () => {
                                 
                                 <div className="text-right">
                                     <p className="text-sm font-bold text-primary">{review.space?.name}</p>
+                                    {review.status === 'pending' && (
+                                        <div className="flex gap-2 mt-2">
+                                            <button
+                                                onClick={() => handleApproveReview(review._id)}
+                                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all"
+                                            >
+                                                <CheckCircle size={12} /> Approve
+                                            </button>
+                                            <button
+                                                onClick={() => handleRejectReview(review._id)}
+                                                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all"
+                                            >
+                                                <XCircle size={12} /> Reject
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -369,6 +442,12 @@ const SpaceReviewList = () => {
                                             day: 'numeric'
                                         })}</span>
                                     </div>
+                                    {review.status === 'approved' && (
+                                        <div className="flex items-center gap-1">
+                                            <CheckCircle size={14} className="text-emerald-500" />
+                                            <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">Approved</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                     <ThumbsUp size={14} />

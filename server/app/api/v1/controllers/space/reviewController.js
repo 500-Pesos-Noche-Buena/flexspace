@@ -14,12 +14,10 @@ class ReviewController {
      * Get all reviews for spaces owned by the logged-in space owner
      * GET /api/v1/space/reviews
      */
-    // controllers/space/reviewController.js - getMySpaceReviews method
-
     async getMySpaceReviews(req, res, next) {
         try {
             const userId = this.getUserId(req);
-            const { spaceId, rating, sort = 'newest', page = 1, limit = 10 } = req.query;
+            const { spaceId, rating, status, sort = 'newest', page = 1, limit = 10 } = req.query;
 
             console.log('Getting reviews for user:', userId);
 
@@ -35,6 +33,8 @@ class ReviewController {
                         spaces: [],
                         stats: {
                             total_reviews: 0,
+                            pending_reviews: 0,
+                            approved_reviews: 0,
                             average_rating: 0,
                             rating_breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
                         },
@@ -48,11 +48,24 @@ class ReviewController {
                 });
             }
 
-            // ✅ FIX: Include both approved and pending reviews
+            // Build query - include both approved and pending by default
             let query = {
-                space_id: { $in: spaceIds },
-                status: { $in: ['approved', 'pending'] }  // ← Include pending reviews
+                space_id: { $in: spaceIds }
             };
+
+            // ✅ Filter by status if provided
+            if (status) {
+                if (status === 'pending') {
+                    query.status = 'pending';
+                } else if (status === 'approved') {
+                    query.status = 'approved';
+                } else if (status === 'all') {
+                    query.status = { $in: ['pending', 'approved'] };
+                }
+            } else {
+                // Default: show both pending and approved (but pending first)
+                query.status = { $in: ['pending', 'approved'] };
+            }
 
             if (spaceId) {
                 query.space_id = spaceId;
@@ -80,8 +93,11 @@ class ReviewController {
                 case 'most_helpful':
                     sortOption = { helpful_count: -1, created_at: -1 };
                     break;
+                case 'pending_first':
+                    sortOption = { status: -1, created_at: -1 }; // Pending first
+                    break;
                 default:
-                    sortOption = { created_at: -1 };
+                    sortOption = { status: -1, created_at: -1 }; // Default: pending first
             }
 
             const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -96,12 +112,23 @@ class ReviewController {
 
             const total = await Review.countDocuments(query);
 
-            // ✅ FIX: Calculate stats including both approved AND pending reviews
+            // ✅ Stats - separate pending and approved counts
+            const totalPending = await Review.countDocuments({
+                space_id: { $in: spaceIds },
+                status: 'pending'
+            });
+
+            const totalApproved = await Review.countDocuments({
+                space_id: { $in: spaceIds },
+                status: 'approved'
+            });
+
+            // ✅ Average rating only from approved reviews
             const statsData = await Review.aggregate([
                 {
                     $match: {
                         space_id: { $in: spaceIds },
-                        status: { $in: ['approved', 'pending'] }  // ← Include pending in stats
+                        status: 'approved' // Only approved for average
                     }
                 },
                 {
@@ -113,11 +140,12 @@ class ReviewController {
                 }
             ]);
 
+            // ✅ Rating breakdown for approved reviews
             const ratingBreakdown = await Review.aggregate([
                 {
                     $match: {
                         space_id: { $in: spaceIds },
-                        status: { $in: ['approved', 'pending'] }  // ← Include pending in breakdown
+                        status: 'approved'
                     }
                 },
                 { $group: { _id: '$rating', count: { $sum: 1 } } },
@@ -129,6 +157,7 @@ class ReviewController {
                 breakdown[item._id] = item.count;
             });
 
+            // ✅ Format reviews with status badge info
             const formattedReviews = reviews.map(review => ({
                 _id: review._id,
                 rating: review.rating,
@@ -142,7 +171,9 @@ class ReviewController {
                 created_at: review.created_at,
                 space: review.space_id,
                 booking: review.booking_id,
-                status: review.status,  // ← Add status to show in UI
+                status: review.status,
+                status_display: review.status === 'pending' ? 'Pending Approval' : 'Approved',
+                status_badge: review.status === 'pending' ? 'warning' : 'success',
                 customer: review.user_id ? {
                     name: review.user_id.name,
                     email: review.user_id.email,
@@ -152,7 +183,10 @@ class ReviewController {
                     email: null,
                     avatar: null
                 },
-                reply: review.reply
+                reply: review.reply,
+                // ✅ Add actions based on status
+                can_approve: review.status === 'pending',
+                can_reject: review.status === 'pending'
             }));
 
             return res.status(HTTP_STATUS.OK).json({
@@ -161,7 +195,9 @@ class ReviewController {
                     reviews: formattedReviews,
                     spaces: spaces.map(s => ({ _id: s._id, name: s.name })),
                     stats: {
-                        total_reviews: statsData[0]?.totalReviews || 0,
+                        total_reviews: totalPending + totalApproved,
+                        pending_reviews: totalPending,
+                        approved_reviews: totalApproved,
                         average_rating: parseFloat((statsData[0]?.avgRating || 0).toFixed(1)),
                         rating_breakdown: breakdown
                     },
@@ -178,6 +214,84 @@ class ReviewController {
             next(error);
         }
     }
+
+    /**
+     * ✅ NEW: Approve a pending review
+     * POST /api/v1/space/reviews/:reviewId/approve
+     */
+    async approveReview(req, res, next) {
+        try {
+            const userId = this.getUserId(req);
+            const { reviewId } = req.params;
+
+            const review = await Review.findById(reviewId).populate('space_id');
+            if (!review) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Review not found');
+            }
+
+            // Check ownership
+            const space = await Space.findOne({ _id: review.space_id._id, user_id: userId });
+            if (!space) {
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You do not have permission');
+            }
+
+            if (review.status !== 'pending') {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Review is not pending approval');
+            }
+
+            // Approve the review
+            review.status = 'approved';
+            await review.save();
+
+            // ✅ Update space rating after approval
+            await Review.updateSpaceRating(review.space_id._id);
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Review approved successfully',
+                data: { review }
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * ✅ NEW: Reject a pending review
+     * POST /api/v1/space/reviews/:reviewId/reject
+     */
+    async rejectReview(req, res, next) {
+        try {
+            const userId = this.getUserId(req);
+            const { reviewId } = req.params;
+
+            const review = await Review.findById(reviewId).populate('space_id');
+            if (!review) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Review not found');
+            }
+
+            const space = await Space.findOne({ _id: review.space_id._id, user_id: userId });
+            if (!space) {
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You do not have permission');
+            }
+
+            if (review.status !== 'pending') {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Review is not pending approval');
+            }
+
+            review.status = 'rejected';
+            await review.save();
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Review rejected',
+                data: { review }
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     /**
      * Get reviews for a specific space
      * GET /api/v1/space/spaces/:spaceId/reviews
@@ -277,6 +391,7 @@ class ReviewController {
                 throw new ApiError(HTTP_STATUS.FORBIDDEN, 'You do not have permission');
             }
 
+            // ✅ Allow replying to both pending and approved reviews
             review.reply = {
                 text: replyText.trim(),
                 created_at: review.reply?.created_at || new Date(),
