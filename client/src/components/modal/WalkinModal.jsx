@@ -5,14 +5,14 @@ import { cn } from "@/lib/utils";
 import { useTheme } from '@/hooks/useTheme';
 import { FormInput, FormSelect } from '@/components/FormValidation';
 
-export const WalkinModal = ({ 
-    isOpen, 
-    onClose, 
-    onSubmit, 
-    formData, 
-    setFormData, 
-    spaces, 
-    roomsWithAvailability, 
+export const WalkinModal = ({
+    isOpen,
+    onClose,
+    onSubmit,
+    formData,
+    setFormData,
+    spaces,
+    roomsWithAvailability,
     submitting,
     loadingRooms = false // New prop with default
 }) => {
@@ -33,9 +33,9 @@ export const WalkinModal = ({
     // Handle form field changes
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData({ 
-            ...formData, 
-            [name]: type === 'checkbox' ? checked : value 
+        setFormData({
+            ...formData,
+            [name]: type === 'checkbox' ? checked : value
         });
     };
 
@@ -91,7 +91,12 @@ export const WalkinModal = ({
                                         key={room._id}
                                         onClick={() => {
                                             if (room.is_available) {
-                                                setFormData({ ...formData, room_id: room._id });
+                                                // Toggle: if this room is already selected, deselect it
+                                                if (formData.room_id === room._id) {
+                                                    setFormData({ ...formData, room_id: '' }); // or null
+                                                } else {
+                                                    setFormData({ ...formData, room_id: room._id });
+                                                }
                                             }
                                         }}
                                         className={cn(
@@ -196,16 +201,16 @@ export const WalkinModal = ({
 
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-4">
-                    <button 
-                        type="button" 
-                        onClick={onClose} 
+                    <button
+                        type="button"
+                        onClick={onClose}
                         className="flex-1 py-3 text-[10px] font-black uppercase text-muted-foreground hover:text-foreground transition-colors"
                     >
                         Cancel
                     </button>
-                    <button 
-                        type="submit" 
-                        disabled={submitting} 
+                    <button
+                        type="submit"
+                        disabled={submitting}
                         className={cn(
                             "flex-1 py-3 rounded-2xl bg-primary text-primary-foreground font-black text-[10px] uppercase flex items-center justify-center gap-2 transition-all disabled:opacity-50",
                             getButtonHoverColor()

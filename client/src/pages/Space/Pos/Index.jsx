@@ -72,11 +72,6 @@ const POS = () => {
     const [paymentCompleted, setPaymentCompleted] = useState(false);
     const [pollingInterval, setPollingInterval] = useState(null);
 
-    // 🆕 Pay Later states
-    const [payLaterModal, setPayLaterModal] = useState(false);
-    const [payLaterNotes, setPayLaterNotes] = useState('');
-    const [showPayLaterConfirm, setShowPayLaterConfirm] = useState(false);
-
     const getThemeColorClass = () => {
         const colors = {
             indigo: 'indigo',
@@ -337,7 +332,7 @@ const POS = () => {
 
     // Remove + calculateTax() for tax
     const calculateTotal = () => {
-        return calculateSubtotal()  - calculateDiscountAmount();
+        return calculateSubtotal() - calculateDiscountAmount();
     };
 
     const applyDiscount = () => {
@@ -364,19 +359,6 @@ const POS = () => {
         setPaymentModal(true);
         setShowPaymentLink(false);
         setPaymentLink('');
-    };
-
-    // 🆕 Handle Pay Later
-    const handlePayLater = () => {
-        if (cart.length === 0) {
-            showToast({ icon: 'warning', title: 'Cart is empty' });
-            return;
-        }
-        if (!customerName) {
-            showToast({ icon: 'warning', title: 'Customer name is required' });
-            return;
-        }
-        setPayLaterModal(true);
     };
 
     // 🆕 Confirm Pay Later Order
@@ -424,8 +406,6 @@ const POS = () => {
                 printReceipt(orderForReceipt);
                 resetOrder();
                 fetchRecentOrders();
-                setPayLaterModal(false);
-                setPayLaterNotes('');
             }
         } catch (err) {
             console.error('Pay Later error:', err);
@@ -551,7 +531,11 @@ const POS = () => {
             return;
         }
 
-        // 🆕 Pay Later handled separately via handlePayLater
+        // 🆕 Pay Later - handled through completeOrder
+        if (paymentMethod === 'pay_later') {
+            await completeOrder('pay_later', 0, 'confirmed');
+            return;
+        }
     };
 
     const completeOrder = async (method, amount, status = 'completed') => {
@@ -563,6 +547,8 @@ const POS = () => {
 
         setIsProcessing(true);
         try {
+            const isPayLater = method === 'pay_later';
+
             const orderData = {
                 items: cart.map(item => ({
                     product_id: item.id,
@@ -571,17 +557,19 @@ const POS = () => {
                     price: item.price
                 })),
                 subtotal: calculateSubtotal(),
-                tax: 0, //calculateTax(),
+                tax: 0,
                 discount_type: discountType,
                 discount_value: discount,
                 discount_amount: calculateDiscountAmount(),
                 total: calculateTotal(),
                 payment_method: method,
-                amount_received: amount,
+                amount_received: isPayLater ? 0 : amount,
                 customer_name: customerName || 'Walk-in Customer',
-                status: status,
+                status: isPayLater ? 'confirmed' : status,
+                payment_status: isPayLater ? 'unpaid' : 'paid',
                 order_type: 'pos',
-                space_id: spaceId
+                space_id: spaceId,
+                ...(isPayLater && { notes: 'Pay Later order - payment pending' })
             };
 
             const res = await apiPost('/space/orders', orderData);
@@ -593,10 +581,21 @@ const POS = () => {
                 const orderForReceipt = {
                     ...orderData,
                     order_number: orderNumber,
-                    _id: orderId
+                    _id: orderId,
+                    is_pay_later: isPayLater
                 };
 
-                if (status === 'completed') {
+                if (isPayLater) {
+                    showToast({
+                        icon: 'success',
+                        title: 'Pay Later order created!',
+                        text: `Order #${orderNumber} - ₱${calculateTotal().toFixed(2)}`
+                    });
+                    printReceipt(orderForReceipt);
+                    resetOrder();
+                    fetchRecentOrders();
+                    setPaymentModal(false);
+                } else if (status === 'completed') {
                     showToast({ icon: 'success', title: 'Payment successful!' });
                     printReceipt(orderForReceipt);
                     resetOrder();
@@ -625,8 +624,9 @@ const POS = () => {
         setShowPaymentQR(false);
         setGeneratedPaymentLink('');
         setCurrentOrderId('');
-        setPayLaterModal(false);
-        setPayLaterNotes('');
+        // Remove these if they exist:
+        // setPayLaterModal(false);
+        // setPayLaterNotes('');
         fetchRecentOrders();
         fetchProducts();
     };
@@ -1238,10 +1238,7 @@ const POS = () => {
 
                                 {/* 🆕 Pay Later */}
                                 <button
-                                    onClick={() => {
-                                        setPaymentMethod('pay_later');
-                                        handlePayLater();
-                                    }}
+                                    onClick={() => setPaymentMethod('pay_later')}
                                     className={cn(
                                         "p-4 rounded-xl border-2 transition-all group",
                                         paymentMethod === 'pay_later'
@@ -1377,6 +1374,23 @@ const POS = () => {
                             </div>
                         )}
 
+                        {/* Pay Later Info */}
+                        {paymentMethod === 'pay_later' && (
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-xs font-bold text-amber-600 dark:text-amber-400">Pay Later Order</p>
+                                        <p className="text-[10px] text-muted-foreground mt-1">
+                                            This order will be added to <span className="text-foreground font-bold">{customerName || 'customer'}</span>'s tab.
+                                            Payment will be collected at a later time.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+
                         {/* Total Amount Card */}
                         <div className="bg-linear-to-r from-primary/20 to-purple-500/20 rounded-xl p-4 border border-primary/30">
                             <div className="flex justify-between items-center">
@@ -1401,10 +1415,17 @@ const POS = () => {
                             <button
                                 onClick={processPayment}
                                 disabled={isProcessing || (paymentMethod === 'cash' && (!amountReceived || parseFloat(amountReceived) < calculateTotal()))}
-                                className={`flex-1 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-lg shadow-emerald-900/20`}
+                                className={`flex-1 py-3 ${paymentMethod === 'pay_later'
+                                        ? 'bg-amber-600 hover:bg-amber-500 shadow-lg shadow-amber-900/20'
+                                        : 'bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-900/20'
+                                    } rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all`}
                             >
-                                {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                {paymentMethod === 'online' ? 'Generate Payment Link' : 'Complete Payment'}
+                                {isProcessing ? <Loader2 size={16} className="animate-spin" /> :
+                                    paymentMethod === 'pay_later' ? <Receipt size={16} /> : <CheckCircle size={16} />
+                                }
+                                {paymentMethod === 'online' ? 'Generate Payment Link' :
+                                    paymentMethod === 'pay_later' ? 'Confirm Pay Later' :
+                                        'Complete Payment'}
                             </button>
                         </div>
                     </div>
@@ -1453,69 +1474,6 @@ const POS = () => {
                         </div>
                     </div>
                 )}
-            </Modal>
-
-            {/* 🆕 Pay Later Modal */}
-            <Modal open={payLaterModal} onClose={() => setPayLaterModal(false)} title="Pay Later Order" size="md">
-                <div className="space-y-4">
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-                        <div className="flex items-start gap-3">
-                            <AlertTriangle size={20} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                            <div>
-                                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Pay Later Confirmation</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">
-                                    Customer: <span className="text-foreground font-bold">{customerName}</span>
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                    This order will be added to the customer's tab for later payment.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-2">
-                            <Receipt size={12} /> Notes (Optional)
-                        </label>
-                        <textarea
-                            value={payLaterNotes}
-                            onChange={(e) => setPayLaterNotes(e.target.value)}
-                            placeholder="Add notes about this order..."
-                            rows="2"
-                            className="w-full mt-2 px-4 py-3 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground focus:border-primary outline-none resize-none"
-                        />
-                    </div>
-
-                    <div className="bg-linear-to-r from-amber-500/20 to-amber-600/20 rounded-xl p-4 border border-amber-500/30">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <p className="text-[8px] text-amber-600 dark:text-amber-400 font-black uppercase">Order Total</p>
-                                <p className="text-xl font-black text-foreground">₱{calculateTotal().toFixed(2)}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[8px] text-muted-foreground">Status</p>
-                                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Pending Payment</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-2">
-                        <button
-                            onClick={() => setPayLaterModal(false)}
-                            className="flex-1 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={confirmPayLaterOrder}
-                            disabled={isProcessing}
-                            className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-lg shadow-amber-900/20"
-                        >
-                            {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
-                            Confirm Pay Later
-                        </button>
-                    </div>
-                </div>
             </Modal>
 
             <PaymentQRModal

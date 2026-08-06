@@ -134,24 +134,24 @@ class WalkinController {
     getSpacesWithRooms = async (req, res, next) => {
         try {
             const ownerId = await this.getOwnerId(req);
-            
+
             const spaces = await Space.find({ user_id: ownerId })
                 .select('_id name rate_hour')
                 .lean();
-            
+
             // Get rooms for each space
             const spacesWithRooms = await Promise.all(spaces.map(async (space) => {
-                const rooms = await Room.find({ 
-                    space_id: space._id, 
-                    is_available: true 
+                const rooms = await Room.find({
+                    space_id: space._id,
+                    is_available: true
                 }).select('_id name type capacity rate_hour is_airconditioned has_window');
-                
+
                 return {
                     ...space,
                     rooms: rooms
                 };
             }));
-            
+
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 data: spacesWithRooms
@@ -174,48 +174,88 @@ class WalkinController {
             }
 
             const now = new Date();
-            let totalAmount = 0;
-            
-            // Get rate (from room if booked, otherwise from space)
-            const ratePerHour = booking.rate_per_hour || booking.space_id.rate_hour;
+            const ratePerHour = parseFloat(booking.rate_per_hour || booking.space_id?.rate_hour || booking.room_id?.rate_hour || 0);
+            const perMinuteRate = ratePerHour / 60;
 
-            // For HOURLY BOOKING (is_open_time = false) - Use scheduled start_time and end_time
+            let checkInTime, checkOutTime;
+
+            // Determine start and end timestamps based on booking mode
             if (!booking.is_open_time) {
+                // Scheduled Hourly Walk-in
                 if (!booking.start_time || !booking.end_time) {
                     throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Missing scheduled start or end time.');
                 }
-
-                const scheduledStart = new Date(booking.start_time);
-                const scheduledEnd = new Date(booking.end_time);
-                const timeDiffMs = scheduledEnd - scheduledStart;
-                const hoursSpent = timeDiffMs / (1000 * 60 * 60);
-                totalAmount = hoursSpent * ratePerHour;
-                totalAmount = parseFloat(totalAmount.toFixed(2));
-
-                console.log(`Hourly walk-in - Bookable: ${booking.bookable_type || 'space'}`);
-                console.log(`Scheduled: ${scheduledStart} to ${scheduledEnd}`);
-                console.log(`Duration: ${hoursSpent} hours × ₱${ratePerHour}/hr = ₱${totalAmount}`);
-
+                checkInTime = new Date(booking.start_time);
+                checkOutTime = new Date(booking.end_time);
             } else {
-                // For OPEN TIME - Use actual check_in_at and check_out_at
+                // Open Time Walk-in
                 if (!booking.check_in_at) {
                     throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No check-in recorded.');
                 }
-
-                const checkInTime = new Date(booking.check_in_at);
-                const checkOutTime = booking.check_out_at ? new Date(booking.check_out_at) : now;
-
-                const timeDiffMs = checkOutTime - checkInTime;
-                const hoursSpent = timeDiffMs / (1000 * 60 * 60);
-                totalAmount = hoursSpent * ratePerHour;
-                totalAmount = parseFloat(totalAmount.toFixed(2));
-
-                console.log(`Open time walk-in - Bookable: ${booking.bookable_type || 'space'}`);
-                console.log(`Check-in: ${checkInTime}, Check-out: ${checkOutTime}`);
-                console.log(`Duration: ${hoursSpent} hours × ₱${ratePerHour}/hr = ₱${totalAmount}`);
+                checkInTime = new Date(booking.check_in_at);
+                checkOutTime = booking.check_out_at ? new Date(booking.check_out_at) : now;
             }
 
-            // Check if voucher was already applied
+            if (checkOutTime <= checkInTime) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Check-out time must be after check-in time.');
+            }
+
+            // Calculate exact elapsed duration
+            const timeDiffMs = checkOutTime - checkInTime;
+            const rawMinutes = timeDiffMs / (1000 * 60);
+            const minutesSpent = Math.ceil(rawMinutes); // Ceil to whole minutes
+            const hoursSpent = timeDiffMs / (1000 * 60 * 60);
+
+            const fullHours = Math.floor(minutesSpent / 60);
+            const remMinutes = minutesSpent % 60;
+
+            let totalAmount = 0;
+            let chargeType = '';
+            let hoursToCharge = 0;
+
+            // Apply 30-min pro-rated vs 31-min full-hour rule
+            if (fullHours === 0) {
+                // Under 1 Hour
+                if (minutesSpent <= 30) {
+                    // 1 to 30 mins: Pro-rated per minute
+                    totalAmount = minutesSpent * perMinuteRate;
+                    chargeType = 'pro_rated_under_30m';
+                    hoursToCharge = minutesSpent / 60;
+                } else {
+                    // 31 to 60 mins: Full 1 hour rate
+                    totalAmount = ratePerHour;
+                    chargeType = 'full_hour_31m_plus';
+                    hoursToCharge = 1;
+                }
+            } else {
+                // Over 1 Hour
+                if (remMinutes === 0) {
+                    totalAmount = fullHours * ratePerHour;
+                    hoursToCharge = fullHours;
+                    chargeType = 'exact_full_hours';
+                } else if (remMinutes <= 30) {
+                    // Excess minutes <= 30: Full hours + pro-rated excess
+                    totalAmount = (fullHours * ratePerHour) + (remMinutes * perMinuteRate);
+                    hoursToCharge = fullHours + (remMinutes / 60);
+                    chargeType = 'full_hours_plus_pro_rated';
+                } else {
+                    // Excess minutes > 30 (31-59 mins): Round up excess to another full hour
+                    totalAmount = (fullHours + 1) * ratePerHour;
+                    hoursToCharge = fullHours + 1;
+                    chargeType = 'full_hours_rounded_up';
+                }
+            }
+
+            totalAmount = parseFloat(totalAmount.toFixed(2));
+
+            console.log(`=== WALKIN BILL DEBUG (${booking.is_open_time ? 'Open Time' : 'Hourly'}) ===`);
+            console.log(`Bookable: ${booking.bookable_type || 'space'} | Rate: ₱${ratePerHour}/hr`);
+            console.log(`Check-in: ${checkInTime.toISOString()} | Check-out: ${checkOutTime.toISOString()}`);
+            console.log(`Minutes spent: ${minutesSpent}m (Raw: ${rawMinutes.toFixed(2)}m)`);
+            console.log(`Charge Type: ${chargeType} | Total Amount: ₱${totalAmount}`);
+            console.log(`=================================================`);
+
+            // Apply voucher discount if applicable
             const hasVoucher = booking.voucher_applied && booking.voucher_discount > 0;
             let discount = 0;
             let finalAmount = totalAmount;
@@ -228,9 +268,10 @@ class WalkinController {
 
             const updateData = {
                 total_amount: finalAmount,
+                total_hours: hoursToCharge,
                 status: 'pending_payment',
                 payment_status: 'unpaid',
-                check_out_at: now
+                check_out_at: checkOutTime
             };
 
             const updated = await Booking.findByIdAndUpdate(
@@ -247,7 +288,19 @@ class WalkinController {
                     discount: discount,
                     total_amount: finalAmount,
                     has_voucher: hasVoucher,
-                    voucher_code: booking.voucher_applied
+                    voucher_code: booking.voucher_applied,
+                    actual_duration: {
+                        hours: Math.floor(timeDiffMs / 3600000),
+                        minutes: Math.floor((timeDiffMs % 3600000) / 60000),
+                        seconds: Math.floor((timeDiffMs % 60000) / 1000),
+                        total_hours: hoursSpent,
+                        total_minutes: rawMinutes
+                    },
+                    billing_duration: {
+                        minutes: minutesSpent,
+                        hours: hoursToCharge,
+                        charge_type: chargeType
+                    }
                 }
             });
         } catch (error) {

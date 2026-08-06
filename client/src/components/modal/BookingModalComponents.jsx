@@ -1,102 +1,199 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { cn } from "@/lib/utils";
-import { CheckCircle2, DoorOpen, Banknote, QrCode, CreditCard, Loader2, BadgeCheck, AlertCircle } from 'lucide-react';
+import { CheckCircle2, DoorOpen, Banknote, QrCode, CreditCard, Loader2, BadgeCheck, AlertCircle, Clock } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { apiPost } from '@/utils/Api';
 import { useTheme } from '@/hooks/useTheme';
 
-// Live Billing Timer Component
-export const LiveBillingTimer = ({ checkInAt, checkOutAt, onAmountUpdate, booking }) => {
-    const { themeColor } = useTheme();
-    const [elapsed, setElapsed] = useState('00:00:00');
-    const [amount, setAmount] = useState(0);
+export const LiveBillingTimer = ({
+    checkInAt,
+    checkOutAt,
+    onAmountUpdate,
+    booking,
+    isCalculated = false
+}) => {
+    const [elapsed, setElapsed] = useState({ minutes: 0, seconds: 0 });
+    const [currentAmount, setCurrentAmount] = useState(0);
+    const [isMinimumChargeApplied, setIsMinimumChargeApplied] = useState(false);
+    const [minutesAtThreshold, setMinutesAtThreshold] = useState(0);
+    const intervalRef = useRef(null);
 
-    const getCorrectRate = () => {
-        if (booking?.room_id?.rate_hour) return booking.room_id.rate_hour;
-        if (booking?.rate_per_hour) return booking.rate_per_hour;
-        return booking?.space_id?.rate_hour || 0;
+    const hourlyRate = booking?.space_id?.rate_hour || 0;
+    const perMinuteRate = hourlyRate / 60;
+
+    const isBillCalculated = booking?.status === 'pending_payment' || isCalculated;
+
+    // Helper to calculate minutes from check-in/out
+    const calculateActualMinutes = () => {
+        if (!checkInAt) return 0;
+        
+        const checkIn = new Date(checkInAt);
+        const checkOut = checkOutAt ? new Date(checkOutAt) : new Date();
+        
+        // If booking has actual_duration from backend, use it
+        if (booking?.actual_duration?.total_minutes) {
+            return booking.actual_duration.total_minutes;
+        }
+        
+        // Otherwise calculate from dates
+        const diffMs = checkOut - checkIn;
+        return diffMs / (1000 * 60);
     };
 
-    const rateHour = getCorrectRate();
-    const hasVoucher = booking?.voucher_discount > 0;
-    const voucherDiscount = booking?.voucher_discount || 0;
-
     useEffect(() => {
-        if (!checkInAt) return;
-
-        const calculate = (toTime) => {
-            const seconds = Math.max(0, Math.floor((new Date(toTime) - new Date(checkInAt)) / 1000));
-            const hrs = Math.floor(seconds / 3600);
-            const mins = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
-
-            const hoursSpent = seconds / 3600;
-            let total = hoursSpent * rateHour;
-
-            if (hasVoucher && total > 0) {
-                total = Math.max(0, total - voucherDiscount);
+        // If bill is calculated, use the booking's total_amount
+        if (isBillCalculated && booking?.total_amount) {
+            setCurrentAmount(booking.total_amount);
+            
+            // Calculate minutes from actual_duration or fallback
+            let minutes = booking?.actual_duration?.total_minutes || 0;
+            
+            // If no actual_duration, calculate from check-in/out
+            if (!minutes && checkInAt) {
+                minutes = calculateActualMinutes();
             }
-
-            setElapsed(`${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
-            setAmount(total);
-            if (onAmountUpdate) onAmountUpdate(total);
-        };
-
-        if (checkOutAt) {
-            calculate(checkOutAt);
+            
+            setIsMinimumChargeApplied(minutes >= 31);
+            setMinutesAtThreshold(minutes);
             return;
         }
 
-        calculate(Date.now());
-        const id = setInterval(() => calculate(Date.now()), 1000);
-        return () => clearInterval(id);
-    }, [checkInAt, checkOutAt, rateHour, hasVoucher, voucherDiscount, onAmountUpdate]);
+        // Otherwise, run the live timer
+        const updateTimer = () => {
+            if (!checkInAt) return;
 
-    const activeColor = checkOutAt ? 'emerald' : themeColor;
+            const checkIn = new Date(checkInAt);
+            const now = new Date();
+            const endTime = checkOutAt ? new Date(checkOutAt) : now;
+            const effectiveNow = endTime < now ? endTime : now;
+            const diffMs = effectiveNow - checkIn;
 
-    return (
-        <div className={cn(
-            "mt-4 p-4 rounded-2xl border transition-all duration-500",
-            checkOutAt 
-                ? "bg-emerald-500/10 border-emerald-500/20" 
-                : "bg-primary/10 border-primary/20"
-        )}>
-            {hasVoucher && !checkOutAt && (
-                <div className="mb-3 p-2 bg-emerald-500/20 rounded-xl text-center">
-                    <p className="text-emerald-600 dark:text-emerald-400 font-black uppercase text-[8px] tracking-widest">
-                        Voucher Applied: {booking.voucher_applied} (-₱{voucherDiscount.toFixed(2)})
-                    </p>
+            if (diffMs <= 0) {
+                setElapsed({ minutes: 0, seconds: 0 });
+                setCurrentAmount(0);
+                return;
+            }
+
+            const minutes = Math.floor(diffMs / 60000);
+            const seconds = Math.floor((diffMs % 60000) / 1000);
+            setElapsed({ minutes, seconds });
+
+            let amount;
+            let isMinCharge = false;
+
+            if (minutes >= 31) {
+                const hoursToCharge = Math.ceil(minutes / 60);
+                amount = hoursToCharge * hourlyRate;
+                isMinCharge = true;
+            } else {
+                amount = minutes * perMinuteRate;
+                isMinCharge = false;
+            }
+
+            setCurrentAmount(parseFloat(amount.toFixed(2)));
+            setIsMinimumChargeApplied(isMinCharge);
+            setMinutesAtThreshold(minutes);
+
+            if (onAmountUpdate) {
+                onAmountUpdate(parseFloat(amount.toFixed(2)));
+            }
+        };
+
+        updateTimer();
+
+        if (!isBillCalculated) {
+            intervalRef.current = setInterval(updateTimer, 1000);
+        }
+
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, [checkInAt, checkOutAt, hourlyRate, perMinuteRate, onAmountUpdate, isBillCalculated, booking]);
+
+    const formatTime = (minutes, seconds) => {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        if (hours > 0) {
+            return `${hours}h ${mins}m ${seconds}s`;
+        }
+        return `${mins}m ${seconds}s`;
+    };
+
+    // If bill is calculated, show the final amount with a checkmark
+    if (isBillCalculated) {
+        const totalMinutes = booking?.actual_duration?.total_minutes || calculateActualMinutes() || 0;
+        const hoursCharged = Math.ceil(totalMinutes / 60);
+        
+        return (
+            <div className="bg-linear-to-r from-emerald-500/10 to-emerald-600/5 rounded-2xl p-5 border border-emerald-500/20">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest flex items-center gap-2">
+                            <Clock size={12} />
+                            Session Time
+                        </p>
+                        <p className="text-sm text-foreground font-bold mt-1">
+                            {totalMinutes >= 31 ? 
+                                `${hoursCharged} hour(s)` :
+                                `${Math.floor(totalMinutes || 0)} min(s)`
+                            }
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest">Final Bill</p>
+                        <p className="text-2xl font-black text-foreground">₱{currentAmount.toFixed(2)}</p>
+                    </div>
                 </div>
-            )}
+                {totalMinutes >= 31 && (
+                    <div className="mt-2 flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-1.5">
+                        <AlertCircle size={12} className="text-amber-600 dark:text-amber-400" />
+                        <span className="text-[8px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">
+                            Minimum charge: {hoursCharged} hour(s) @ ₱{hourlyRate}/hr = ₱{currentAmount.toFixed(2)}
+                        </span>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Live timer display
+    return (
+        <div className="bg-linear-to-r from-primary/10 to-purple-500/10 rounded-2xl p-5 border border-primary/20">
             <div className="flex items-center justify-between">
-                <div className="text-left">
-                    <p className={cn(
-                        "text-[9px] font-black uppercase tracking-widest mb-1",
-                        checkOutAt ? "text-emerald-600 dark:text-emerald-400" : "text-primary"
-                    )}>
-                        {checkOutAt ? 'Total Duration' : 'Session Time'}
+                <div>
+                    <p className="text-[8px] text-primary font-black uppercase tracking-widest flex items-center gap-2">
+                        <Clock size={12} className="animate-pulse" />
+                        Live Session
                     </p>
-                    <p className={cn(
-                        "text-lg font-[1000] italic tracking-tighter tabular-nums",
-                        checkOutAt ? "text-emerald-600 dark:text-emerald-400" : "text-primary"
-                    )}>{elapsed}</p>
+                    <p className="text-sm text-foreground font-bold mt-1">
+                        {formatTime(elapsed.minutes, elapsed.seconds)}
+                    </p>
                 </div>
                 <div className="text-right">
-                    <p className={cn(
-                        "text-[9px] font-black uppercase tracking-widest mb-1",
-                        checkOutAt ? "text-emerald-600 dark:text-emerald-400" : "text-primary"
-                    )}>
-                        {checkOutAt ? 'Total Bill' : 'Running Total'} · ₱{rateHour}/hr
-                    </p>
-                    <p className={cn(
-                        "text-lg font-[1000] italic tracking-tighter tabular-nums",
-                        checkOutAt ? "text-emerald-600 dark:text-emerald-400" : "text-primary"
-                    )}>₱{amount.toFixed(2)}</p>
+                    <p className="text-[8px] text-primary font-black uppercase tracking-widest">Current Bill</p>
+                    <p className="text-2xl font-black text-foreground">₱{currentAmount.toFixed(2)}</p>
                 </div>
             </div>
-            {checkOutAt && (
-                <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest text-center mt-3 animate-pulse">Session Complete</p>
-            )}
+            <div className="mt-3">
+                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                        className="h-full bg-primary/50 rounded-full transition-all duration-1000"
+                        style={{ 
+                            width: `${Math.min((elapsed.minutes / 60) * 100, 100)}%` 
+                        }}
+                    />
+                </div>
+                <div className="flex justify-between mt-1">
+                    <span className="text-[7px] text-muted-foreground">
+                        {elapsed.minutes}m elapsed
+                    </span>
+                    <span className="text-[7px] text-muted-foreground">
+                        {elapsed.minutes >= 31 ? 'Full hour rate' : `${Math.round((31 - elapsed.minutes))}m to full hour`}
+                    </span>
+                </div>
+            </div>
         </div>
     );
 };
@@ -216,16 +313,16 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
                 <div className="px-4 pt-4 pb-2 border-b border-border">
                     <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mb-2">Have a voucher?</p>
                     <div className="flex gap-2">
-                        <input 
-                            type="text" 
-                            placeholder="Enter voucher code" 
-                            value={voucherCode} 
-                            onChange={(e) => setVoucherCode(e.target.value.toUpperCase())} 
-                            className="flex-1 px-3 py-2 bg-background border border-border rounded-xl text-foreground text-xs font-mono uppercase focus:border-primary outline-none" 
+                        <input
+                            type="text"
+                            placeholder="Enter voucher code"
+                            value={voucherCode}
+                            onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                            className="flex-1 px-3 py-2 bg-background border border-border rounded-xl text-foreground text-xs font-mono uppercase focus:border-primary outline-none"
                         />
-                        <button 
-                            onClick={handleApplyVoucher} 
-                            disabled={applyingVoucher || !voucherCode.trim()} 
+                        <button
+                            onClick={handleApplyVoucher}
+                            disabled={applyingVoucher || !voucherCode.trim()}
                             className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-[9px] font-black uppercase disabled:opacity-50 hover:opacity-90"
                         >
                             {applyingVoucher ? <Loader2 size={12} className="animate-spin" /> : 'Apply'}
@@ -235,8 +332,8 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
             )}
             {appliedVoucher && !hasExistingVoucher && (
                 <div className="px-4 pt-2 pb-2">
-                    <button 
-                        onClick={() => { setAppliedVoucher(null); setVoucherDiscount(0); setCurrentTotal(liveTotalAmount); setVoucherCode(''); }} 
+                    <button
+                        onClick={() => { setAppliedVoucher(null); setVoucherDiscount(0); setCurrentTotal(liveTotalAmount); setVoucherCode(''); }}
                         className="text-[8px] text-rose-600 dark:text-rose-400 hover:text-rose-500"
                     >
                         Remove voucher
@@ -245,30 +342,30 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
             )}
 
             <div className="flex gap-2 p-4">
-                <button 
-                    onClick={() => setMethod('cash')} 
+                <button
+                    onClick={() => setMethod('cash')}
                     className={cn(
                         "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 border transition-all",
-                        method === 'cash' 
-                            ? "bg-emerald-600 border-emerald-600 text-white shadow-lg" 
+                        method === 'cash'
+                            ? "bg-emerald-600 border-emerald-600 text-white shadow-lg"
                             : "border-border text-muted-foreground hover:border-primary/50"
                     )}
                 >
                     <Banknote size={13} /> Cash
                 </button>
-                <button 
-                    onClick={() => setMethod('qr')} 
+                <button
+                    onClick={() => setMethod('qr')}
                     className={cn(
                         "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 border transition-all",
-                        method === 'qr' 
-                            ? "bg-blue-600 border-blue-600 text-white shadow-lg" 
+                        method === 'qr'
+                            ? "bg-blue-600 border-blue-600 text-white shadow-lg"
                             : "border-border text-muted-foreground hover:border-primary/50"
                     )}
                 >
                     <QrCode size={13} /> GCash / QR
                 </button>
-                <button 
-                    onClick={() => onOpenOnlinePayment && onOpenOnlinePayment({ amount: finalTotal, orderNumber: booking.ticket_number, bookingId: booking._id, spaceId: booking.space_id?._id })} 
+                <button
+                    onClick={() => onOpenOnlinePayment && onOpenOnlinePayment({ amount: finalTotal, orderNumber: booking.ticket_number, bookingId: booking._id, spaceId: booking.space_id?._id })}
                     className="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 border transition-all bg-purple-600/20 border-purple-500/50 text-purple-600 dark:text-purple-400 hover:bg-purple-600 hover:text-white"
                 >
                     <CreditCard size={13} /> Online
@@ -281,22 +378,22 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
                         <p className="text-[9px] font-black text-muted-foreground uppercase ml-1 mb-1.5 tracking-widest">Cash Received</p>
                         <div className="relative">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-black text-lg select-none">₱</span>
-                            <input 
-                                type="number" 
-                                min={0} 
-                                step="0.01" 
-                                className="w-full bg-background border border-border pl-8 pr-4 py-3 rounded-xl text-foreground font-black text-lg focus:border-primary outline-none" 
-                                placeholder="0.00" 
-                                value={received} 
-                                onChange={(e) => setReceived(e.target.value)} 
+                            <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                className="w-full bg-background border border-border pl-8 pr-4 py-3 rounded-xl text-foreground font-black text-lg focus:border-primary outline-none"
+                                placeholder="0.00"
+                                value={received}
+                                onChange={(e) => setReceived(e.target.value)}
                             />
                         </div>
                     </div>
                     {numericReceived > 0 && (
                         <div className={cn(
                             "p-3 rounded-xl border flex justify-between items-center",
-                            cashValid 
-                                ? "bg-emerald-500/10 border-emerald-500/20" 
+                            cashValid
+                                ? "bg-emerald-500/10 border-emerald-500/20"
                                 : "bg-rose-500/10 border-rose-500/20"
                         )}>
                             <span className={cn(
@@ -322,14 +419,14 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
                         <>
                             <div className="flex justify-center mb-3">
                                 <div className="bg-white p-4 rounded-2xl shadow-xl">
-                                    <img 
-                                        src={getFullImageUrl(qrPaymentImage)} 
-                                        alt="Payment QR Code" 
-                                        className="w-48 h-48 object-contain" 
-                                        onError={(e) => { 
-                                            console.error('QR failed to load:', qrPaymentImage); 
-                                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"%3E%3C/rect%3E%3Cline x1="3" y1="9" x2="21" y2="9"%3E%3C/line%3E%3C/svg%3E'; 
-                                        }} 
+                                    <img
+                                        src={getFullImageUrl(qrPaymentImage)}
+                                        alt="Payment QR Code"
+                                        className="w-48 h-48 object-contain"
+                                        onError={(e) => {
+                                            console.error('QR failed to load:', qrPaymentImage);
+                                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"%3E%3C/rect%3E%3Cline x1="3" y1="9" x2="21" y2="9"%3E%3C/line%3E%3C/svg%3E';
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -352,9 +449,9 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
             )}
 
             <div className="px-4 pb-5">
-                <button 
-                    disabled={isSubmitting || (method === 'cash' && !cashValid) || currentTotal === 0} 
-                    onClick={() => onComplete({ method, amount_received: numericReceived, voucher_code: appliedVoucher?.code || null, total_amount: currentTotal })} 
+                <button
+                    disabled={isSubmitting || (method === 'cash' && !cashValid) || currentTotal === 0}
+                    onClick={() => onComplete({ method, amount_received: numericReceived, voucher_code: appliedVoucher?.code || null, total_amount: currentTotal })}
                     className={cn(
                         "w-full py-4 rounded-2xl font-black uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl text-white",
                         method === 'cash' && getButtonColor('cash'),
@@ -417,8 +514,8 @@ export const ReceiptScreen = ({ booking, onClose, reviewQrUrl }) => {
                 </div>
             </div>
 
-            <button 
-                onClick={onClose} 
+            <button
+                onClick={onClose}
                 className="w-full py-3 bg-muted border border-border text-muted-foreground rounded-2xl font-black uppercase text-xs hover:bg-muted/80 transition-all"
             >
                 Close

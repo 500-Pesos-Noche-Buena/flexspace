@@ -10,10 +10,10 @@ const activityLogSchema = new mongoose.Schema({
             // Space actions
             'space_create', 'space_update', 'space_delete', 'space_approve', 'space_reject',
             // Booking actions
-            'booking_create', 'booking_cancel', 'booking_complete',
+            'booking_create', 'booking_update', 'booking_cancel', 'booking_complete', 'booking_confirm', 'booking_reject',
             // Payment actions
             'payment_made', 'payment_failed',
-            // Location actions (ADD THESE)
+            // Location actions
             'district_create', 'district_update', 'district_delete',
             'city_create', 'city_update', 'city_delete',
             'province_create', 'province_update', 'province_delete',

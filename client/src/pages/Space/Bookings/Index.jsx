@@ -90,7 +90,7 @@ const BookingsIndex = () => {
             setRoomsWithAvailability([]);
             return;
         }
-        
+
         try {
             // Use the new endpoint we created
             const res = await apiGet(`/space/spaces/${spaceId}/rooms/availability`);
@@ -270,11 +270,22 @@ const BookingsIndex = () => {
             const isWalkin = selectedQR.booking_type === 'walkin';
             const endpoint = isWalkin ? `/space/walkins/${selectedQR._id}/calculate` : `/space/bookings/${selectedQR._id}/calculate`;
             const res = await apiPost(endpoint);
+
+            // Get the updated booking and actual_duration from the response
             const updatedBooking = res.data?.booking;
+            const actualDuration = res.data?.actual_duration;
+
             if (updatedBooking) {
-                setSelectedQR(updatedBooking);
+                // Merge the actual_duration into the booking object
+                const bookingWithDuration = {
+                    ...updatedBooking,
+                    actual_duration: actualDuration || updatedBooking.actual_duration
+                };
+
+                setSelectedQR(bookingWithDuration);
                 setLiveAmount(updatedBooking.total_amount || 0);
             }
+
             showToast({ icon: 'success', title: 'Session frozen — collect payment' });
             await fetchData(paramsRef.current, true);
         } catch (e) {
@@ -531,7 +542,7 @@ const BookingsIndex = () => {
                                 <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center font-black text-primary-foreground italic">{booking.user_id?.name?.charAt(0) || booking.guest_name?.charAt(0) || 'G'}</div>
                                 <div><h3 className="text-sm font-black text-foreground leading-tight">{booking.user_id?.name || booking.guest_name || 'Guest'}</h3><p className="text-[10px] font-bold text-muted-foreground">#{booking.ticket_number}</p></div>
                             </div>
-                            <div className={cn("px-2 py-1 rounded text-[9px] font-black uppercase", 
+                            <div className={cn("px-2 py-1 rounded text-[9px] font-black uppercase",
                                 booking.status === 'active' && "bg-primary/10 text-primary",
                                 booking.status === 'pending_payment' && "bg-orange-500/10 text-orange-600 dark:text-orange-400",
                                 booking.status === 'completed' && "bg-teal-500/10 text-teal-600 dark:text-teal-400",
