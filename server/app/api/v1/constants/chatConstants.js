@@ -32,10 +32,49 @@ const CHATBOT_IDENTITY = {
 // District list
 const DISTRICTS = ['molo', 'jaro', 'mandurriao', 'city proper', 'la paz', 'arevalo'];
 
+// 🍔 ORDER HELP CONSTANTS (No hardcoded products - these are just help text)
+const ORDER_HELP = `
+🍔 **How to Order Food on FlexSpace:**
+
+1. **Click the 🛒 Shopping Cart icon** in the chat header
+2. **Browse the menu** and select items you want
+3. **Add items to your cart** using the + button
+4. **Checkout** and choose your payment method:
+   - 💵 Cash on Pickup
+   - 📱 Online Payment (GCash/PayMaya)
+5. **Wait for confirmation** - you'll be notified when your order is ready!
+
+💡 **Pro Tip:** You can also ask me about menu items, specials, or get recommendations!
+`;
+
+const MENU_HELP = `
+📋 **Menu Categories Available:**
+• 🍔 Food
+• ☕ Beverages/Drinks
+• 🍿 Snacks
+• 🎁 Merchandise
+
+*Click the 🛒 Shopping Cart button to see the full menu with prices!*
+`;
+
+const ORDER_SPECIALS = `
+✨ **Today's Specials & Recommendations:**
+
+1. 🌟 **FlexSpace Combo Meal** - Ask our staff for today's combo specials
+2. ☕ **Barista's Choice** - Ask our barista for today's special coffee
+3. 🍪 **Fresh Baked Goods** - Baked fresh every morning!
+4. 💪 **Productivity Pack** - Coffee + snack combo
+
+*Ask our staff for today's full specials when you order!*
+`;
+
 module.exports = {
     TEAM,
     BOOKING_PROCESS,
     PROJECT_INFO,
     DISTRICTS,
-    CHATBOT_IDENTITY
+    CHATBOT_IDENTITY,
+    ORDER_HELP,
+    MENU_HELP,
+    ORDER_SPECIALS
 };

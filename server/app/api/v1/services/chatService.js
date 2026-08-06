@@ -1,7 +1,16 @@
 const { GoogleGenAI } = require("@google/genai");
 const config = require('@/config/config');
-const { Space, District } = require('@/api/v1/models');
-const { TEAM, BOOKING_PROCESS, PROJECT_INFO, CHATBOT_IDENTITY, DISTRICTS } = require('@/api/v1/constants/chatConstants');
+const { Space, District, Product } = require('@/api/v1/models');
+const { 
+    TEAM, 
+    BOOKING_PROCESS, 
+    PROJECT_INFO, 
+    CHATBOT_IDENTITY, 
+    DISTRICTS,
+    ORDER_HELP,
+    MENU_HELP,
+    ORDER_SPECIALS
+} = require('@/api/v1/constants/chatConstants');
 const { detectLanguage, getLocalizedResponse } = require('@/api/v1/utils/languageUtils');
 
 const genAI = new GoogleGenAI({ apiKey: config.ai.geminiKey });
@@ -20,16 +29,51 @@ class ChatService {
     }
 
     async fetchDistricts() {
-        return await District.find({ active: true }).select('name slug').lean();
+        try {
+            return await District.find({ active: true }).select('name slug').lean();
+        } catch (error) {
+            console.error('[Chat] Error fetching districts:', error);
+            return [];
+        }
     }
 
     async fetchSpaces() {
-        return await Space.find({ status: 'Open Now' })
-            .populate('district_id', 'name slug active')
-            .select('name area lat lng rate_hour amenities capacity description district_id occupied_seats available_rooms hours_json')
-            .lean();
+        try {
+            return await Space.find({ status: 'Open Now' })
+                .populate('district_id', 'name slug active')
+                .select('name area lat lng rate_hour amenities capacity description district_id occupied_seats available_rooms hours_json _id')
+                .lean();
+        } catch (error) {
+            console.error('[Chat] Error fetching spaces:', error);
+            return [];
+        }
     }
 
+    async fetchProductsForSpace(spaceId) {
+        if (!spaceId) {
+            console.log('[Chat] No spaceId provided');
+            return [];
+        }
+        
+        try {
+            console.log(`[Chat] Fetching products for spaceId: ${spaceId}`);
+            const products = await Product.find({ 
+                space_id: spaceId, 
+                is_available: true
+            })
+            .select('name price category description stock image')
+            .lean()
+            .limit(50);
+            
+            console.log(`[Chat] Found ${products.length} products for spaceId: ${spaceId}`);
+            return products;
+        } catch (error) {
+            console.error('[Chat] Error fetching products:', error);
+            return [];
+        }
+    }
+
+    // ✅ BUILD SPACE CONTEXT
     buildSpaceContext(activeSpaces, allDistricts) {
         const spacesByDistrict = {};
         activeSpaces.forEach(space => {
@@ -57,7 +101,6 @@ class ChatService {
 
                 const availableSeats = (space.capacity || 10) - (space.occupied_seats || 0);
 
-                // Location: prefer lat/lng map link, fallback to area text, fallback to district
                 let locationInfo = "";
                 if (space.lat && space.lng) {
                     const mapsUrl = `https://www.google.com/maps?q=${space.lat},${space.lng}`;
@@ -68,7 +111,6 @@ class ChatService {
                     locationInfo = ` | 📍 ${district} district, Iloilo City`;
                 }
 
-                // Opening hours if available
                 let hoursInfo = "";
                 if (space.hours_json) {
                     try {
@@ -82,141 +124,188 @@ class ChatService {
                     } catch (e) { /* skip if malformed */ }
                 }
 
-                // Available rooms
                 let roomsInfo = space.available_rooms
                     ? ` | 🚪 Rooms: ${space.available_rooms}`
                     : "";
 
-                spaceContext += `- ${space.name}: **₱${space.rate_hour}/hour**, seats available: ${availableSeats}/${space.capacity || 10}, amenities: ${amenities}${locationInfo}${hoursInfo}${roomsInfo}\n`;
+                spaceContext += `- ${space.name} (ID: ${space._id}): **₱${space.rate_hour}/hour**, seats available: ${availableSeats}/${space.capacity || 10}, amenities: ${amenities}${locationInfo}${hoursInfo}${roomsInfo}\n`;
             });
         }
 
         return spaceContext;
     }
 
-    getSystemInstruction(spaceContext, districtList) {
+    // ✅ BUILD PRODUCT CONTEXT
+    buildProductContext(products, spaceName) {
+        if (!products || products.length === 0) {
+            return `No products available for ${spaceName || 'this space'} at the moment.`;
+        }
+
+        // Group products by category
+        const categories = {
+            food: [],
+            beverage: [],
+            snacks: [],
+            merch: []
+        };
+
+        products.forEach(product => {
+            if (categories[product.category]) {
+                categories[product.category].push(product);
+            }
+        });
+
+        let productContext = `\n📋 **Available Products at ${spaceName || 'this space'}:**\n\n`;
+
+        // Food
+        if (categories.food.length > 0) {
+            productContext += `**🍔 Food:**\n`;
+            categories.food.forEach(p => {
+                productContext += `- ${p.name}: ₱${p.price}${p.description ? ` (${p.description})` : ''}${p.stock > 0 ? ` | Stock: ${p.stock}` : ' | Out of stock'}\n`;
+            });
+            productContext += '\n';
+        }
+
+        // Beverages
+        if (categories.beverage.length > 0) {
+            productContext += `**☕ Beverages/Drinks:**\n`;
+            categories.beverage.forEach(p => {
+                productContext += `- ${p.name}: ₱${p.price}${p.description ? ` (${p.description})` : ''}${p.stock > 0 ? ` | Stock: ${p.stock}` : ' | Out of stock'}\n`;
+            });
+            productContext += '\n';
+        }
+
+        // Snacks
+        if (categories.snacks.length > 0) {
+            productContext += `**🍿 Snacks:**\n`;
+            categories.snacks.forEach(p => {
+                productContext += `- ${p.name}: ₱${p.price}${p.description ? ` (${p.description})` : ''}${p.stock > 0 ? ` | Stock: ${p.stock}` : ' | Out of stock'}\n`;
+            });
+            productContext += '\n';
+        }
+
+        // Merch
+        if (categories.merch.length > 0) {
+            productContext += `**🎁 Merchandise:**\n`;
+            categories.merch.forEach(p => {
+                productContext += `- ${p.name}: ₱${p.price}${p.description ? ` (${p.description})` : ''}${p.stock > 0 ? ` | Stock: ${p.stock}` : ' | Out of stock'}\n`;
+            });
+            productContext += '\n';
+        }
+
+        return productContext;
+    }
+
+    // ✅ GET SYSTEM INSTRUCTION
+    getSystemInstruction(spaceContext, districtList, productContext = '') {
         return `
 You are ${CHATBOT_IDENTITY.name} (also known as ${CHATBOT_IDENTITY.shortName}) - a helpful AI assistant for ${PROJECT_INFO.name} coworking space bookings in Iloilo City.
 
-════════════════════════════════════════
-🚫 STRICT TOPIC BOUNDARY — READ THIS FIRST
-════════════════════════════════════════
-You ONLY answer questions about:
-  1. Coworking spaces (locations, prices, amenities, availability, seats, hours)
-  2. Booking process
-  3. Districts in Iloilo City
-  4. The ${PROJECT_INFO.name} team
-  5. Greetings and small talk (hi, hello, kumusta)
-
-If the user says ANYTHING outside these topics — romantic messages, jokes, random questions, personal questions, politics, food, weather, games, etc. — respond ONLY with:
-  "I'm only here to help with coworking spaces in Iloilo City, gid! 😊 Need help finding a space?"
-
-DO NOT engage with off-topic messages.
-DO NOT answer romantic or personal messages like "palangga yako", "I love you", "ganda mo", "gusto kita".
-DO NOT play along with jokes or random conversations.
-
-════════════════════════════════════════
-CRITICAL DATA RULES
-════════════════════════════════════════
-- NEVER invent space names, prices, amenities, or addresses.
-- ONLY use the exact spaces listed below.
-- If a space is NOT in the list, say: "Sorry, I don't have that space in our records, gid."
-- If the list is empty, say: "No spaces are available right now, gid."
-
 ${spaceContext}
 
-════════════════════════════════════════
-📍 LOCATION QUESTIONS
-════════════════════════════════════════
-✅ WHEN USER ASKS WHERE A SPACE IS (e.g., "diin", "where", "location", "address", "paano makabot", "how to get there", "map"):
-   - If the space data above has a [View on Map] link → share it directly.
-   - If the space data has an area/address text → share that text.
-   - If neither exists → say: "The exact address of [space name] is not yet in our system, gid. You may contact us or visit ${PROJECT_INFO.name} for directions. 😊"
-   NEVER say this is off-topic. Location is always a valid question.
+${productContext}
 
 ════════════════════════════════════════
-👥 TEAM MEMBERS OF ${PROJECT_INFO.name}
+🍔 ORDER HELP
 ════════════════════════════════════════
-- **Lead Programmer:** ${TEAM.leadProgrammer}
-- **Project Manager:** ${TEAM.projectManager}
-- **UI/UX Designer:** ${TEAM.uiuxDesigner}
-- **Documentation:** ${TEAM.documentation}
+When users ask "how to order" or "how do I order":
+${ORDER_HELP}
 
-✅ WHEN USER ASKS ABOUT TEAM:
-   "The ${PROJECT_INFO.name} team consists of:
-   **Lead Programmer:** ${TEAM.leadProgrammer}
-   **Project Manager:** ${TEAM.projectManager}
-   **UI/UX Designer:** ${TEAM.uiuxDesigner}
-   **Documentation:** ${TEAM.documentation}"
+When users ask "what's special" or "recommendations":
+${ORDER_SPECIALS}
 
-✅ WHEN USER ASKS ABOUT DEVELOPER ("who made this", "who developed"):
-   "**${TEAM.leadProgrammer}** is the Lead Programmer and developer of ${PROJECT_INFO.name}."
+When users ask about ordering specific items:
+Always respond with: "Great choice! Click the 🛒 Shopping Cart button in the chat header to see the full menu and place your order. You can find [item name] there! 🍔☕"
 
-════════════════════════════════════════
-💬 CONVERSATION RULES
-════════════════════════════════════════
-✅ GREETINGS ("hi", "hello", "halo", "kumusta", "musta"):
-   "Hi there! How can I help you today? Looking for a coworking space in Iloilo? 😊"
+When users ask about payment for orders:
+"💳 We accept two payment methods for food orders:
+1. 💵 Cash on Pickup - Pay when you pick up your order
+2. 📱 Online Payment - Pay via GCash or PayMaya
 
-✅ USER LAUGHS (ONLY "hahaha", "lol", "hehe", "funny"):
-   "Haha! Glad you're enjoying, gid! 😊 Ready to find a workspace?"
-
-✅ "who are you?" / "ikaw?":
-   "I am ${CHATBOT_IDENTITY.name}, your AI assistant for coworking spaces in Iloilo City. How can I help you today, gid? 🤖"
-
-✅ AFFIRMATIVE ("yes", "oo", "sige", "okay"):
-   Ask a follow-up:
-   "Great! Which district are you interested in? (${districtList})"
-
-✅ NEGATIVE ("no", "hindi", "dili", "ayaw"):
-   "No problem, gid! Just let me know if you need help finding a workspace."
-
-════════════════════════════════════════
-🏢 SPACE LISTING RULES
-════════════════════════════════════════
-✅ WHEN USER ASKS ABOUT SPACES:
-   List only spaces from the data above with bold prices.
-   Format: "- Space Name: **₱XX/hour** | X seats available"
-   DO NOT mention booking unless the user asks.
-
-✅ WHEN USER ASKS ABOUT AVAILABILITY / SEATS:
-   Use the "seats available" info from the data above.
-   Example: "Molo CoWork has 5/10 seats available right now, gid."
-
-════════════════════════════════════════
-📋 BOOKING PROCESS
-════════════════════════════════════════
-✅ WHEN USER ASKS HOW TO BOOK:
-
-**To book a space on ${PROJECT_INFO.name}:**
-
-1. **Register an account** / Magparehistro sang account
-2. **Login to your account** / Mag-login sa imo account
-3. **Browse spaces** and select your preferred space
-4. **Choose your date and time** / Pilia ang petsa kag oras
-5. **Confirm your booking** / Kumpirmaha ang imo booking
-
-**🚶 Walk-in Option:** You can also walk in directly — our staff will assist you.
+*All food orders must be picked up at the counter.*"
 
 ════════════════════════════════════════
 OTHER RULES
 ════════════════════════════════════════
-1. RESPOND IN THE SAME LANGUAGE AS THE USER (Filipino, Hiligaynon, or English)
-2. NEVER repeat the same response twice in a row
-3. NEVER mention online payment — payment is upon walk-in only
-4. ONLY recommend spaces from the data above
+1. NEVER invent product prices - use ONLY the prices from the product list above.
+2. If a product is NOT in the list, say: "Sorry, that item is not available at this space, gid."
+3. If the list is empty, say: "No products are available right now, gid."
+4. Respond in the same language as the user (Filipino, Hiligaynon, or English)
+5. NEVER repeat the same response twice in a row
 `;
     }
 
+    // ✅ MAIN PROCESS MESSAGE METHOD
     async processMessage(message, sessionId = 'default') {
         const history = this.getSession(sessionId);
 
-        const [allDistricts, activeSpaces] = await Promise.all([
-            this.fetchDistricts(),
-            this.fetchSpaces()
+        // Fetch all spaces first
+        const allSpaces = await this.fetchSpaces();
+        console.log(`[Chat] Found ${allSpaces.length} active spaces`);
+
+        // Try to detect if user is asking about menu/order
+        const isMenuQuery = /menu|food|drink|snack|order|eat|hungry|coffee|tea|meal|sandwich|burger|pizza|pasta|fries|cookie|cake|juice|soda|water|merch|item|available|what.*have|show.*menu|list.*food|products|items/i.test(message);
+        
+        let spaceId = null;
+        let productContext = '';
+        let targetSpaceName = '';
+
+        if (isMenuQuery) {
+            console.log('[Chat] Menu query detected');
+            
+            // Try to find which space they're asking about
+            let targetSpace = null;
+            
+            // Extract space name from the message
+            const spaceNameMatch = message.match(/(?:at|in|for)\s+([A-Za-z\s]+?)(?:\s+space|\s+hub|\s+location|$|\?)/i) || 
+                                  message.match(/(?:from|sa)\s+([A-Za-z\s]+?)(?:\s+space|\s+hub|\s+location|$|\?)/i) ||
+                                  message.match(/menu\s+(?:of|for|at|in)\s+([A-Za-z\s]+?)(?:\s+space|\s+hub|\s+location|$|\?)/i);
+            
+            if (spaceNameMatch && spaceNameMatch[1]) {
+                const spaceName = spaceNameMatch[1].trim().toLowerCase();
+                console.log(`[Chat] Looking for space: "${spaceName}"`);
+                
+                // Try to find exact match
+                targetSpace = allSpaces.find(s => 
+                    s.name.toLowerCase() === spaceName ||
+                    s.name.toLowerCase().includes(spaceName) ||
+                    spaceName.includes(s.name.toLowerCase())
+                );
+                
+                // If not found, try fuzzy match with district
+                if (!targetSpace) {
+                    targetSpace = allSpaces.find(s => 
+                        s.district_id?.name?.toLowerCase().includes(spaceName) ||
+                        s.area?.toLowerCase().includes(spaceName)
+                    );
+                }
+            }
+            
+            // If no space specified, try to use the first active space
+            if (!targetSpace && allSpaces.length > 0) {
+                targetSpace = allSpaces[0];
+                console.log(`[Chat] No specific space mentioned, using first: ${targetSpace.name}`);
+            }
+
+            if (targetSpace) {
+                spaceId = targetSpace._id;
+                targetSpaceName = targetSpace.name;
+                console.log(`[Chat] Using space: "${targetSpaceName}" (ID: ${spaceId})`);
+                
+                const products = await this.fetchProductsForSpace(spaceId);
+                productContext = this.buildProductContext(products, targetSpaceName);
+                console.log(`[Chat] Product context built: ${productContext.length} chars`);
+            } else {
+                console.log('[Chat] No space found for menu query');
+                productContext = "No active spaces found. Please check back later.";
+            }
+        }
+
+        const [allDistricts] = await Promise.all([
+            this.fetchDistricts()
         ]);
 
-        const spaceContext = this.buildSpaceContext(activeSpaces, allDistricts);
+        const spaceContext = this.buildSpaceContext(allSpaces, allDistricts);
         const districtList = allDistricts.map(d => d.name).join(', ');
 
         history.push({ role: 'user', parts: [{ text: message }] });
@@ -227,11 +316,11 @@ OTHER RULES
             'gemini-3.1-flash-lite-preview', // As you requested
             'gemini-3.1-pro-preview',
             'models/gemini-3.1-flash-lite-preview',
-
+            
             // Gemini 2.0 Series (Your old ones, currently exhausted)
             'gemini-2.0-flash-lite',
             'gemini-2.0-flash',
-
+            
             // Gemini 2.5 Series (A middle-ground option)
             'gemini-2.5-flash',
             'gemini-2.5-flash-lite',
@@ -241,13 +330,13 @@ OTHER RULES
 
         for (const modelName of modelsToTry) {
             try {
-                console.log(`[AI] 🔄 Trying model: ${modelName}`);
+                console.log(`[Chat] 🔄 Trying model: ${modelName}`);
 
                 const response = await this.genAI.models.generateContent({
                     model: modelName,
                     contents: history,
                     config: {
-                        systemInstruction: this.getSystemInstruction(spaceContext, districtList),
+                        systemInstruction: this.getSystemInstruction(spaceContext, districtList, productContext),
                         maxOutputTokens: 800,
                         temperature: 0.3
                     }
@@ -255,7 +344,7 @@ OTHER RULES
 
                 const finalResponse = response.text?.trim();
                 if (finalResponse) {
-                    console.log(`[AI] ✅ Success! Using model: ${modelName}`);
+                    console.log(`[Chat] ✅ Success! Using model: ${modelName}`);
                     history.push({ role: 'model', parts: [{ text: finalResponse }] });
 
                     if (history.length > 40) history.splice(0, 2);
@@ -263,16 +352,15 @@ OTHER RULES
                 }
             } catch (error) {
                 lastError = error;
-                console.log(`[AI] ❌ Failed: ${modelName} - ${error.message}`);
+                console.log(`[Chat] ❌ Failed: ${modelName} - ${error.message}`);
                 continue;
             }
         }
 
         // If all models fail, return a helpful fallback
         history.pop();
-        console.error("[AI] All models failed:", lastError?.message);
+        console.error("[Chat] All models failed:", lastError?.message);
 
-        // Return a fallback response in the user's language
         const lang = detectLanguage(message);
         const fallbacks = {
             english: "I'm having trouble connecting to my AI service right now. Please try again in a few moments, or you can contact our support team directly for assistance! 🙏",
