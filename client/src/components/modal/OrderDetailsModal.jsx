@@ -113,10 +113,10 @@ export const OrderDetailsModal = ({ isOpen, onClose, order, onUpdateStatus }) =>
                             <span className="text-muted-foreground">Subtotal</span>
                             <span className="text-foreground">₱{order.subtotal?.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        {/* <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Tax (12% VAT)</span>
                             <span className="text-foreground">₱{order.tax?.toFixed(2)}</span>
-                        </div>
+                        </div> */}
                         {order.discount_amount > 0 && (
                             <div className="flex justify-between text-sm">
                                 <span className="text-emerald-600 dark:text-emerald-400">Discount</span>

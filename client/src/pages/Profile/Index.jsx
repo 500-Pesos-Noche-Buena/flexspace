@@ -355,13 +355,13 @@ const ProfileIndex = () => {
             </div>
 
 
-            <Button
+            {/* <Button
                 onClick={() => setShowPaymentConfigModal(true)}
                 className={`bg-${color}-600 hover:bg-${color}-500 text-white rounded-xl px-6 py-3 text-[10px] font-black uppercase tracking-widest`}
             >
                 <SettingsIcon size={14} className="mr-2" />
                 Configure Payment Gateway
-            </Button>
+            </Button> */}
 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

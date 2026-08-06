@@ -148,7 +148,7 @@ const ChatOrder = ({ onClose, onOrderComplete }) => {
 
     const calculateSubtotal = () => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const calculateTax = () => calculateSubtotal() * 0.12;
-    const calculateTotal = () => calculateSubtotal() + calculateTax();
+    const calculateTotal = () => calculateSubtotal(); // Remove calculateTax();
 
     const handleCheckout = () => {
         // console.log('Checkout clicked - activeSpace:', activeSpace, 'cart length:', cart.length);
@@ -369,7 +369,7 @@ const ChatOrder = ({ onClose, onOrderComplete }) => {
                                 <div className="p-2 sm:p-3 border-t border-white/10">
                                     <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-xs">
                                         <div className="flex justify-between"><span className="text-slate-400">Subtotal</span><span className="text-white">₱{calculateSubtotal().toFixed(2)}</span></div>
-                                        <div className="flex justify-between"><span className="text-slate-400">Tax (12%)</span><span className="text-white">₱{calculateTax().toFixed(2)}</span></div>
+                                        {/* <div className="flex justify-between"><span className="text-slate-400">Tax (12%)</span><span className="text-white">₱{calculateTax().toFixed(2)}</span></div> */}
                                         <div className="flex justify-between text-sm font-bold pt-1 border-t border-white/10">
                                             <span className="text-white">Total</span><span className="text-indigo-400">₱{calculateTotal().toFixed(2)}</span>
                                         </div>

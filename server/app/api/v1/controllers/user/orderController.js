@@ -121,8 +121,8 @@ class UserOrderController {
                 item.price = product.price;
             }
             
-            const tax = subtotal * 0.12;
-            const total = subtotal + tax;
+            // const tax = subtotal * 0.12;
+            const total = subtotal; // Remove tax
             
             // Determine order status based on payment method
             let orderStatus = 'pending_payment';

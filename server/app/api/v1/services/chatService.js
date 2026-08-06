@@ -227,11 +227,11 @@ OTHER RULES
             'gemini-3.1-flash-lite-preview', // As you requested
             'gemini-3.1-pro-preview',
             'models/gemini-3.1-flash-lite-preview',
-            
+
             // Gemini 2.0 Series (Your old ones, currently exhausted)
             'gemini-2.0-flash-lite',
             'gemini-2.0-flash',
-            
+
             // Gemini 2.5 Series (A middle-ground option)
             'gemini-2.5-flash',
             'gemini-2.5-flash-lite',

@@ -260,7 +260,7 @@ const SpaceReviewPage = () => {
                         {/* Review Comment */}
                         <div className="mb-6">
                             <label className="text-sm font-black text-white uppercase tracking-wider mb-2 block">
-                                Your Review <span className="text-red-400">*</span>
+                                Your Review <span className="text-slate-500 text-xs">(optional)</span>
                             </label>
                             <textarea
                                 value={comment}
