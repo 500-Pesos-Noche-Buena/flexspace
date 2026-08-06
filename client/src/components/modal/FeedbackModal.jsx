@@ -61,16 +61,15 @@ export const FeedbackModal = ({ booking, review, onClose, onSuccess }) => {
     };
 
     const handleSubmit = async () => {
+        // ✅ Only require rating - comment is now optional
         if (rating === 0) {
             showToast({ icon: 'warning', title: 'Please select a rating' });
             return;
         }
-        if (!comment.trim()) {
-            showToast({ icon: 'warning', title: 'Please write a review' });
-            return;
-        }
-        if (comment.length < 10) {
-            showToast({ icon: 'warning', title: 'Review must be at least 10 characters' });
+        
+        // ✅ Comment is optional - only validate if provided
+        if (comment.trim() && comment.length < 10) {
+            showToast({ icon: 'warning', title: 'Review must be at least 10 characters if written' });
             return;
         }
 
@@ -83,7 +82,7 @@ export const FeedbackModal = ({ booking, review, onClose, onSuccess }) => {
                 response = await apiPut(`/user/reviews/${review._id}`, {
                     rating,
                     title: title.trim() || null,
-                    comment: comment.trim(),
+                    comment: comment.trim() || null, // ✅ Can be null
                     images: images
                 });
             } else {
@@ -105,7 +104,7 @@ export const FeedbackModal = ({ booking, review, onClose, onSuccess }) => {
                     booking_id: booking._id,
                     rating,
                     title: title.trim() || undefined,
-                    comment: comment.trim(),
+                    comment: comment.trim() || null, // ✅ Can be null
                     images: images
                 });
             }
@@ -186,7 +185,7 @@ export const FeedbackModal = ({ booking, review, onClose, onSuccess }) => {
                     <div className="space-y-5 sm:space-y-6">
                         <div className="text-center">
                             <label className="block text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">
-                                Your Rating
+                                Your Rating <span className="text-red-500">*</span>
                             </label>
                             <StarRating />
                             <p className="text-[8px] sm:text-[9px] text-slate-400 mt-3">
@@ -218,18 +217,29 @@ export const FeedbackModal = ({ booking, review, onClose, onSuccess }) => {
 
                         <div>
                             <label className="block text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                                Your Review <span className="text-red-500">*</span>
+                                Your Review <span className="text-slate-300">(Optional)</span>
                             </label>
                             <textarea
                                 value={comment}
                                 onChange={(e) => setComment(e.target.value)}
-                                placeholder="Share your experience..."
+                                placeholder="Share your experience... (optional)"
                                 rows="4"
                                 maxLength="1000"
                                 className="w-full px-4 py-3 border border-slate-200 rounded-xl sm:rounded-2xl text-sm focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 resize-none"
                             />
-                            <div className="text-right text-[8px] text-slate-400 mt-1">
-                                {comment.length}/1000
+                            <div className="flex justify-between items-center mt-1">
+                                <span className="text-[8px] text-slate-400">
+                                    {comment.length > 0 && comment.length < 10 ? (
+                                        <span className="text-amber-500">⚠️ Min 10 characters if written</span>
+                                    ) : comment.length > 0 ? (
+                                        <span className="text-emerald-500">✅ Good length</span>
+                                    ) : (
+                                        <span className="text-slate-400">Optional</span>
+                                    )}
+                                </span>
+                                <span className="text-[8px] text-slate-400">
+                                    {comment.length}/1000
+                                </span>
                             </div>
                         </div>
 
@@ -296,7 +306,7 @@ export const FeedbackModal = ({ booking, review, onClose, onSuccess }) => {
                         </button>
                         <button
                             onClick={handleSubmit}
-                            disabled={submitting || rating === 0 || comment.length < 10}
+                            disabled={submitting || rating === 0}
                             className="flex-1 py-3 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {submitting ? (
