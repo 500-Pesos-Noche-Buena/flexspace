@@ -51,7 +51,6 @@ const EarningsTracker = () => {
             if (dateFrom) params.append('dateFrom', dateFrom);
             if (dateTo) params.append('dateTo', dateTo);
 
-            // Only fetch from /space/earnings - it now includes POS data
             const earningsRes = await apiGet(`/space/earnings?${params.toString()}`);
             if (earningsRes.success) {
                 setData(earningsRes.data);
@@ -124,15 +123,15 @@ const EarningsTracker = () => {
     };
 
     const generateReportHTML = () => {
-        const totalRevenue = data?.totalRevenue || 0;
-        const netEarnings = data?.netEarnings || 0;
-        const platformFee = data?.platformFee || 0;
-        const totalVoucherDiscount = data?.totalVoucherDiscount || 0;
-        const feePercent = data?.feePercent || 3;
-        
-        // Get POS stats from breakdown
+        const bookingBreakdown = data?.breakdown?.bookings || { revenue: 0, count: 0, discount: 0 };
         const posBreakdown = data?.breakdown?.pos_orders || { revenue: 0, count: 0, discount: 0 };
-        const posMonthly = { total: posBreakdown.revenue, count: posBreakdown.count };
+        
+        const bookingRevenue = bookingBreakdown.revenue || 0;
+        const posRevenue = posBreakdown.revenue || 0;
+        const totalRevenue = data?.totalRevenue || 0;
+        const totalNetEarnings = data?.totalNetEarnings || 0;
+        const totalPlatformFee = data?.totalPlatformFee || 0;
+        const feePercent = data?.feePercent || 10;
 
         const transactionsHTML = (data?.transactions || []).map(t => {
             const isPOS = t.source === 'pos' || t.type === 'POS';
@@ -197,23 +196,36 @@ const EarningsTracker = () => {
 
         <div class="section-title">🏢 Booking Earnings</div>
         <div class="summary">
-            <div class="summary-card"><h3>Gross Revenue</h3><div class="amount">₱${totalRevenue.toLocaleString()}</div></div>
-            <div class="summary-card"><h3>Platform Fee (${feePercent}%)</h3><div class="amount">₱${platformFee.toLocaleString()}</div></div>
-            <div class="summary-card"><h3>Net Earnings</h3><div class="amount net">₱${netEarnings.toLocaleString()}</div></div>
-            <div class="summary-card"><h3>Voucher Discounts</h3><div class="amount">₱${totalVoucherDiscount.toLocaleString()}</div></div>
+            <div class="summary-card"><h3>Gross Revenue</h3><div class="amount">₱${bookingRevenue.toLocaleString()}</div></div>
+            <div class="summary-card"><h3>Platform Fee (${feePercent}%)</h3><div class="amount">₱${(bookingRevenue * feePercent / 100).toFixed(2)}</div></div>
+            <div class="summary-card"><h3>Net Earnings</h3><div class="amount net">₱${(bookingRevenue - (bookingRevenue * feePercent / 100)).toFixed(2)}</div></div>
+            <div class="summary-card"><h3>Bookings</h3><div class="amount">${bookingBreakdown.count || 0}</div></div>
         </div>
 
         <div class="section-title">🛒 POS Sales Summary</div>
         <div class="pos-grid">
-            <div class="pos-card"><div class="label">Total POS Revenue</div><div class="value">₱${(posBreakdown.revenue || 0).toLocaleString()}</div><div style="font-size:9px">${posBreakdown.count || 0} orders</div></div>
+            <div class="pos-card"><div class="label">Total POS Revenue</div><div class="value">₱${posRevenue.toLocaleString()}</div><div style="font-size:9px">${posBreakdown.count || 0} orders</div></div>
             <div class="pos-card"><div class="label">Total POS Discount</div><div class="value">₱${(posBreakdown.discount || 0).toLocaleString()}</div><div style="font-size:9px">—</div></div>
         </div>
 
-        <div class="summary" style="margin-top: 24px;">
-            <div class="summary-card" style="background: #ecfdf5; border-color: #a7f3d0;">
-                <h3>💰 TOTAL REVENUE (Booking + POS)</h3>
-                <div class="amount" style="font-size: 32px;">₱${(totalRevenue + (posBreakdown.revenue || 0)).toLocaleString()}</div>
-                <div style="font-size: 10px; margin-top: 8px;">Booking: ₱${totalRevenue.toLocaleString()} | POS: ₱${(posBreakdown.revenue || 0).toLocaleString()}</div>
+        <div class="summary" style="margin-top: 24px; background: #ecfdf5; border: 2px solid #10b981; border-radius: 16px; padding: 20px;">
+            <h3 style="text-align: center; color: #047857; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">💰 Overall Summary (Booking + POS)</h3>
+            <div class="summary" style="grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 0;">
+                <div class="summary-card" style="background: white; border-color: #a7f3d0;">
+                    <h3>Gross Revenue</h3>
+                    <div class="amount" style="font-size: 28px; color: #059669;">₱${totalRevenue.toLocaleString()}</div>
+                </div>
+                <div class="summary-card" style="background: white; border-color: #a7f3d0;">
+                    <h3>Platform Fee (${feePercent}%)</h3>
+                    <div class="amount" style="font-size: 28px; color: #d97706;">₱${totalPlatformFee.toFixed(2)}</div>
+                </div>
+                <div class="summary-card" style="background: white; border-color: #a7f3d0;">
+                    <h3>Net Earnings</h3>
+                    <div class="amount net" style="font-size: 28px;">₱${totalNetEarnings.toFixed(2)}</div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 12px; font-size: 10px; color: #6b7280;">
+                Booking: ₱${bookingRevenue.toLocaleString()} | POS: ₱${posRevenue.toLocaleString()}
             </div>
         </div>
 
@@ -249,14 +261,21 @@ const EarningsTracker = () => {
 
     const color = getThemeColorClass();
     
-    // Get data from the combined earnings response
-    const totalRevenue = data?.totalRevenue || 0;
+    // Get data from breakdown
+    const bookingBreakdown = data?.breakdown?.bookings || { revenue: 0, count: 0, discount: 0 };
     const posBreakdown = data?.breakdown?.pos_orders || { revenue: 0, count: 0, discount: 0 };
+    
+    const bookingRevenue = bookingBreakdown.revenue || 0;
     const posRevenue = posBreakdown.revenue || 0;
-    const combinedRevenue = totalRevenue + posRevenue;
+    const totalRevenue = data?.totalRevenue || 0;
+    const totalNetEarnings = data?.totalNetEarnings || 0;
+    const totalPlatformFee = data?.totalPlatformFee || 0;
     const totalOrders = (data?.transactionCount || 0);
+    const feePercent = data?.feePercent || 10;
+    
+    const bookingNetEarnings = bookingRevenue - (bookingRevenue * feePercent / 100);
+    const bookingPlatformFee = bookingRevenue * feePercent / 100;
 
-    // Get type label with POS detection
     const getTypeLabel = (transaction) => {
         if (transaction.source === 'pos' || transaction.type === 'POS') return 'POS';
         if (transaction.type === 'walkin' || transaction.type === 'Walk-in') return 'Walk-in';
@@ -320,35 +339,35 @@ const EarningsTracker = () => {
                 </div>
             </div>
 
-            {/* Combined Total Revenue Banner */}
-            <div className={`mb-6 bg-linear-to-r from-${color}-600/20 to-purple-600/20 border border-primary/30 rounded-2xl p-4`}>
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-2xl bg-${color}-500/20 flex items-center justify-center`}>
-                            <DollarSign size={24} className="text-primary" />
-                        </div>
-                        <div>
-                            <p className="text-[8px] font-black text-primary uppercase tracking-widest">Total Revenue (This Period)</p>
-                            <p className="text-2xl font-[1000] text-foreground italic tracking-tighter">₱{combinedRevenue.toLocaleString()}</p>
-                        </div>
-                    </div>
-                    <div className="flex gap-4 text-[9px]">
-                        <div className="text-center">
-                            <p className="text-muted-foreground">Bookings</p>
-                            <p className="text-foreground font-bold">₱{totalRevenue.toLocaleString()}</p>
-                        </div>
-                        <div className="w-px bg-border" />
-                        <div className="text-center">
-                            <p className="text-muted-foreground">POS Sales</p>
-                            <p className="text-foreground font-bold">₱{posRevenue.toLocaleString()}</p>
-                        </div>
-                        <div className="w-px bg-border" />
-                        <div className="text-center">
-                            <p className="text-muted-foreground">Orders</p>
-                            <p className="text-foreground font-bold">{totalOrders}</p>
-                        </div>
-                    </div>
-                </div>
+            {/* Overall Summary Cards */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <StatCard 
+                    title="Overall Gross Revenue" 
+                    value={`₱${totalRevenue.toLocaleString()}`} 
+                    icon={<TrendingUp size={20} />} 
+                    trend="Bookings + POS" 
+                    color="emerald" 
+                    themeColor={color} 
+                    large={true}
+                />
+                <StatCard 
+                    title={`Overall Platform Fee (${feePercent}%)`} 
+                    value={`₱${totalPlatformFee.toFixed(2)}`} 
+                    icon={<Percent size={20} />} 
+                    trend="Commission" 
+                    color="rose" 
+                    themeColor={color} 
+                    large={true}
+                />
+                <StatCard 
+                    title="Overall Net Earnings" 
+                    value={`₱${totalNetEarnings.toFixed(2)}`} 
+                    icon={<Wallet size={20} />} 
+                    trend="Your Share" 
+                    color="indigo" 
+                    themeColor={color} 
+                    large={true}
+                />
             </div>
 
             {/* Filters */}
@@ -408,23 +427,72 @@ const EarningsTracker = () => {
                     <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Booking Earnings</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard title="Gross Revenue" value={`₱${(data?.totalRevenue || 0).toLocaleString()}`} icon={<TrendingUp size={20} />} trend="Total Sales" color="emerald" themeColor={color} />
-                    <StatCard title="Net Earnings" value={`₱${(data?.netEarnings || 0).toLocaleString()}`} icon={<Wallet size={20} />} trend="Your Share" color="indigo" themeColor={color} />
-                    <StatCard title={`Platform Fee (${data?.feePercent ?? 3}%)`} value={`₱${(data?.platformFee || 0).toLocaleString()}`} icon={<Percent size={20} />} trend="Commission" color="rose" themeColor={color} />
-                    <StatCard title="Voucher Discounts" value={`₱${(data?.totalVoucherDiscount || 0).toLocaleString()}`} icon={<Ticket size={20} />} trend={`${data?.bookingsWithVouchers || 0} bookings`} color="purple" themeColor={color} />
+                    <StatCard 
+                        title="Gross Revenue" 
+                        value={`₱${bookingRevenue.toLocaleString()}`} 
+                        icon={<TrendingUp size={20} />} 
+                        trend={`${bookingBreakdown.count || 0} bookings`} 
+                        color="emerald" 
+                        themeColor={color} 
+                    />
+                    <StatCard 
+                        title="Net Earnings" 
+                        value={`₱${bookingNetEarnings.toFixed(2)}`} 
+                        icon={<Wallet size={20} />} 
+                        trend="Your Share" 
+                        color="indigo" 
+                        themeColor={color} 
+                    />
+                    <StatCard 
+                        title={`Platform Fee (${feePercent}%)`} 
+                        value={`₱${bookingPlatformFee.toFixed(2)}`} 
+                        icon={<Percent size={20} />} 
+                        trend="Commission" 
+                        color="rose" 
+                        themeColor={color} 
+                    />
+                    <StatCard 
+                        title="Voucher Discounts" 
+                        value={`₱${(data?.totalVoucherDiscount || 0).toLocaleString()}`} 
+                        icon={<Ticket size={20} />} 
+                        trend={`${data?.bookingsWithVouchers || 0} bookings`} 
+                        color="purple" 
+                        themeColor={color} 
+                    />
                 </div>
             </div>
 
-            {/* POS Sales Stats - Using data from breakdown */}
+            {/* POS Sales Stats */}
             <div className="mb-8">
                 <div className="flex items-center gap-2 mb-3">
                     <ShoppingBag size={14} className="text-primary" />
                     <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">POS Sales (Products)</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <StatCard title="Total POS Revenue" value={`₱${(posBreakdown.revenue || 0).toLocaleString()}`} icon={<Coffee size={20} />} trend={`${posBreakdown.count || 0} orders`} color="emerald" themeColor={color} />
-                    <StatCard title="Total POS Discount" value={`₱${(posBreakdown.discount || 0).toLocaleString()}`} icon={<Package size={20} />} trend="Applied" color="indigo" themeColor={color} />
-                    <StatCard title="Total POS Orders" value={`${posBreakdown.count || 0}`} icon={<ShoppingBag size={20} />} trend="Completed" color="purple" themeColor={color} />
+                    <StatCard 
+                        title="Total POS Revenue" 
+                        value={`₱${posRevenue.toLocaleString()}`} 
+                        icon={<Coffee size={20} />} 
+                        trend={`${posBreakdown.count || 0} orders`} 
+                        color="emerald" 
+                        themeColor={color} 
+                    />
+                    <StatCard 
+                        title="Total POS Discount" 
+                        value={`₱${(posBreakdown.discount || 0).toLocaleString()}`} 
+                        icon={<Package size={20} />} 
+                        trend="Applied" 
+                        color="indigo" 
+                        themeColor={color} 
+                    />
+                    <StatCard 
+                        title="Total POS Orders" 
+                        value={`${posBreakdown.count || 0}`} 
+                        icon={<ShoppingBag size={20} />} 
+                        trend="Completed" 
+                        color="purple" 
+                        themeColor={color} 
+                    />
                 </div>
             </div>
 
@@ -611,7 +679,7 @@ const EarningsTracker = () => {
 };
 
 // Enhanced StatCard with light/dark mode
-const StatCard = ({ title, value, icon, trend, color, themeColor }) => {
+const StatCard = ({ title, value, icon, trend, color, themeColor, large }) => {
     const colorClasses = {
         emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-600 dark:text-emerald-400', pulse: 'bg-emerald-500' },
         indigo: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', icon: 'text-indigo-600 dark:text-indigo-400', pulse: 'bg-indigo-500' },
@@ -622,7 +690,11 @@ const StatCard = ({ title, value, icon, trend, color, themeColor }) => {
     const c = colorClasses[color] || colorClasses.emerald;
 
     return (
-        <div className={cn("relative overflow-hidden bg-card border border-border p-6 rounded-4xl group hover:transition-all duration-500 shadow-2xl", c.border)}>
+        <div className={cn(
+            "relative overflow-hidden bg-card border border-border p-6 rounded-4xl group hover:transition-all duration-500 shadow-2xl",
+            c.border,
+            large && "md:col-span-1"
+        )}>
             <div className="flex justify-between items-start mb-4">
                 <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500", c.bg, c.border)}>
                     <div className={c.icon}>{icon}</div>
@@ -636,7 +708,10 @@ const StatCard = ({ title, value, icon, trend, color, themeColor }) => {
             </div>
             <div>
                 <p className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">{title}</p>
-                <p className="text-2xl font-black text-foreground tracking-tighter">{value}</p>
+                <p className={cn(
+                    "font-black text-foreground tracking-tighter",
+                    large ? "text-3xl" : "text-2xl"
+                )}>{value}</p>
             </div>
         </div>
     );

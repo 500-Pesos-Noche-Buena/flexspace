@@ -96,13 +96,6 @@ class EarningsController {
             }
 
             // ── Get ALL Earnings (Bookings + POS) ──────────────────────────
-            let earningsQuery = {
-                space_id: { $in: spaceIds },
-                booking_date: { $gte: startDate, $lte: endDate }
-            };
-
-            // Separate queries for bookings and POS earnings
-            // Bookings have booking_id, POS have order_number but no booking_id
             let bookingEarningsQuery = {
                 space_id: { $in: spaceIds },
                 booking_id: { $ne: null },
@@ -123,8 +116,6 @@ class EarningsController {
                     { order_number: { $regex: search, $options: 'i' } }
                 ];
             }
-
-            console.log(`🔍 POS Earnings Query:`, JSON.stringify(posEarningsQuery, null, 2));
 
             // ── Aggregated stats ──────────────────────────────────────────
             const [bookingEarningsAgg, bookingEarningsCount, posEarningsAgg, posEarningsCount] = await Promise.all([
@@ -152,8 +143,12 @@ class EarningsController {
             const posCountTotal = posEarningsCount || 0;
             const totalTransactions = bookingCountTotal + posCountTotal;
 
-            const platformFee = totalRevenue * 0.10; // 10% platform fee
-            const netEarnings = totalRevenue - platformFee;
+            const feePercent = 10; // 10% platform fee
+            const totalPlatformFee = totalRevenue * (feePercent / 100);
+            const totalNetEarnings = totalRevenue - totalPlatformFee;
+
+            const bookingPlatformFee = bookingRevenue * (feePercent / 100);
+            const bookingNetEarnings = bookingRevenue - bookingPlatformFee;
 
             // ── Fetch combined transactions ──────────────────────────────
             const bookingEarnings = await Earnings.find(bookingEarningsQuery)
@@ -213,18 +208,22 @@ class EarningsController {
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 data: {
+                    // Overall totals
                     totalRevenue,
-                    netEarnings,
-                    platformFee,
-                    feePercent: 10,
+                    totalNetEarnings,
+                    totalPlatformFee,
+                    feePercent,
                     transactionCount: totalTransactions,
                     totalDiscountGiven: 0,
                     totalVoucherDiscount: 0,
                     bookingsWithVouchers: 0,
                     total,
+                    // Booking breakdown
                     breakdown: {
                         bookings: {
                             revenue: bookingRevenue,
+                            netEarnings: bookingNetEarnings,
+                            platformFee: bookingPlatformFee,
                             count: bookingCountTotal,
                             discount: 0
                         },
