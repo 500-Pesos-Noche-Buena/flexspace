@@ -28,10 +28,6 @@ class SpaceRoutes {
     initializeRoutes() {
         console.log('--- 🛡️ Initializing Space Routes ---');
 
-        this.router.get('/total-orders', auth, (req, res, next) => TotalOrdersController.getTotalOrders(req, res, next));
-        this.router.get('/total-orders/stats', auth, (req, res, next) => TotalOrdersController.getOrderStats(req, res, next));
-        this.router.get('/total-orders/:id', auth, (req, res, next) => TotalOrdersController.getOrderById(req, res, next));
-
         // Public review routes (No auth required)
         this.router.get('/review/space/:spaceId', (req, res) => {
             // Redirect to frontend review page
@@ -214,8 +210,14 @@ class SpaceRoutes {
         this.router.get('/orders/recent', auth, (req, res, next) => POSController.getRecentOrders(req, res, next));
         this.router.post('/orders', auth, (req, res, next) => POSController.createOrder(req, res, next));
         this.router.put('/orders/:orderId/status', auth, (req, res, next) => POSController.updateOrderStatus(req, res, next));
-
         this.router.get('/income/stats', auth, (req, res, next) => POSController.getIncomeStats(req, res, next));
+        this.router.post('/orders/:orderId/fix-payment', auth, (req, res, next) => POSController.fixOrderPayment(req, res, next));
+        this.router.post('/orders/:orderId/settle-pay-later', auth, (req, res, next) => POSController.settlePayLater(req, res, next));
+        
+        // ========== TOTAL ORDERS ============
+        this.router.get('/total-orders', auth, (req, res, next) => TotalOrdersController.getTotalOrders(req, res, next));
+        this.router.get('/total-orders/stats', auth, (req, res, next) => TotalOrdersController.getOrderStats(req, res, next));
+        this.router.get('/total-orders/:id', auth, (req, res, next) => TotalOrdersController.getOrderById(req, res, next));
 
         // ============ PAYMENT & QR ============
         this.router.get('/owner/payment-qr', auth, (req, res, next) => PaymentController.getPaymentQR(req, res, next));

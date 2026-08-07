@@ -361,7 +361,6 @@ const POS = () => {
         setPaymentLink('');
     };
 
-    // 🆕 Confirm Pay Later Order
     const confirmPayLaterOrder = async () => {
         setIsProcessing(true);
         try {
@@ -373,7 +372,7 @@ const POS = () => {
                     price: item.price
                 })),
                 subtotal: calculateSubtotal(),
-                tax: 0, // calculateTax(),
+                tax: 0,
                 discount_type: discountType,
                 discount_value: discount,
                 discount_amount: calculateDiscountAmount(),
@@ -384,7 +383,8 @@ const POS = () => {
                 status: 'confirmed',
                 payment_status: 'unpaid',
                 order_type: 'pos',
-                space_id: spaceId
+                space_id: spaceId,
+                is_pay_later: true // ✅ ADD THIS
             };
 
             const res = await apiPost('/space/orders', orderData);
@@ -403,7 +403,7 @@ const POS = () => {
                     is_pay_later: true
                 };
 
-                printReceipt(orderForReceipt);
+                // printReceipt(orderForReceipt); // Remove PrintReceipt
                 resetOrder();
                 fetchRecentOrders();
             }
@@ -569,6 +569,7 @@ const POS = () => {
                 payment_status: isPayLater ? 'unpaid' : 'paid',
                 order_type: 'pos',
                 space_id: spaceId,
+                is_pay_later: isPayLater, // ✅ ADD THIS - critical for Pay Later!
                 ...(isPayLater && { notes: 'Pay Later order - payment pending' })
             };
 
@@ -591,13 +592,13 @@ const POS = () => {
                         title: 'Pay Later order created!',
                         text: `Order #${orderNumber} - ₱${calculateTotal().toFixed(2)}`
                     });
-                    printReceipt(orderForReceipt);
+                    // printReceipt(orderForReceipt); // Remove PrintReceipt
                     resetOrder();
                     fetchRecentOrders();
                     setPaymentModal(false);
                 } else if (status === 'completed') {
                     showToast({ icon: 'success', title: 'Payment successful!' });
-                    printReceipt(orderForReceipt);
+                    // printReceipt(orderForReceipt); // Remove PrintReceipt
                     resetOrder();
                     fetchRecentOrders();
                 }
@@ -1416,8 +1417,8 @@ const POS = () => {
                                 onClick={processPayment}
                                 disabled={isProcessing || (paymentMethod === 'cash' && (!amountReceived || parseFloat(amountReceived) < calculateTotal()))}
                                 className={`flex-1 py-3 ${paymentMethod === 'pay_later'
-                                        ? 'bg-amber-600 hover:bg-amber-500 shadow-lg shadow-amber-900/20'
-                                        : 'bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-900/20'
+                                    ? 'bg-amber-600 hover:bg-amber-500 shadow-lg shadow-amber-900/20'
+                                    : 'bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-900/20'
                                     } rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all`}
                             >
                                 {isProcessing ? <Loader2 size={16} className="animate-spin" /> :

@@ -151,76 +151,76 @@ class PaymentController {
         }
     };
 
-   payPlatformFees = async (req, res, next) => {
-    try {
-        const ownerId = await this.getOwnerId(req);
-        const { amount, month } = req.body;
+    payPlatformFees = async (req, res, next) => {
+        try {
+            const ownerId = await this.getOwnerId(req);
+            const { amount, month } = req.body;
 
-        // Get platform key from cache instead of DB query
-        let platformKey = await this.getCachedPlatformKey();
-        if (!platformKey) {
-            const Settings = require('@/api/v1/models/schema/Settings');
-            const setting = await Settings.findOne({ key: 'platform_paymongo_key' });
-            platformKey = setting?.value;
-            await this.cachePlatformKey(platformKey);
-        }
-
-        if (!platformKey) {
-            throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Platform payment gateway not configured.');
-        }
-
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-
-        // Add timeout to axios call
-        const response = await axios.post(`${PAYBRIDGE_API_URL}/paymongo`, {
-            amount: parseFloat(amount),
-            success_url: `${frontendUrl}/payment/success?type=fee_payment&owner_id=${ownerId}&month=${month}`,
-            payment_method: 'gcash',
-            metadata: {
-                type: 'fee_payment',
-                owner_id: ownerId,
-                month,
-                amount,
-                payment_for: 'platform_fees'
+            // Get platform key from cache instead of DB query
+            let platformKey = await this.getCachedPlatformKey();
+            if (!platformKey) {
+                const Settings = require('@/api/v1/models/schema/Settings');
+                const setting = await Settings.findOne({ key: 'platform_paymongo_key' });
+                platformKey = setting?.value;
+                await this.cachePlatformKey(platformKey);
             }
-        }, {
-            headers: {
-                'X-Encrypted-Secret': platformKey,
-                'X-PayBridge-Master-Key': PAYBRIDGE_MASTER_KEY
-            },
-            timeout: 10000 // 10 second timeout
-        });
 
-        return res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: {
-                checkout_url: response.data.checkout_url,
-                payment_intent_id: response.data.payment_intent_id,
-                amount,
-                month
+            if (!platformKey) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Platform payment gateway not configured.');
             }
-        });
-    } catch (error) {
-        console.error('Pay platform fees error:', error);
-        // Return error immediately, don't hang
-        next(error);
-    }
-};
 
-// Add caching helper methods
-async getCachedPlatformKey() {
-    if (this.platformKeyCache && this.platformKeyCache.expiry > Date.now()) {
-        return this.platformKeyCache.key;
-    }
-    return null;
-}
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-async cachePlatformKey(key) {
-    this.platformKeyCache = {
-        key,
-        expiry: Date.now() + 300000 // 5 minutes cache
+            // Add timeout to axios call
+            const response = await axios.post(`${PAYBRIDGE_API_URL}/paymongo`, {
+                amount: parseFloat(amount),
+                success_url: `${frontendUrl}/payment/success?type=fee_payment&owner_id=${ownerId}&month=${month}`,
+                payment_method: 'gcash',
+                metadata: {
+                    type: 'fee_payment',
+                    owner_id: ownerId,
+                    month,
+                    amount,
+                    payment_for: 'platform_fees'
+                }
+            }, {
+                headers: {
+                    'X-Encrypted-Secret': platformKey,
+                    'X-PayBridge-Master-Key': PAYBRIDGE_MASTER_KEY
+                },
+                timeout: 10000 // 10 second timeout
+            });
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: {
+                    checkout_url: response.data.checkout_url,
+                    payment_intent_id: response.data.payment_intent_id,
+                    amount,
+                    month
+                }
+            });
+        } catch (error) {
+            console.error('Pay platform fees error:', error);
+            // Return error immediately, don't hang
+            next(error);
+        }
     };
-}
+
+    // Add caching helper methods
+    async getCachedPlatformKey() {
+        if (this.platformKeyCache && this.platformKeyCache.expiry > Date.now()) {
+            return this.platformKeyCache.key;
+        }
+        return null;
+    }
+
+    async cachePlatformKey(key) {
+        this.platformKeyCache = {
+            key,
+            expiry: Date.now() + 300000 // 5 minutes cache
+        };
+    }
 
     confirmFeePayment = async (req, res, next) => {
         try {

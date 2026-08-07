@@ -347,26 +347,67 @@ class WalkinController {
                 processed_by: ownerId,
             });
 
-            const completed = await Booking.findByIdAndUpdate(
-                id,
-                {
-                    $set: {
-                        status: 'completed',
-                        payment_status: 'paid',
-                        payment_id: paymentDoc._id,
-                    }
-                },
-                { new: true }
-            ).populate('space_id').populate('room_id').populate('user_id');
+            // ✅ FIX: Use .save() instead of findByIdAndUpdate
+            booking.status = 'completed';
+            booking.payment_status = 'paid';
+            booking.payment_id = paymentDoc._id;
 
-            if (completed.user_id && totalDue > 0) {
+            // ✅ THIS triggers the pre('save') hook and creates Earnings!
+            await booking.save();
+
+            // Populate after save
+            await booking.populate('space_id');
+            await booking.populate('room_id');
+            await booking.populate('user_id');
+
+            // 🔥 FALLBACK: Create earnings directly if hook fails
+            try {
+                const Settings = require('@/api/v1/models/schema/Settings');
+                const Earnings = require('@/api/v1/models/schema/Earnings');
+
+                const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+                const platformFeePercent = feeSetting?.value ?? 3;
+
+                const existingEarnings = await Earnings.findOne({ booking_id: booking._id });
+                if (!existingEarnings && totalDue > 0) {
+                    const platformFee = (totalDue * platformFeePercent) / 100;
+                    const ownerEarnings = totalDue - platformFee;
+                    const month = new Date().toISOString().slice(0, 7);
+                    const prefix = booking.booking_type === 'online' ? 'ONL' : 'WLK';
+                    const orderNumber = `${prefix}-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
+                    await Earnings.create({
+                        owner_id: booking.space_id.user_id,
+                        space_id: booking.space_id._id,
+                        order_number: orderNumber,
+                        booking_id: booking._id,
+                        total_amount: totalDue,
+                        platform_fee_percent: platformFeePercent,
+                        platform_fee: parseFloat(platformFee.toFixed(4)),
+                        owner_earnings: parseFloat(ownerEarnings.toFixed(4)),
+                        payment_method: payment_method,
+                        payment_intent_id: paymentDoc._id.toString(),
+                        auto_collected: false,
+                        fee_status: 'pending',
+                        collected_at: null,
+                        booking_date: booking.start_time || booking.created_at,
+                        month: month,
+                        notes: `Walk-in booking - Created manually (fallback)`
+                    });
+                    console.log(`✅ Earnings created (fallback) for walk-in ${booking.ticket_number}: ₱${totalDue}`);
+                }
+            } catch (earningsError) {
+                console.error('❌ Failed to create earnings (fallback):', earningsError);
+            }
+
+            if (booking.user_id && totalDue > 0) {
                 const rewardService = require('@/api/v1/services/rewardService');
-                await rewardService.awardPoints(completed.user_id, totalDue);
+                await rewardService.awardPoints(booking.user_id, totalDue);
             }
 
             const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
-            const reviewQrUrl = completed.qr_code_token
-                ? `${backendUrl}/api/v1/space/qr/${completed.qr_code_token}`
+            const reviewQrUrl = booking.qr_code_token
+                ? `${backendUrl}/api/v1/space/qr/${booking.qr_code_token}`
                 : null;
 
             console.log('Review QR URL (backend API):', reviewQrUrl);
@@ -375,7 +416,7 @@ class WalkinController {
                 success: true,
                 message: 'Payment completed!',
                 data: {
-                    booking: completed,
+                    booking: booking,
                     review_qr_url: reviewQrUrl
                 }
             });

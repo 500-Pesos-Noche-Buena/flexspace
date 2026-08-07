@@ -1,4 +1,4 @@
-const { Order, Product, Space, User } = require('@/api/v1/models');
+const { Order, Product, Space, User, Payment, Earnings } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 
@@ -25,7 +25,6 @@ class POSController {
             let targetSpaceId = space_id;
             let query = { is_available: true };
 
-            // If user is staff, they can only access their assigned space
             if (userRole === 'staff') {
                 const staffRecord = await User.findById(userId).select('space_id parent_id');
                 if (!staffRecord?.space_id) {
@@ -33,9 +32,7 @@ class POSController {
                 }
                 targetSpaceId = staffRecord.space_id;
                 query.space_id = targetSpaceId;
-            }
-            // If user is space owner or admin
-            else {
+            } else {
                 const { ownerId } = await this.getOwnerId(req);
 
                 if (targetSpaceId) {
@@ -118,7 +115,6 @@ class POSController {
                 throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Product not found');
             }
 
-            // Check permissions
             if (userRole === 'staff') {
                 const staffRecord = await User.findById(userId).select('space_id');
                 if (!staffRecord?.space_id || product.space_id.toString() !== staffRecord.space_id.toString()) {
@@ -151,7 +147,6 @@ class POSController {
                 throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Product not found');
             }
 
-            // Check permissions
             if (userRole === 'staff') {
                 const staffRecord = await User.findById(userId).select('space_id');
                 if (!staffRecord?.space_id || product.space_id.toString() !== staffRecord.space_id.toString()) {
@@ -182,7 +177,6 @@ class POSController {
 
             let targetSpaceId = space_id;
 
-            // Staff can only create orders for their assigned space
             if (userRole === 'staff') {
                 const staffRecord = await User.findById(userId).select('space_id parent_id');
                 if (!staffRecord?.space_id) {
@@ -210,10 +204,19 @@ class POSController {
             }
 
             let initialStatus = 'pending';
+            let paymentStatus = 'unpaid';
+            let isPayLater = false;
+
             if (payment_method === 'cash' || payment_method === 'qr') {
                 initialStatus = 'confirmed';
+                paymentStatus = 'paid';
             } else if (payment_method === 'online') {
                 initialStatus = 'pending_payment';
+                paymentStatus = 'unpaid';
+            } else if (payment_method === 'pay_later') {
+                initialStatus = 'confirmed'; // Or 'pending' if you want
+                paymentStatus = 'unpaid'; // NOT paid yet!
+                isPayLater = true;
             }
 
             const orderData = {
@@ -228,19 +231,44 @@ class POSController {
                 discount_amount: req.body.discount_amount || 0,
                 total: total,
                 payment_method: payment_method,
-                amount_received: amount_received,
+                is_pay_later: isPayLater, // ✅ FIX: Set is_pay_later flag
+                pay_later_status: isPayLater ? 'pending' : 'pending',
+                amount_received: amount_received || 0,
                 change: change,
                 customer_name: customer_name || 'Walk-in Customer',
                 order_type: order_type || 'pos',
                 status: initialStatus,
-                payment_status: initialStatus === 'confirmed' ? 'paid' : 'unpaid'
+                payment_status: paymentStatus
             };
 
             const order = await Order.create(orderData);
+            console.log(`✅ Order created: ${orderNumber} with status: ${initialStatus}, is_pay_later: ${isPayLater}`);
 
             // Update product stock
             for (const item of items) {
                 await Product.findByIdAndUpdate(item.product_id, { $inc: { stock: -item.quantity } });
+            }
+
+            // 🆕 CREATE PAYMENT RECORD FOR CASH/QR ORDERS IMMEDIATELY
+            if (payment_method === 'cash' || payment_method === 'qr') {
+                try {
+                    const paymentDoc = await Payment.create({
+                        order_id: order._id,
+                        payment_type: 'pos_order',
+                        method: payment_method,
+                        amount_total: total,
+                        amount_original: subtotal,
+                        discount_applied: req.body.discount_amount || 0,
+                        amount_received: amount_received || total,
+                        change: change,
+                        reference_number: `POS-${orderNumber}`,
+                        status: 'completed',
+                        processed_by: userId
+                    });
+                    console.log(`✅ Payment record created for POS order ${orderNumber}: ${paymentDoc._id}`);
+                } catch (payError) {
+                    console.error('Failed to create payment record:', payError);
+                }
             }
 
             return res.status(HTTP_STATUS.CREATED).json({ success: true, data: order });
@@ -259,7 +287,6 @@ class POSController {
             let query = {};
 
             if (userRole === 'staff') {
-                // Staff can only see orders from their assigned space
                 const staffRecord = await User.findById(userId).select('space_id');
                 if (staffRecord?.space_id) {
                     query.space_id = staffRecord.space_id;
@@ -325,6 +352,138 @@ class POSController {
         }
     };
 
+    // ============ SETTLE PAY LATER ============
+    settlePayLater = async (req, res, next) => {
+        try {
+            const { orderId } = req.params;
+            const { amount_received, payment_method } = req.body;
+            const userId = req.user?.sub || req.user?._id || req.user?.id;
+
+            const order = await Order.findById(orderId);
+            if (!order) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Order not found');
+            }
+
+            if (!order.is_pay_later && order.payment_method !== 'pay_later') {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'This is not a Pay Later order');
+            }
+
+            if (order.pay_later_status === 'settled') {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'This order is already fully paid');
+            }
+
+            const amount = parseFloat(amount_received) || order.total;
+            const remaining = order.total - (order.pay_later_total_accumulated || 0);
+
+            if (amount > remaining) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Amount exceeds remaining balance of ₱${remaining.toFixed(2)}`);
+            }
+
+            // Track payment in pay_later_payments array
+            order.pay_later_payments.push({
+                amount: amount,
+                payment_method: payment_method || 'cash',
+                paid_at: new Date(),
+                processed_by: userId
+            });
+
+            // Update accumulated total
+            order.pay_later_total_accumulated = (order.pay_later_total_accumulated || 0) + amount;
+
+            // Check if fully paid
+            if (order.pay_later_total_accumulated >= order.total) {
+                order.pay_later_status = 'settled';
+                order.payment_status = 'paid';
+                order.status = 'completed';
+
+                // 🆕 NOW create Earnings since payment is settled
+                try {
+                    const Earnings = require('@/api/v1/models/schema/Earnings');
+                    const Settings = require('@/api/v1/models/schema/Settings');
+                    const Space = require('@/api/v1/models/schema/Space');
+
+                    const existingEarnings = await Earnings.findOne({
+                        order_number: order.order_number
+                    });
+
+                    if (!existingEarnings) {
+                        const space = await Space.findById(order.space_id).select('user_id');
+                        const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+                        const platformFeePercent = feeSetting?.value ?? 3;
+
+                        const totalAmount = order.total || 0;
+                        const platformFee = (totalAmount * platformFeePercent) / 100;
+                        const ownerEarnings = totalAmount - platformFee;
+                        const month = new Date().toISOString().slice(0, 7);
+
+                        // In settlePayLater - when creating Earnings
+                        await Earnings.create({
+                            owner_id: space.user_id,
+                            space_id: order.space_id,
+                            order_number: order.order_number,
+                            booking_id: null,
+                            total_amount: totalAmount,
+                            platform_fee_percent: platformFeePercent,
+                            platform_fee: parseFloat(platformFee.toFixed(4)),
+                            owner_earnings: parseFloat(ownerEarnings.toFixed(4)),
+                            payment_method: 'cash', // Use a valid enum value
+                            payment_intent_id: null,
+                            auto_collected: false,
+                            fee_status: 'pending',
+                            collected_at: null,
+                            booking_date: order.created_at || new Date(),
+                            month: month,
+                            notes: `Pay Later order settled - Earnings created`
+                        });
+
+                        console.log(`✅ Earnings created for Pay Later order ${order.order_number}: ₱${totalAmount}`);
+                    }
+                } catch (error) {
+                    console.error('Failed to create earnings for Pay Later order:', error);
+                }
+            } else {
+                order.pay_later_status = 'partially_paid';
+                order.payment_status = 'partial';
+            }
+
+            await order.save();
+
+            // Create Payment record for the settlement
+            try {
+                await Payment.create({
+                    order_id: order._id,
+                    payment_type: 'pos_order',
+                    method: payment_method || 'cash',
+                    amount_total: amount,
+                    amount_original: amount,
+                    discount_applied: 0,
+                    amount_received: amount,
+                    change: 0,
+                    reference_number: `PAY-${order.order_number}`,
+                    status: 'completed',
+                    processed_by: userId
+                });
+            } catch (e) {
+                console.error('Failed to create payment record for settlement:', e);
+            }
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: `Payment recorded. Remaining: ₱${(order.total - order.pay_later_total_accumulated).toFixed(2)}`,
+                data: {
+                    order: order,
+                    remaining: order.total - order.pay_later_total_accumulated,
+                    total_paid: order.pay_later_total_accumulated
+                }
+            });
+
+        } catch (error) {
+            console.error('Settle pay later error:', error);
+            next(error);
+        }
+    };
+
+    // ============ UPDATED: updateOrderStatus WITH PAYMENT & EARNINGS CREATION ============
     updateOrderStatus = async (req, res, next) => {
         try {
             const { orderId } = req.params;
@@ -342,6 +501,8 @@ class POSController {
                 throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Order not found');
             }
 
+            console.log(`📝 Updating order ${order.order_number} from ${order.status} to ${status}`);
+
             // Verify permissions
             if (userRole === 'staff') {
                 const staffRecord = await User.findById(userId).select('space_id');
@@ -356,11 +517,89 @@ class POSController {
                 }
             }
 
-            order.status = status;
-            if (status === 'completed' || status === 'confirmed') {
+            // Skip earnings creation for Pay Later orders - handled by settlePayLater
+            const isPayLater = order.is_pay_later || order.payment_method === 'pay_later';
+
+            // 🆕 CREATE PAYMENT & EARNINGS RECORD FOR COMPLETED OR CONFIRMED ORDERS
+            if ((status === 'completed' || status === 'confirmed') && !isPayLater) {
+                // 1. Create/check Payment record
+                const existingPayment = await Payment.findOne({ order_id: order._id });
+
+                let paymentDoc = existingPayment;
+                if (!existingPayment) {
+                    try {
+                        paymentDoc = await Payment.create({
+                            order_id: order._id,
+                            payment_type: 'pos_order',
+                            method: order.payment_method || 'cash',
+                            amount_total: order.total || 0,
+                            amount_original: order.subtotal || 0,
+                            discount_applied: order.discount_amount || 0,
+                            amount_received: order.amount_received || order.total || 0,
+                            change: order.change || 0,
+                            reference_number: `POS-${order.order_number}`,
+                            status: 'completed',
+                            processed_by: userId
+                        });
+                        console.log(`✅ Payment record created for POS order ${order.order_number}: ${paymentDoc._id}`);
+                    } catch (payError) {
+                        console.error('Failed to create payment record:', payError);
+                    }
+                } else {
+                    console.log(`⚠️ Payment already exists for order ${order.order_number}`);
+                }
+
+                // 2. 🆕 CREATE EARNINGS RECORD FOR POS ORDER
+                try {
+                    const existingEarnings = await Earnings.findOne({
+                        order_number: order.order_number
+                    });
+
+                    if (!existingEarnings) {
+                        const Settings = require('@/api/v1/models/schema/Settings');
+                        const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+                        const platformFeePercent = feeSetting?.value ?? 3;
+
+                        const totalAmount = order.total || 0;
+                        const platformFee = (totalAmount * platformFeePercent) / 100;
+                        const ownerEarnings = totalAmount - platformFee;
+                        const month = new Date(order.created_at || new Date()).toISOString().slice(0, 7);
+
+                        const earningsData = {
+                            owner_id: userId,
+                            space_id: order.space_id,
+                            order_number: order.order_number,
+                            total_amount: totalAmount,
+                            platform_fee_percent: platformFeePercent,
+                            platform_fee: parseFloat(platformFee.toFixed(4)),
+                            owner_earnings: parseFloat(ownerEarnings.toFixed(4)),
+                            payment_method: order.payment_method || 'cash',
+                            payment_intent_id: null,
+                            auto_collected: false,
+                            fee_status: 'pending',
+                            collected_at: null,
+                            booking_date: order.created_at || new Date(),
+                            month: month,
+                            notes: `POS Order - Platform fee pending collection from space owner`
+                        };
+
+                        await Earnings.create(earningsData);
+                        console.log(`✅ Earnings created for POS order ${order.order_number}: ₱${platformFee} platform fee`);
+                    } else {
+                        console.log(`⚠️ Earnings already exist for POS order ${order.order_number}`);
+                    }
+                } catch (earnError) {
+                    console.error('Failed to create earnings for POS order:', earnError);
+                    // Don't fail the order update if earnings creation fails
+                }
+
                 order.payment_status = 'paid';
             }
+
+            order.status = status;
             await order.save();
+
+            console.log(`✅ Order ${order.order_number} updated: status=${order.status}, payment_status=${order.payment_status}`);
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
@@ -368,6 +607,97 @@ class POSController {
                 data: order
             });
         } catch (error) {
+            console.error('Update order status error:', error);
+            next(error);
+        }
+    };
+
+    // ============ FIX: Manual Payment & Earnings Fix Endpoint ============
+    fixOrderPayment = async (req, res, next) => {
+        try {
+            const { orderId } = req.params;
+            const userId = req.user?.sub || req.user?._id || req.user?.id;
+
+            const order = await Order.findById(orderId);
+            if (!order) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Order not found');
+            }
+
+            console.log(`🔧 Fixing order ${order.order_number}`);
+
+            const results = { payment: null, earnings: null };
+
+            // 1. Check/Create Payment
+            const existingPayment = await Payment.findOne({ order_id: order._id });
+            if (!existingPayment) {
+                results.payment = await Payment.create({
+                    order_id: order._id,
+                    payment_type: 'pos_order',
+                    method: order.payment_method || 'cash',
+                    amount_total: order.total || 0,
+                    amount_original: order.subtotal || 0,
+                    discount_applied: order.discount_amount || 0,
+                    amount_received: order.amount_received || order.total || 0,
+                    change: order.change || 0,
+                    reference_number: `POS-${order.order_number}`,
+                    status: 'completed',
+                    processed_by: userId
+                });
+                console.log(`✅ Payment created: ${results.payment._id}`);
+            } else {
+                results.payment = existingPayment;
+                console.log(`⚠️ Payment already exists: ${existingPayment._id}`);
+            }
+
+            // 2. Check/Create Earnings
+            const existingEarnings = await Earnings.findOne({ order_number: order.order_number });
+            if (!existingEarnings) {
+                const Settings = require('@/api/v1/models/schema/Settings');
+                const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+                const platformFeePercent = feeSetting?.value ?? 3;
+
+                const totalAmount = order.total || 0;
+                const platformFee = (totalAmount * platformFeePercent) / 100;
+                const ownerEarnings = totalAmount - platformFee;
+                const month = new Date(order.created_at || new Date()).toISOString().slice(0, 7);
+
+                results.earnings = await Earnings.create({
+                    owner_id: userId,
+                    space_id: order.space_id,
+                    order_number: order.order_number,
+                    total_amount: totalAmount,
+                    platform_fee_percent: platformFeePercent,
+                    platform_fee: parseFloat(platformFee.toFixed(4)),
+                    owner_earnings: parseFloat(ownerEarnings.toFixed(4)),
+                    payment_method: order.payment_method || 'cash',
+                    payment_intent_id: null,
+                    auto_collected: false,
+                    fee_status: 'pending',
+                    collected_at: null,
+                    booking_date: order.created_at || new Date(),
+                    month: month,
+                    notes: `POS Order - Fixed manually`
+                });
+                console.log(`✅ Earnings created: ${results.earnings._id}`);
+            } else {
+                results.earnings = existingEarnings;
+                console.log(`⚠️ Earnings already exists: ${existingEarnings._id}`);
+            }
+
+            // Update order payment_status if needed
+            if (order.payment_status !== 'paid') {
+                order.payment_status = 'paid';
+                await order.save();
+                console.log(`✅ Order ${order.order_number} payment_status updated to paid`);
+            }
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: `Order ${order.order_number} fixed successfully`,
+                data: { order, ...results }
+            });
+        } catch (error) {
+            console.error('Fix order error:', error);
             next(error);
         }
     };

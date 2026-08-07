@@ -214,6 +214,7 @@ class TotalOrdersController {
                         order_count: 0,
                         payment_methods: new Set(),
                         statuses: new Set(),
+                        payment_statuses: new Set(),
                         first_order: order,
                         latest_order: order
                     };
@@ -224,6 +225,7 @@ class TotalOrdersController {
                 groupedOrders[groupKey].order_count += 1;
                 groupedOrders[groupKey].payment_methods.add(order.payment_method || 'unknown');
                 groupedOrders[groupKey].statuses.add(order.status || 'pending');
+                groupedOrders[groupKey].payment_statuses.add(order.payment_status || 'unpaid');
                 
                 // Keep track of latest order
                 try {
@@ -237,37 +239,102 @@ class TotalOrdersController {
                 }
             });
 
-            // Convert grouped orders to array
-            let groupedArray = Object.values(groupedOrders).map(group => {
-                const latestOrder = group.latest_order || group.orders[0] || {};
-                return {
-                    _id: group._id,
-                    customer_name: group.customer_name,
-                    date: group.date,
-                    order_count: group.order_count,
-                    total: group.total,
-                    payment_methods: Array.from(group.payment_methods).join(', '),
-                    statuses: Array.from(group.statuses),
-                    orders: group.orders,
-                    latest_order: latestOrder,
-                    created_at: latestOrder.created_at || new Date(),
-                    order_number: latestOrder.order_number || 'N/A',
-                    order_type: group.orders.some(o => o.order_type === 'booking') ? 'booking' : 'pos_order',
-                    items: group.orders.reduce((acc, o) => [...acc, ...(o.items || [])], []),
-                    subtotal: group.total,
-                    tax: 0,
-                    discount_amount: 0,
-                    payment_method: Array.from(group.payment_methods).join(', '),
-                    status: group.orders.some(o => o.status === 'pending_payment') ? 'pending_payment' :
-                            group.orders.some(o => o.status === 'active') ? 'active' :
-                            group.orders.some(o => o.status === 'pending') ? 'pending' :
-                            group.orders.every(o => o.status === 'completed') ? 'completed' : 
-                            group.orders[0]?.status || 'pending',
-                    payment_status: group.orders.every(o => o.payment_status === 'paid' || o.payment_status === 'completed') ? 'paid' : 'unpaid',
-                    grouped_orders: group.orders,
-                    is_grouped: true
-                };
-            });
+// Convert grouped orders to array - FINAL FIXED
+let groupedArray = Object.values(groupedOrders).map(group => {
+    const latestOrder = group.latest_order || group.orders[0] || {};
+    
+    // ✅ FIX: Determine status based on ALL orders in the group
+    let groupStatus = 'pending';
+    const statuses = Array.from(group.statuses);
+    
+    if (statuses.includes('pending_payment')) {
+        groupStatus = 'pending_payment';
+    } else if (statuses.includes('active')) {
+        groupStatus = 'active';
+    } else if (statuses.includes('pending')) {
+        groupStatus = 'pending';
+    } else if (statuses.every(s => s === 'completed')) {
+        groupStatus = 'completed';
+    } else if (statuses.every(s => s === 'confirmed')) {
+        groupStatus = 'confirmed';
+    } else if (statuses.every(s => s === 'ready')) {
+        groupStatus = 'ready';
+    } else if (statuses.every(s => s === 'cancelled')) {
+        groupStatus = 'cancelled';
+    } else if (statuses.includes('rejected')) {
+        groupStatus = 'rejected';
+    } else {
+        groupStatus = statuses[0] || 'pending';
+    }
+    
+    // ✅ FIX: Determine payment_status
+    const paymentStatuses = Array.from(group.payment_statuses);
+    let groupPaymentStatus = 'unpaid';
+    if (paymentStatuses.every(s => s === 'paid' || s === 'completed')) {
+        groupPaymentStatus = 'paid';
+    } else if (paymentStatuses.some(s => s === 'paid' || s === 'completed')) {
+        groupPaymentStatus = 'partial';
+    } else {
+        groupPaymentStatus = 'unpaid';
+    }
+    
+    // ✅ FIX: Calculate pay later totals from ALL orders
+    const payLaterOrders = group.orders.filter(o => o.is_pay_later || o.payment_method === 'pay_later');
+    const totalPayLaterAmount = payLaterOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    // ✅ CRITICAL FIX: Get the accumulated total from each order's pay_later_total_accumulated
+    const totalPayLaterPaid = payLaterOrders.reduce((sum, o) => sum + (o.pay_later_total_accumulated || 0), 0);
+    const remainingPayLater = Math.max(0, totalPayLaterAmount - totalPayLaterPaid);
+    
+    // ✅ FIX: Determine pay_later_status based on ALL orders
+    let groupPayLaterStatus = null;
+    if (payLaterOrders.length > 0) {
+        const payLaterStatuses = payLaterOrders.map(o => o.pay_later_status || 'pending');
+        if (payLaterStatuses.every(s => s === 'settled')) {
+            groupPayLaterStatus = 'settled';
+        } else if (payLaterStatuses.some(s => s === 'pending')) {
+            groupPayLaterStatus = 'pending';
+        } else if (payLaterStatuses.some(s => s === 'partially_paid')) {
+            groupPayLaterStatus = 'partially_paid';
+        } else {
+            groupPayLaterStatus = payLaterStatuses[0] || 'pending';
+        }
+    }
+    
+    // Determine if this is a Pay Later group
+    const isPayLaterGroup = payLaterOrders.length > 0;
+    
+    // ✅ Log for debugging
+    console.log(`Group ${group.customer_name}: payLaterOrders=${payLaterOrders.length}, totalPaid=${totalPayLaterPaid}, totalAmount=${totalPayLaterAmount}, remaining=${remainingPayLater}`);
+    
+    return {
+        _id: group._id,
+        customer_name: group.customer_name,
+        date: group.date,
+        order_count: group.order_count,
+        total: group.total,
+        payment_methods: Array.from(group.payment_methods).join(', '),
+        statuses: Array.from(group.statuses),
+        orders: group.orders,
+        latest_order: latestOrder,
+        created_at: latestOrder.created_at || new Date(),
+        order_number: latestOrder.order_number || 'N/A',
+        order_type: group.orders.some(o => o.order_type === 'booking') ? 'booking' : 'pos_order',
+        items: group.orders.reduce((acc, o) => [...acc, ...(o.items || [])], []),
+        subtotal: group.total,
+        tax: 0,
+        discount_amount: 0,
+        payment_method: Array.from(group.payment_methods).join(', '),
+        status: groupStatus,
+        payment_status: groupPaymentStatus,
+        grouped_orders: group.orders,
+        is_grouped: true,
+        is_pay_later: isPayLaterGroup,
+        pay_later_status: groupPayLaterStatus,
+        // ✅ CRITICAL FIX: Pass the actual accumulated amount
+        pay_later_total_accumulated: totalPayLaterPaid,
+        pay_later_remaining: remainingPayLater
+    };
+});
 
             // Sort grouped orders with safe date handling
             groupedArray.sort((a, b) => {
@@ -331,7 +398,6 @@ class TotalOrdersController {
 
         } catch (error) {
             console.error('Get total orders error:', error);
-            // Return empty response instead of throwing
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 data: {

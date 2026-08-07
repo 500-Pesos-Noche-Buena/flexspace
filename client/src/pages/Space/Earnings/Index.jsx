@@ -21,7 +21,6 @@ const PERIODS = [
 const EarningsTracker = () => {
     const { themeColor } = useTheme();
     const [data, setData] = useState(null);
-    const [posStats, setPosStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState('daily');
     const [dateFrom, setDateFrom] = useState('');
@@ -52,11 +51,12 @@ const EarningsTracker = () => {
             if (dateFrom) params.append('dateFrom', dateFrom);
             if (dateTo) params.append('dateTo', dateTo);
 
+            // Only fetch from /space/earnings - it now includes POS data
             const earningsRes = await apiGet(`/space/earnings?${params.toString()}`);
-            if (earningsRes.success) setData(earningsRes.data);
-
-            const posRes = await apiGet('/space/income/stats');
-            if (posRes.success) setPosStats(posRes.data);
+            if (earningsRes.success) {
+                setData(earningsRes.data);
+                console.log('📊 Earnings data:', earningsRes.data);
+            }
 
         } catch (err) {
             console.error("Failed to load data", err);
@@ -130,22 +130,29 @@ const EarningsTracker = () => {
         const totalVoucherDiscount = data?.totalVoucherDiscount || 0;
         const feePercent = data?.feePercent || 3;
         
-        const posDaily = posStats?.daily || { total: 0, count: 0 };
-        const posWeekly = posStats?.weekly || { total: 0, count: 0 };
-        const posMonthly = posStats?.monthly || { total: 0, count: 0 };
-        const posTotal = posStats?.total || { total: 0, count: 0 };
+        // Get POS stats from breakdown
+        const posBreakdown = data?.breakdown?.pos_orders || { revenue: 0, count: 0, discount: 0 };
+        const posMonthly = { total: posBreakdown.revenue, count: posBreakdown.count };
 
-        const transactionsHTML = (data?.transactions || []).map(t => `
-        <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.reference || 'N/A'}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.guest || 'Guest'}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.space || 'N/A'}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">₱${(t.amount || 0).toLocaleString()}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${t.discount > 0 ? `-₱${t.discount.toLocaleString()}` : '—'}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-transform: capitalize;">${t.type || 'unknown'}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.date ? new Date(t.date).toLocaleDateString() : 'N/A'}</td>
-        </tr>
-        `).join('');
+        const transactionsHTML = (data?.transactions || []).map(t => {
+            const isPOS = t.source === 'pos' || t.type === 'POS';
+            const typeLabel = isPOS ? 'POS' : (t.type || 'unknown');
+            return `
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.reference || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.guest || 'Guest'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.space || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">₱${(t.amount || 0).toLocaleString()}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${t.discount > 0 ? `-₱${t.discount.toLocaleString()}` : '—'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-transform: capitalize;">
+                    <span style="background: ${isPOS ? '#fef3c7' : '#dbeafe'}; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; color: ${isPOS ? '#d97706' : '#2563eb'};">
+                        ${typeLabel}
+                    </span>
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.date ? new Date(t.date).toLocaleDateString() : 'N/A'}</td>
+            </tr>
+            `;
+        }).join('');
 
         const periodText = period.toUpperCase();
         const dateRange = dateFrom && dateTo ? `${dateFrom} to ${dateTo}` : periodText;
@@ -198,17 +205,15 @@ const EarningsTracker = () => {
 
         <div class="section-title">🛒 POS Sales Summary</div>
         <div class="pos-grid">
-            <div class="pos-card"><div class="label">Today</div><div class="value">₱${(posDaily.total || 0).toLocaleString()}</div><div style="font-size:9px">${posDaily.count || 0} orders</div></div>
-            <div class="pos-card"><div class="label">This Week</div><div class="value">₱${(posWeekly.total || 0).toLocaleString()}</div><div style="font-size:9px">${posWeekly.count || 0} orders</div></div>
-            <div class="pos-card"><div class="label">This Month</div><div class="value">₱${(posMonthly.total || 0).toLocaleString()}</div><div style="font-size:9px">${posMonthly.count || 0} orders</div></div>
-            <div class="pos-card"><div class="label">All Time</div><div class="value">₱${(posTotal.total || 0).toLocaleString()}</div><div style="font-size:9px">${posTotal.count || 0} orders</div></div>
+            <div class="pos-card"><div class="label">Total POS Revenue</div><div class="value">₱${(posBreakdown.revenue || 0).toLocaleString()}</div><div style="font-size:9px">${posBreakdown.count || 0} orders</div></div>
+            <div class="pos-card"><div class="label">Total POS Discount</div><div class="value">₱${(posBreakdown.discount || 0).toLocaleString()}</div><div style="font-size:9px">—</div></div>
         </div>
 
         <div class="summary" style="margin-top: 24px;">
             <div class="summary-card" style="background: #ecfdf5; border-color: #a7f3d0;">
                 <h3>💰 TOTAL REVENUE (Booking + POS)</h3>
-                <div class="amount" style="font-size: 32px;">₱${(totalRevenue + (posMonthly.total || 0)).toLocaleString()}</div>
-                <div style="font-size: 10px; margin-top: 8px;">Booking: ₱${totalRevenue.toLocaleString()} | POS: ₱${(posMonthly.total || 0).toLocaleString()}</div>
+                <div class="amount" style="font-size: 32px;">₱${(totalRevenue + (posBreakdown.revenue || 0)).toLocaleString()}</div>
+                <div style="font-size: 10px; margin-top: 8px;">Booking: ₱${totalRevenue.toLocaleString()} | POS: ₱${(posBreakdown.revenue || 0).toLocaleString()}</div>
             </div>
         </div>
 
@@ -243,10 +248,44 @@ const EarningsTracker = () => {
     }
 
     const color = getThemeColorClass();
-    const currentPosStats = posStats?.[period === 'daily' ? 'daily' : period === 'weekly' ? 'weekly' : 'monthly'] || { total: 0, count: 0 };
+    
+    // Get data from the combined earnings response
     const totalRevenue = data?.totalRevenue || 0;
-    const posRevenue = currentPosStats.total || 0;
+    const posBreakdown = data?.breakdown?.pos_orders || { revenue: 0, count: 0, discount: 0 };
+    const posRevenue = posBreakdown.revenue || 0;
     const combinedRevenue = totalRevenue + posRevenue;
+    const totalOrders = (data?.transactionCount || 0);
+
+    // Get type label with POS detection
+    const getTypeLabel = (transaction) => {
+        if (transaction.source === 'pos' || transaction.type === 'POS') return 'POS';
+        if (transaction.type === 'walkin' || transaction.type === 'Walk-in') return 'Walk-in';
+        if (transaction.type === 'online' || transaction.type === 'Online') return 'Online';
+        return transaction.type || 'Booking';
+    };
+
+    const getTypeStyles = (transaction) => {
+        const isPOS = transaction.source === 'pos' || transaction.type === 'POS';
+        if (isPOS) {
+            return {
+                bg: 'bg-orange-500/10',
+                text: 'text-orange-600 dark:text-orange-400',
+                border: 'border-orange-500/20'
+            };
+        }
+        if (transaction.type === 'walkin' || transaction.type === 'Walk-in') {
+            return {
+                bg: 'bg-purple-500/10',
+                text: 'text-purple-600 dark:text-purple-400',
+                border: 'border-purple-500/20'
+            };
+        }
+        return {
+            bg: 'bg-blue-500/10',
+            text: 'text-blue-600 dark:text-blue-400',
+            border: 'border-blue-500/20'
+        };
+    };
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
@@ -306,7 +345,7 @@ const EarningsTracker = () => {
                         <div className="w-px bg-border" />
                         <div className="text-center">
                             <p className="text-muted-foreground">Orders</p>
-                            <p className="text-foreground font-bold">{(data?.totalOrders || 0) + (currentPosStats.count || 0)}</p>
+                            <p className="text-foreground font-bold">{totalOrders}</p>
                         </div>
                     </div>
                 </div>
@@ -354,7 +393,7 @@ const EarningsTracker = () => {
                     <Search size={13} className="text-primary" />
                     <input
                         type="text"
-                        placeholder="Search ticket or guest..."
+                        placeholder="Search ticket, order or guest..."
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                         className="bg-transparent text-foreground text-xs outline-none placeholder:text-muted-foreground w-full font-medium"
@@ -376,17 +415,16 @@ const EarningsTracker = () => {
                 </div>
             </div>
 
-            {/* POS Sales Stats */}
+            {/* POS Sales Stats - Using data from breakdown */}
             <div className="mb-8">
                 <div className="flex items-center gap-2 mb-3">
                     <ShoppingBag size={14} className="text-primary" />
                     <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">POS Sales (Products)</h2>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard title="Today's POS" value={`₱${(posStats?.daily?.total || 0).toLocaleString()}`} icon={<Coffee size={20} />} trend={`${posStats?.daily?.count || 0} orders`} color="emerald" themeColor={color} />
-                    <StatCard title="Weekly POS" value={`₱${(posStats?.weekly?.total || 0).toLocaleString()}`} icon={<Package size={20} />} trend={`${posStats?.weekly?.count || 0} orders`} color="indigo" themeColor={color} />
-                    <StatCard title="Monthly POS" value={`₱${(posStats?.monthly?.total || 0).toLocaleString()}`} icon={<BarChart3 size={20} />} trend={`${posStats?.monthly?.count || 0} orders`} color="purple" themeColor={color} />
-                    <StatCard title="Lifetime POS" value={`₱${(posStats?.total?.total || 0).toLocaleString()}`} icon={<DollarSign size={20} />} trend={`${posStats?.total?.count || 0} orders`} color="amber" themeColor={color} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <StatCard title="Total POS Revenue" value={`₱${(posBreakdown.revenue || 0).toLocaleString()}`} icon={<Coffee size={20} />} trend={`${posBreakdown.count || 0} orders`} color="emerald" themeColor={color} />
+                    <StatCard title="Total POS Discount" value={`₱${(posBreakdown.discount || 0).toLocaleString()}`} icon={<Package size={20} />} trend="Applied" color="indigo" themeColor={color} />
+                    <StatCard title="Total POS Orders" value={`${posBreakdown.count || 0}`} icon={<ShoppingBag size={20} />} trend="Completed" color="purple" themeColor={color} />
                 </div>
             </div>
 
@@ -480,16 +518,20 @@ const EarningsTracker = () => {
                         },
                         {
                             header: "Type",
-                            cell: (r) => (
-                                <span className={cn(
-                                    "px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-tighter border",
-                                    r.type === 'walkin'
-                                        ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
-                                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-                                )}>
-                                    {r.type}
-                                </span>
-                            )
+                            cell: (r) => {
+                                const styles = getTypeStyles(r);
+                                const label = getTypeLabel(r);
+                                return (
+                                    <span className={cn(
+                                        "px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-tighter border",
+                                        styles.bg,
+                                        styles.text,
+                                        styles.border
+                                    )}>
+                                        {label}
+                                    </span>
+                                );
+                            }
                         },
                         {
                             header: "Date",
@@ -511,7 +553,10 @@ const EarningsTracker = () => {
                     loading={loading}
                     totalCount={data?.total || 0}
                     onParamsChange={(p) => setPage(p.page || 1)}
-                    renderMobileCard={(r) => (
+                    renderMobileCard={(r) => {
+                        const styles = getTypeStyles(r);
+                        const label = getTypeLabel(r);
+                        return (
                         <div className="bg-card border-border rounded-2xl p-5 space-y-3 shadow-lg">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -550,15 +595,15 @@ const EarningsTracker = () => {
                                 </div>
                                 <span className={cn(
                                     "px-2 py-1 rounded-lg text-[8px] font-black uppercase",
-                                    r.type === 'walkin'
-                                        ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
-                                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                    styles.bg,
+                                    styles.text
                                 )}>
-                                    {r.type}
+                                    {label}
                                 </span>
                             </div>
                         </div>
-                    )}
+                        );
+                    }}
                 />
             </div>
         </div>

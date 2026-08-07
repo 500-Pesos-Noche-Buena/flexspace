@@ -12,7 +12,7 @@ const activityLogSchema = new mongoose.Schema({
             // Booking actions
             'booking_create', 'booking_update', 'booking_cancel', 'booking_complete', 'booking_confirm', 'booking_reject',
             // Payment actions
-            'payment_made', 'payment_failed',
+            'payment_made', 'payment_failed', 'payment_update', // ← ADD THIS
             // Location actions
             'district_create', 'district_update', 'district_delete',
             'city_create', 'city_update', 'city_delete',
@@ -22,6 +22,10 @@ const activityLogSchema = new mongoose.Schema({
             // Export action
             'export_logs',
             'errorlog_update',
+            // Order actions
+            'order_create', 'order_update', 'order_complete', 'order_confirm',
+            // Earnings actions
+            'earnings_create', 'earnings_update',
         ],
         index: true
     },
