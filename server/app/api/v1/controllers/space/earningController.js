@@ -30,6 +30,16 @@ class EarningsController {
         return userSpaces.map(s => s._id);
     };
 
+    getFeePercent = async () => {
+        try {
+            const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+            return feeSetting?.value || 3; // Default to 3% if not found
+        } catch (error) {
+            console.error('Failed to fetch platform fee:', error);
+            return 3; // Default fallback
+        }
+    };
+
     index = async (req, res, next) => {
         try {
             const ownerId = await this.getOwnerId(req);
@@ -95,6 +105,10 @@ class EarningsController {
                 spaceIds = own.map(s => s._id);
             }
 
+            // ── Get platform fee from Settings ────────────────────────────
+            const feePercent = await this.getFeePercent();
+            console.log(`📊 Platform fee: ${feePercent}%`);
+
             // ── Get ALL Earnings (Bookings + POS) ──────────────────────────
             let bookingEarningsQuery = {
                 space_id: { $in: spaceIds },
@@ -143,7 +157,7 @@ class EarningsController {
             const posCountTotal = posEarningsCount || 0;
             const totalTransactions = bookingCountTotal + posCountTotal;
 
-            const feePercent = 10; // 10% platform fee
+            // Calculate fees using the fetched percentage
             const totalPlatformFee = totalRevenue * (feePercent / 100);
             const totalNetEarnings = totalRevenue - totalPlatformFee;
 
