@@ -770,7 +770,8 @@ const POS = () => {
         return matchesSearch && matchesCategory && product.is_available !== false;
     });
 
-    if (error && !loading) {
+    // Show error state - but only for REAL errors, not "no products found"
+    if (error && !loading && error !== 'No products found in this branch. Please add products in Inventory first.') {
         return (
             <div className="bg-card rounded-2xl border border-border p-12 text-center">
                 <Package size={64} className="mx-auto text-muted-foreground mb-4" />
@@ -780,6 +781,34 @@ const POS = () => {
                     <Loader2 size={16} className="mr-2 animate-spin" />
                     Retry
                 </Button>
+            </div>
+        );
+    }
+
+
+    // Show empty state when no products exist (not an error)
+    if (!loading && products.length === 0) {
+        return (
+            <div className="h-[calc(100vh-80px)] flex flex-col items-center justify-center bg-card rounded-2xl border border-border p-12 text-center">
+                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-6">
+                    <Package size={48} className="text-muted-foreground" />
+                </div>
+                <h2 className="text-2xl font-black text-foreground mb-2">No Products Available</h2>
+                <p className="text-muted-foreground max-w-md mb-6">
+                    {selectedSpaceId
+                        ? `No products found in "${getCurrentSpaceName()}". Please add products in Inventory first.`
+                        : 'Please select a branch to view products.'
+                    }
+                </p>
+                {selectedSpaceId && (
+                    <Button
+                        onClick={() => window.location.href = '/inventory'}
+                        className={`bg-${getThemeColorClass()}-600 hover:bg-${getThemeColorClass()}-500 text-white rounded-xl px-6 py-2.5 text-sm font-bold`}
+                    >
+                        <Plus size={16} className="mr-2" />
+                        Go to Inventory
+                    </Button>
+                )}
             </div>
         );
     }

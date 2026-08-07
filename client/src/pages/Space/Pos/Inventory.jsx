@@ -66,6 +66,10 @@ const Inventory = () => {
     useEffect(() => {
         if (selectedSpaceId) {
             fetchProducts();
+        } else {
+            // If no space selected, clear products and stop loading
+            setProducts([]);
+            setLoading(false);
         }
     }, [selectedSpaceId]);
 
@@ -75,13 +79,25 @@ const Inventory = () => {
             if (res.success && res.data.length > 0) {
                 setSpaces(res.data);
                 setSelectedSpaceId(res.data[0]._id);
+            } else {
+                // No spaces found
+                setSpaces([]);
+                setSelectedSpaceId('');
+                setLoading(false);
             }
         } catch (err) {
             console.error('Failed to fetch spaces:', err);
+            setLoading(false);
         }
     };
 
     const fetchProducts = async () => {
+        if (!selectedSpaceId) {
+            setProducts([]);
+            setLoading(false);
+            return;
+        }
+        
         setLoading(true);
         try {
             const res = await apiGet(`/space/products?space_id=${selectedSpaceId}`);
@@ -100,49 +116,44 @@ const Inventory = () => {
         setTouched(prev => ({ ...prev, [name]: true }));
     };
 
-   // Add validation function
-const validateForm = () => {
-    const newErrors = {};
-    
-    // Name validation
-    if (!formData.name || !formData.name.trim()) {
-        newErrors.name = 'Product name is required';
-    } else if (formData.name.length > 50) {
-        newErrors.name = 'Product name cannot exceed 50 characters';
-    }
-    
-    // Selling price validation
-    if (!formData.price && formData.price !== 0) {
-        newErrors.price = 'Selling price is required';
-    } else if (parseFloat(formData.price) < 0) {
-        newErrors.price = 'Selling price cannot be negative';
-    } else if (parseFloat(formData.price) === 0) {
-        newErrors.price = 'Selling price must be greater than 0';
-    } else if (isNaN(parseFloat(formData.price))) {
-        newErrors.price = 'Selling price must be a valid number';
-    }
-    
-    // Purchase price validation (optional but must be valid if provided)
-    if (formData.purchase_price && formData.purchase_price !== '') {
-        if (parseFloat(formData.purchase_price) < 0) {
-            newErrors.purchase_price = 'Purchase price cannot be negative';
-        } else if (isNaN(parseFloat(formData.purchase_price))) {
-            newErrors.purchase_price = 'Purchase price must be a valid number';
+    const validateForm = () => {
+        const newErrors = {};
+        
+        if (!formData.name || !formData.name.trim()) {
+            newErrors.name = 'Product name is required';
+        } else if (formData.name.length > 50) {
+            newErrors.name = 'Product name cannot exceed 50 characters';
         }
-    }
-    
-    // Stock validation (optional but must be valid if provided)
-    if (formData.stock && formData.stock !== '') {
-        if (parseInt(formData.stock) < 0) {
-            newErrors.stock = 'Stock cannot be negative';
-        } else if (isNaN(parseInt(formData.stock))) {
-            newErrors.stock = 'Stock must be a valid number';
+        
+        if (!formData.price && formData.price !== 0) {
+            newErrors.price = 'Selling price is required';
+        } else if (parseFloat(formData.price) < 0) {
+            newErrors.price = 'Selling price cannot be negative';
+        } else if (parseFloat(formData.price) === 0) {
+            newErrors.price = 'Selling price must be greater than 0';
+        } else if (isNaN(parseFloat(formData.price))) {
+            newErrors.price = 'Selling price must be a valid number';
         }
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-};
+        
+        if (formData.purchase_price && formData.purchase_price !== '') {
+            if (parseFloat(formData.purchase_price) < 0) {
+                newErrors.purchase_price = 'Purchase price cannot be negative';
+            } else if (isNaN(parseFloat(formData.purchase_price))) {
+                newErrors.purchase_price = 'Purchase price must be a valid number';
+            }
+        }
+        
+        if (formData.stock && formData.stock !== '') {
+            if (parseInt(formData.stock) < 0) {
+                newErrors.stock = 'Stock cannot be negative';
+            } else if (isNaN(parseInt(formData.stock))) {
+                newErrors.stock = 'Stock must be a valid number';
+            }
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -222,6 +233,7 @@ const validateForm = () => {
     });
 
     const getCurrentSpaceName = () => {
+        if (!selectedSpaceId) return 'No Branch Selected';
         const space = spaces.find(s => s._id === selectedSpaceId);
         return space?.name || 'Select Branch';
     };
@@ -240,6 +252,42 @@ const validateForm = () => {
     };
 
     const color = getThemeColorClass();
+
+    // Show loading state while fetching spaces
+    if (loading && spaces.length === 0) {
+        return (
+            <div className="flex justify-center items-center h-[60vh]">
+                <Loader2 size={40} className="animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    // Show empty state when no spaces
+    if (spaces.length === 0) {
+        return (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
+                <div className="mb-8">
+                    <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">Inventory Management</h1>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest italic">
+                        Manage products across all your branches
+                    </p>
+                </div>
+                <div className="text-center py-20 bg-card rounded-2xl border border-border">
+                    <Building2 size={64} className="text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-black text-foreground mb-2">No Branches Found</p>
+                    <p className="text-sm text-muted-foreground">
+                        You need to create a space/branch first before adding products.
+                    </p>
+                    <Button 
+                        onClick={() => window.location.href = '/space/my-spaces'} 
+                        className={`mt-4 bg-${color}-600 hover:bg-${color}-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest px-5 py-2.5 h-auto shadow-lg`}
+                    >
+                        <Plus size={14} className="mr-2" /> Create Your First Space
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
@@ -379,7 +427,8 @@ const validateForm = () => {
                         setFormData({ name: '', purchase_price: '', price: '', category: 'beverage', stock: '', description: '', is_available: true });
                         setModalOpen(true);
                     }}
-                    className={`bg-${color}-600 hover:bg-${color}-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest px-5 py-2.5 h-auto shadow-lg`}
+                    disabled={!selectedSpaceId}
+                    className={`bg-${color}-600 hover:bg-${color}-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest px-5 py-2.5 h-auto shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                     <Plus size={14} className="mr-2" /> Add Product to {getCurrentSpaceName()}
                 </Button>
