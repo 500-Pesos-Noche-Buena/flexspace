@@ -18,7 +18,8 @@ import {
     Loader2,
     Activity,
     Award,
-    AlertCircle
+    AlertCircle,
+    ShoppingBag
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { useNavigate } from 'react-router-dom';
@@ -55,9 +56,14 @@ const SpaceDashboard = () => {
         spaces: 0,
         bookings: 0,
         walkins: 0,
+        posOrders: 0,
+        totalOrders: 0,
         grossRevenue: 0,
+        bookingRevenue: 0,
+        posRevenue: 0,
         netRevenue: 0,
         platformFees: 0,
+        platformFeePercent: 0,
         pendingFees: 0
     });
     const [voucherStats, setVoucherStats] = useState({
@@ -92,10 +98,15 @@ const SpaceDashboard = () => {
                 setStats(res.stats || { 
                     spaces: 0, 
                     bookings: 0, 
-                    walkins: 0, 
-                    grossRevenue: 0, 
-                    netRevenue: 0, 
-                    platformFees: 0, 
+                    walkins: 0,
+                    posOrders: 0,
+                    totalOrders: 0,
+                    grossRevenue: 0,
+                    bookingRevenue: 0,
+                    posRevenue: 0,
+                    netRevenue: 0,
+                    platformFees: 0,
+                    platformFeePercent: 0,
                     pendingFees: 0 
                 });
                 setVoucherStats(res.voucherStats || {
@@ -247,7 +258,7 @@ const SpaceDashboard = () => {
 
             {/* --- PRIMARY STATS GRID --- */}
             <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-                {/* GROSS REVENUE CARD */}
+                {/* GROSS REVENUE CARD - Now shows combined Booking + POS */}
                 <Card className="relative overflow-hidden bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-2xl">
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start mb-4">
@@ -257,17 +268,22 @@ const SpaceDashboard = () => {
                             <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg uppercase tracking-tighter">Live</span>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Gross Revenue ({period})</p>
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Revenue ({period})</p>
                             <p className="text-2xl font-black text-foreground tracking-tighter">
                                 ₱{stats.grossRevenue?.toLocaleString()}
                             </p>
+                            {/* Breakdown */}
+                            <div className="mt-2 flex gap-3 text-[9px]">
+                                <span className="text-muted-foreground">Booking: <span className="font-bold text-emerald-600">₱{stats.bookingRevenue?.toLocaleString()}</span></span>
+                                <span className="text-muted-foreground">POS: <span className="font-bold text-blue-600">₱{stats.posRevenue?.toLocaleString()}</span></span>
+                            </div>
                             <div className="mt-3 pt-3 border-t border-border">
                                 <div className="flex justify-between items-center text-[10px]">
                                     <span className="text-muted-foreground">Net Earnings:</span>
                                     <span className="font-bold text-emerald-600 dark:text-emerald-400">₱{stats.netRevenue?.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-[10px] mt-1">
-                                    <span className="text-muted-foreground">Platform Fees:</span>
+                                    <span className="text-muted-foreground">Platform Fees ({stats.platformFeePercent || 0}%):</span>
                                     <span className="font-bold text-amber-600 dark:text-amber-400">₱{stats.platformFees?.toLocaleString()}</span>
                                 </div>
                                 {stats.pendingFees > 0 && (
@@ -279,6 +295,23 @@ const SpaceDashboard = () => {
                                         <span className="font-bold text-red-600 dark:text-red-400 animate-pulse">₱{stats.pendingFees?.toLocaleString()}</span>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* TOTAL ORDERS (Bookings + POS) */}
+                <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-2xl">
+                    <CardContent className="p-6 flex flex-col justify-between">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 border border-amber-500/20 mb-4">
+                            <ShoppingBag size={20} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Orders ({period})</p>
+                            <p className="text-3xl font-black text-foreground tracking-tighter">{stats.totalOrders}</p>
+                            <div className="flex gap-3 text-[9px] mt-1">
+                                <span className="text-muted-foreground">Bookings: <span className="font-bold">{stats.bookings}</span></span>
+                                <span className="text-muted-foreground">POS: <span className="font-bold">{stats.posOrders}</span></span>
                             </div>
                         </div>
                     </CardContent>
@@ -311,24 +344,11 @@ const SpaceDashboard = () => {
                     </Card>
                 )}
 
-                {/* TOTAL BOOKINGS */}
-                <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-2xl">
-                    <CardContent className="p-6 flex flex-col justify-between">
-                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 border border-amber-500/20 mb-4">
-                            <Users size={20} />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Bookings</p>
-                            <p className="text-3xl font-black text-foreground tracking-tighter">{stats.bookings}</p>
-                        </div>
-                    </CardContent>
-                </Card>
-
                 {/* WALKINS */}
                 <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-2xl">
                     <CardContent className="p-6 flex flex-col justify-between">
                         <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 mb-4">
-                            <Zap size={20} className="text-muted-foreground" />
+                            <Users size={20} className="text-muted-foreground" />
                         </div>
                         <div>
                             <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Walk-ins Today</p>
@@ -417,7 +437,7 @@ const SpaceDashboard = () => {
             {/* --- QUICK ACTIONS --- */}
             <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
                 <Button
-                    onClick={() => navigate('/space/walkins')}
+                    onClick={() => navigate('/space/bookings')}
                     className={cn(
                         "p-8 rounded-[2.5rem] text-white flex justify-between items-center group cursor-pointer overflow-hidden relative shadow-2xl active:scale-[0.98] transition-all h-auto",
                         getButtonColor()

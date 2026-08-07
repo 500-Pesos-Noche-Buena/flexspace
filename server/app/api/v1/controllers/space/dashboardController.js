@@ -1,4 +1,4 @@
-const { Space, Booking, User, Voucher, Earnings } = require('@/api/v1/models');
+const { Space, Booking, User, Voucher, Earnings, Order } = require('@/api/v1/models');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 
 class DashboardController {
@@ -27,8 +27,6 @@ class DashboardController {
 
             const now = new Date();
             let startDate = new Date();
-            
-            // Reset time to start of day for accurate daily filtering
             startDate.setHours(0, 0, 0, 0);
             
             if (period === 'weekly') {
@@ -42,10 +40,8 @@ class DashboardController {
                 startDate.setHours(0, 0, 0, 0);
             }
 
-            console.log('Date range - Start:', startDate, 'End:', now);
-
-            // Get GROSS revenue from Bookings (total amount before fees)
-            const grossRevenueData = await Booking.aggregate([
+            // ── REVENUE FROM BOOKINGS (completed) ──────────────────────────
+            const bookingRevenueData = await Booking.aggregate([
                 {
                     $match: {
                         space_id: { $in: userSpaces },
@@ -56,53 +52,50 @@ class DashboardController {
                 {
                     $group: {
                         _id: null,
-                        total: { $sum: "$total_amount" }
+                        total: { $sum: "$total_amount" },
+                        count: { $sum: 1 }
                     }
                 }
             ]);
 
-            // Get NET revenue from Earnings (owner earnings after platform fees)
-            // Use created_at or collected_at based on what you want
-            const netRevenueData = await Earnings.aggregate([
+            // ── REVENUE FROM POS ORDERS (completed) ──────────────────────────
+            const posRevenueData = await Order.aggregate([
                 {
                     $match: {
-                        owner_id: ownerId,
-                        fee_status: 'collected',
-                        $or: [
-                            { createdAt: { $gte: startDate, $lte: now } },
-                            { collected_at: { $gte: startDate, $lte: now } }
-                        ]
+                        space_id: { $in: userSpaces },
+                        status: 'completed',
+                        payment_status: 'paid',
+                        updated_at: { $gte: startDate, $lte: now }
                     }
                 },
                 {
                     $group: {
                         _id: null,
-                        total: { $sum: '$owner_earnings' }
+                        total: { $sum: "$total" },
+                        count: { $sum: 1 }
                     }
                 }
             ]);
 
-            // Get platform fees collected
-            const platformFeesData = await Earnings.aggregate([
-                {
-                    $match: {
-                        owner_id: ownerId,
-                        fee_status: 'collected',
-                        $or: [
-                            { createdAt: { $gte: startDate, $lte: now } },
-                            { collected_at: { $gte: startDate, $lte: now } }
-                        ]
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        total: { $sum: '$platform_fee' }
-                    }
-                }
-            ]);
+            const bookingRevenue = bookingRevenueData[0]?.total || 0;
+            const bookingCount = bookingRevenueData[0]?.count || 0;
+            const posRevenue = posRevenueData[0]?.total || 0;
+            const posCount = posRevenueData[0]?.count || 0;
 
-            // Get pending platform fees (not yet collected) - no date filter for pending
+            // ── TOTAL REVENUE (Bookings + POS) ──────────────────────────────
+            const totalRevenue = bookingRevenue + posRevenue;
+            const totalOrders = bookingCount + posCount;
+
+            // ── PLATFORM FEE FROM SETTINGS ──────────────────────────────────
+            const Settings = require('@/api/v1/models/schema/Settings');
+            const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
+            const platformFeePercent = feeSetting?.value ?? 3;
+
+            // Calculate fees on TOTAL revenue (Bookings + POS)
+            const platformFees = totalRevenue * (platformFeePercent / 100);
+            const netRevenue = totalRevenue - platformFees;
+
+            // ── PENDING FEES ──────────────────────────────────────────────────
             const pendingFeesData = await Earnings.aggregate([
                 {
                     $match: {
@@ -117,12 +110,18 @@ class DashboardController {
                     }
                 }
             ]);
+            const pendingFees = pendingFeesData[0]?.total || 0;
 
-            console.log('Gross Revenue Data:', grossRevenueData);
-            console.log('Net Revenue Data:', netRevenueData);
-            console.log('Platform Fees Data:', platformFeesData);
-            console.log('Pending Fees Data:', pendingFeesData);
+            console.log('📊 Dashboard Revenue Summary:');
+            console.log('  Booking Revenue:', bookingRevenue);
+            console.log('  POS Revenue:', posRevenue);
+            console.log('  Total Revenue:', totalRevenue);
+            console.log('  Platform Fee %:', platformFeePercent);
+            console.log('  Platform Fees:', platformFees);
+            console.log('  Net Revenue:', netRevenue);
+            console.log('  Total Orders:', totalOrders);
 
+            // ── STATS ──────────────────────────────────────────────────────────
             const [stats, activeSessions, voucherStats] = await Promise.all([
                 Promise.all([
                     isStaff ? null : Space.countDocuments({ user_id: ownerId }),
@@ -131,6 +130,13 @@ class DashboardController {
                         booking_type: 'walkin',
                         space_id: { $in: userSpaces },
                         created_at: { $gte: startDate }
+                    }),
+                    // POS orders count for the period
+                    Order.countDocuments({
+                        space_id: { $in: userSpaces },
+                        status: 'completed',
+                        payment_status: 'paid',
+                        created_at: { $gte: startDate, $lte: now }
                     })
                 ]),
                 Booking.find({ status: 'active', space_id: { $in: userSpaces } })
@@ -138,7 +144,6 @@ class DashboardController {
                     .populate('user_id', 'name')
                     .sort({ check_in_at: -1 })
                     .limit(5),
-                // Voucher Stats
                 Promise.all([
                     Voucher.countDocuments({ space_id: { $in: userSpaces }, type: 'global' }),
                     Voucher.aggregate([
@@ -202,22 +207,8 @@ class DashboardController {
                     : 'N/A'
             }));
 
-            const grossRevenue = grossRevenueData[0]?.total || 0;
-            const netRevenue = netRevenueData[0]?.total || 0;
-            const platformFees = platformFeesData[0]?.total || 0;
-            const pendingFees = pendingFeesData[0]?.total || 0;
-
-            let finalNetRevenue = netRevenue;
-            let finalPlatformFees = platformFees;
-            
-            if (grossRevenue > 0 && netRevenue === 0) {
-                const Settings = require('@/api/v1/models/schema/Settings');
-                const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
-                const platformFeePercent = feeSetting?.value ?? 10;
-                finalPlatformFees = grossRevenue * (platformFeePercent / 100);
-                finalNetRevenue = grossRevenue - finalPlatformFees;
-                console.log('Calculated fallback values:', { grossRevenue, platformFeePercent, finalPlatformFees, finalNetRevenue });
-            }
+            // ── POS ORDERS COUNT ──────────────────────────────────────────────
+            const posOrdersCount = stats[3] || 0;
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
@@ -226,9 +217,14 @@ class DashboardController {
                     spaces: isStaff ? null : stats[0],
                     bookings: stats[1],
                     walkins: stats[2],
-                    grossRevenue: grossRevenue,
-                    netRevenue: finalNetRevenue,
-                    platformFees: finalPlatformFees,
+                    posOrders: posOrdersCount,
+                    totalOrders: totalOrders,
+                    grossRevenue: totalRevenue, // Bookings + POS
+                    bookingRevenue: bookingRevenue,
+                    posRevenue: posRevenue,
+                    netRevenue: netRevenue,
+                    platformFees: platformFees,
+                    platformFeePercent: platformFeePercent,
                     pendingFees: pendingFees
                 },
                 activeSessions: formattedSessions,
@@ -248,24 +244,21 @@ class DashboardController {
     };
 
     // ============================================
-    // 1. OCCUPANCY ANALYTICS (Live + Historical)
+    // 1. OCCUPANCY ANALYTICS
     // ============================================
     getOccupancyAnalytics = async (req, res, next) => {
         try {
-            const { ownerId, isStaff } = await this.getOwnerId(req);
+            const { ownerId } = await this.getOwnerId(req);
             const userSpaces = await Space.find({ user_id: ownerId }).distinct('_id');
 
-            // Get all spaces with their capacity
             const spaces = await Space.find({ _id: { $in: userSpaces } }).select('name capacity');
             const totalCapacity = spaces.reduce((sum, space) => sum + (space.capacity || 0), 0);
 
-            // Current active bookings
             const activeBookings = await Booking.countDocuments({
                 space_id: { $in: userSpaces },
                 status: 'active'
             });
 
-            // Historical occupancy (last 7 days)
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -386,7 +379,6 @@ class DashboardController {
             const { ownerId } = await this.getOwnerId(req);
             const userSpaces = await Space.find({ user_id: ownerId }).distinct('_id');
 
-            // Get all customers with booking counts
             const allCustomers = await Booking.aggregate([
                 {
                     $match: {
@@ -410,7 +402,6 @@ class DashboardController {
                 ? Math.round((returningCustomers / totalUniqueCustomers) * 100)
                 : 0;
 
-            // New customers last 30 days
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -435,7 +426,6 @@ class DashboardController {
                 }
             ]);
 
-            // Top 10 customers
             const topCustomers = await Booking.aggregate([
                 {
                     $match: {
@@ -494,7 +484,7 @@ class DashboardController {
     };
 
     // ============================================
-    // 4. REVENUE TREND (for chart)
+    // 4. REVENUE TREND (Bookings + POS)
     // ============================================
     getRevenueTrend = async (req, res, next) => {
         try {
@@ -525,7 +515,8 @@ class DashboardController {
                 limit = 12;
             }
 
-            const trend = await Booking.aggregate([
+            // ── BOOKINGS TREND ──────────────────────────────────────────────
+            const bookingTrend = await Booking.aggregate([
                 {
                     $match: {
                         space_id: { $in: userSpaces },
@@ -537,29 +528,73 @@ class DashboardController {
                     $group: {
                         _id: { $dateToString: { format: groupFormat, date: "$check_in_at" } },
                         revenue: { $sum: "$total_amount" },
-                        bookings: { $sum: 1 },
-                        walkins: { $sum: { $cond: [{ $eq: ["$booking_type", "walkin"] }, 1, 0] } }
+                        bookings: { $sum: 1 }
                     }
                 },
                 { $sort: { "_id": 1 } }
             ]);
 
-            // Calculate week-over-week growth
+            // ── POS ORDERS TREND ─────────────────────────────────────────────
+            const posTrend = await Order.aggregate([
+                {
+                    $match: {
+                        space_id: { $in: userSpaces },
+                        status: 'completed',
+                        payment_status: 'paid',
+                        created_at: { $gte: startDate }
+                    }
+                },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: groupFormat, date: "$created_at" } },
+                        revenue: { $sum: "$total" },
+                        orders: { $sum: 1 }
+                    }
+                },
+                { $sort: { "_id": 1 } }
+            ]);
+
+            // ── MERGE TRENDS ──────────────────────────────────────────────────
+            const allDates = new Set([
+                ...bookingTrend.map(t => t._id),
+                ...posTrend.map(t => t._id)
+            ]);
+
+            const mergedTrend = Array.from(allDates).sort().map(date => {
+                const booking = bookingTrend.find(t => t._id === date);
+                const pos = posTrend.find(t => t._id === date);
+                return {
+                    date,
+                    bookingRevenue: booking?.revenue || 0,
+                    bookingCount: booking?.bookings || 0,
+                    posRevenue: pos?.revenue || 0,
+                    posCount: pos?.orders || 0,
+                    totalRevenue: (booking?.revenue || 0) + (pos?.revenue || 0),
+                    totalOrders: (booking?.bookings || 0) + (pos?.orders || 0)
+                };
+            });
+
+            // Calculate growth
             let growth = 0;
-            if (trend.length >= 2) {
-                const currentWeek = trend.slice(-1)[0]?.revenue || 0;
-                const previousWeek = trend.slice(-2)[0]?.revenue || 0;
-                growth = previousWeek > 0 ? Math.round(((currentWeek - previousWeek) / previousWeek) * 100) : 0;
+            if (mergedTrend.length >= 2) {
+                const currentPeriod = mergedTrend.slice(-1)[0]?.totalRevenue || 0;
+                const previousPeriod = mergedTrend.slice(-2)[0]?.totalRevenue || 0;
+                growth = previousPeriod > 0 ? Math.round(((currentPeriod - previousPeriod) / previousPeriod) * 100) : 0;
             }
+
+            const totalRevenue = mergedTrend.reduce((sum, t) => sum + t.totalRevenue, 0);
+            const totalOrdersCount = mergedTrend.reduce((sum, t) => sum + t.totalOrders, 0);
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
                 data: {
                     period,
-                    trend,
+                    trend: mergedTrend,
                     growth,
-                    totalRevenue: trend.reduce((sum, t) => sum + t.revenue, 0),
-                    totalBookings: trend.reduce((sum, t) => sum + t.bookings, 0)
+                    totalRevenue,
+                    totalOrders: totalOrdersCount,
+                    bookingRevenue: mergedTrend.reduce((sum, t) => sum + t.bookingRevenue, 0),
+                    posRevenue: mergedTrend.reduce((sum, t) => sum + t.posRevenue, 0)
                 }
             });
         } catch (error) {
