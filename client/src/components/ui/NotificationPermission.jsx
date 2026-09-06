@@ -10,10 +10,12 @@ const NotificationPermission = ({ onPermissionGranted }) => {
     useEffect(() => {
         // Safe check para hindi mag-crash sa iOS Safari kung wala o block ang Notification API
         if (typeof window !== 'undefined' && 'Notification' in window) {
-            setPermission(Notification.permission);
-            if (Notification.permission === 'granted') {
-                onPermissionGranted?.(true);
-            }
+            try {
+                setPermission(Notification.permission);
+                if (Notification.permission === 'granted') {
+                    onPermissionGranted?.(true);
+                }
+            } catch (e) {}
         }
     }, [onPermissionGranted]);
 
@@ -33,11 +35,16 @@ const NotificationPermission = ({ onPermissionGranted }) => {
                 });
                 onPermissionGranted?.(true);
                 
-                new Notification('🔔 Notifications Enabled', {
-                    body: 'You will now receive real-time order updates',
-                    icon: '/favicon.ico',
-                    silent: true
-                });
+                // Safe check para sa iOS Safari kung saan hindi supported ang desktop Notification constructor
+                if (typeof window !== 'undefined' && 'Notification' in window && !/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                    try {
+                        new Notification('🔔 Notifications Enabled', {
+                            body: 'You will now receive real-time order updates',
+                            icon: '/favicon.ico',
+                            silent: true
+                        });
+                    } catch (e) {}
+                }
                 
                 setVisible(false);
             } else {
