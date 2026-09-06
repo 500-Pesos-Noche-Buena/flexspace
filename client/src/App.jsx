@@ -9,11 +9,7 @@ import DevConsoleDetector from '@/components/DevConsoleDetector';
 import OrderNotificationListener from '@/components/ui/OrderNotificationListener';
 import NotificationPermission from '@/components/ui/NotificationPermission';
 import { useAuth } from '@/context/AuthContext';
-
-// Only import Analytics in production
-const Analytics = process.env.NODE_ENV === 'production' 
-  ? require('@vercel/analytics/react').Analytics 
-  : () => null;
+import { Analytics } from '@vercel/analytics/react';
 
 // Inner component to use useAuth hook
 const AppContent = () => {
@@ -30,7 +26,7 @@ const AppContent = () => {
       {isAuthenticated && !notificationsEnabled && (
         <NotificationPermission onPermissionGranted={setNotificationsEnabled} />
       )}
-      {process.env.NODE_ENV === 'production' && <Analytics />}
+      {import.meta.env.PROD && <Analytics />}
     </>
   );
 };
