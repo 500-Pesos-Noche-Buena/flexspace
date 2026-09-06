@@ -5,38 +5,47 @@ const CookieConsent = () => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        const hasAccepted = localStorage.getItem('cookieConsent');
-        if (!hasAccepted) {
+        // Safe check para sa iOS kung sakaling restricted ang localStorage
+        try {
+            const hasAccepted = localStorage.getItem('cookieConsent');
+            if (!hasAccepted) {
+                setIsVisible(true);
+            }
+        } catch (e) {
             setIsVisible(true);
         }
     }, []);
 
     const handleAccept = () => {
-        localStorage.setItem('cookieConsent', 'true');
+        try {
+            localStorage.setItem('cookieConsent', 'true');
+        } catch (e) {}
         setIsVisible(false);
-        window.location.reload(); 
     };
 
     const handleDecline = () => {
-        localStorage.setItem('cookieConsent', 'false');
+        try {
+            localStorage.setItem('cookieConsent', 'false');
+        } catch (e) {}
         setIsVisible(false);
     };
 
     if (!isVisible) return null;
 
     return (
-        <div className="fixed bottom-6 left-6 w-[calc(100%-3rem)] md:w-112.5 bg-[#0f0f12] border border-white/10 p-5 rounded-2xl shadow-2xl z-9999 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-10 duration-500">            <div className="flex gap-4">
-            <div className="w-10 h-10 shrink-0 bg-indigo-600/20 rounded-xl flex items-center justify-center">
-                <Cookie className="w-5 h-5 text-indigo-400" />
+        <div className="fixed bottom-6 left-6 w-[calc(100%-3rem)] md:w-[450px] bg-[#0f0f12] border border-white/10 p-5 rounded-2xl shadow-2xl z-[9999] flex flex-col gap-4">
+            <div className="flex gap-4">
+                <div className="w-10 h-10 shrink-0 bg-indigo-600/20 rounded-xl flex items-center justify-center">
+                    <Cookie className="w-5 h-5 text-indigo-400" />
+                </div>
+                <div>
+                    <h4 className="text-sm font-bold text-white mb-1">Cookie Policy</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                        We use cookies to improve your experience and for marketing.
+                        Read our <a href="/privacy" className="text-indigo-400 underline underline-offset-2">cookie policy</a> or manage your settings below.
+                    </p>
+                </div>
             </div>
-            <div>
-                <h4 className="text-sm font-bold text-white mb-1">Cookie Policy</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                    We use cookies to improve your experience and for marketing.
-                    Read our <a href="/privacy" className="text-indigo-400 underline underline-offset-2">cookie policy</a> or manage your settings below.
-                </p>
-            </div>
-        </div>
 
             <div className="flex gap-2">
                 <button
