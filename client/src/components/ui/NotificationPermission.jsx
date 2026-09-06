@@ -3,20 +3,25 @@ import { Bell, Volume2, VolumeX, CheckCircle, XCircle, X } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 
 const NotificationPermission = ({ onPermissionGranted }) => {
-    const [permission, setPermission] = useState(Notification.permission);
+    const [permission, setPermission] = useState('default');
     const [audioAllowed, setAudioAllowed] = useState(false);
     const [visible, setVisible] = useState(true);
 
     useEffect(() => {
-        // Check if notification permission is already granted
-        if (Notification.permission === 'granted') {
-            setPermission('granted');
-            onPermissionGranted?.(true);
+        // Safe check para hindi mag-crash sa iOS Safari kung wala o block ang Notification API
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+            setPermission(Notification.permission);
+            if (Notification.permission === 'granted') {
+                onPermissionGranted?.(true);
+            }
         }
     }, [onPermissionGranted]);
 
     const requestNotificationPermission = async () => {
         try {
+            if (typeof window === 'undefined' || !('Notification' in window)) {
+                return;
+            }
             const result = await Notification.requestPermission();
             setPermission(result);
             
@@ -28,14 +33,12 @@ const NotificationPermission = ({ onPermissionGranted }) => {
                 });
                 onPermissionGranted?.(true);
                 
-                // Test notification
                 new Notification('🔔 Notifications Enabled', {
                     body: 'You will now receive real-time order updates',
                     icon: '/favicon.ico',
                     silent: true
                 });
                 
-                // Hide the notification banner after permission is granted
                 setVisible(false);
             } else {
                 showToast({
@@ -46,22 +49,6 @@ const NotificationPermission = ({ onPermissionGranted }) => {
             }
         } catch (err) {
             console.error('Notification permission error:', err);
-        }
-    };
-
-    const requestAudioPermission = async () => {
-        try {
-            // Test if audio can be played
-            const audio = new Audio();
-            audio.volume = 0.5;
-            setAudioAllowed(true);
-            showToast({
-                icon: 'success',
-                title: 'Sound Enabled',
-                text: 'You will hear order alerts'
-            });
-        } catch (err) {
-            console.error('Audio permission error:', err);
         }
     };
 
