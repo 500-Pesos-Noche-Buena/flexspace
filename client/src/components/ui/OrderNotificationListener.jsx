@@ -17,16 +17,6 @@ const OrderNotificationListener = () => {
     const isSpaceUser = isAuthenticated && (user?.role === 'space' || user?.role === 'staff');
     const isRegularUser = isAuthenticated && user?.role === 'user';
 
-    // Debug logging
-    // useEffect(() => {
-    //     console.log('🔍 [OrderNotificationListener] Component mounted/updated');
-    //     console.log('🔍 isAuthenticated:', isAuthenticated);
-    //     console.log('🔍 user:', user);
-    //     console.log('🔍 user?.role:', user?.role);
-    //     console.log('🔍 isSpaceUser:', isSpaceUser);
-    //     console.log('🔍 isRegularUser:', isRegularUser);
-    // }, [isAuthenticated, user]);
-
     // Initialize notification service
     useEffect(() => {
         orderNotificationService.init();
@@ -47,30 +37,27 @@ const OrderNotificationListener = () => {
             orderNotificationService.setVoiceEnabled(voiceEnabled);
         }
 
-        // Request notification permission
-        if (typeof window !== 'undefined' && Notification && Notification.permission === 'default') {
-            Notification.requestPermission();
+        // Safe check para sa iOS Safari para maiwasan ang ReferenceError
+        if (typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'default') {
+            try {
+                window.Notification.requestPermission();
+            } catch (e) {}
         }
     }, []);
 
     // For Space Owners: Check for new paid orders (confirmed + paid)
     const fetchSpaceOrders = useCallback(async () => {
         try {
-            // console.log('[SPACE] Fetching space orders...');
             const res = await apiGet('/space/orders');
-            // console.log('[SPACE] Response:', res);
 
             if (res.success) {
                 const orders = res.data || [];
-                // console.log('[SPACE] Orders found:', orders.length);
 
                 for (const order of orders) {
-                    // Only notify if status is 'confirmed' AND payment_status is 'paid' AND not notified yet
                     if (order.status === 'confirmed' &&
                         order.payment_status === 'paid' &&
                         !notifiedSpaceOrders.has(order.order_number)) {
 
-                        // console.log(`🔔 [SPACE] New paid order: ${order.order_number} - ${order.customer_name}`);
                         orderNotificationService.notifyNewOrder(order);
                         setNotifiedSpaceOrders(prev => new Set([...prev, order.order_number]));
                     }
@@ -83,38 +70,22 @@ const OrderNotificationListener = () => {
 
     // For Regular Users: Check if their order status changed to 'ready'
     const fetchUserOrders = useCallback(async () => {
-        // Try both _id and id since we don't know which one is available
         const userId = user?._id || user?.id;
-        // console.log('[USER] fetchUserOrders called, userId:', userId);
-        // console.log('[USER] Full user object:', user);
 
         if (!userId) {
-            // console.log('[USER] No user ID, skipping');
             return;
         }
 
         try {
-            // console.log('[USER] Fetching user orders from /user/orders...');
             const res = await apiGet('/user/orders');
-            // console.log('[USER] API Response:', res);
 
             if (res && res.success) {
                 const orders = res.data?.orders || [];
-                // console.log('[USER] Orders found:', orders.length);
-
-                if (orders.length > 0) {
-                    orders.forEach(order => {
-                        // console.log(`[USER] Order ${order.order_number}: status=${order.status}, payment_status=${order.payment_status}`);
-                    });
-                }
 
                 for (const currentOrder of orders) {
                     const readyKey = `${currentOrder.order_number}-ready`;
 
-                    // Check if order status is 'ready' and we haven't notified yet
                     if (currentOrder.status === 'ready' && !notifiedReadyOrders.has(readyKey)) {
-                        // console.log(`🔔 [USER] Order ready for pickup: ${currentOrder.order_number}`);
-
                         orderNotificationService.notifyOrderReady({
                             order_number: currentOrder.order_number,
                             customer_name: user?.name || user?.full_name || 'Customer',
@@ -125,38 +96,27 @@ const OrderNotificationListener = () => {
                 }
 
                 setLastUserOrders(orders);
-            } else {
-                // console.log('[USER] API response success false or missing data');
             }
         } catch (err) {
             console.error('[USER] Failed to fetch user orders:', err);
-            console.error('[USER] Error details:', err.response?.data || err.message);
         }
-    }, [user, notifiedReadyOrders]); // Changed dependency to 'user' instead of user?._id
+    }, [user, notifiedReadyOrders]);
 
     // Start polling
     useEffect(() => {
-        // console.log('[POLLING] useEffect triggered:', { isAuthenticated, isSpaceUser, isRegularUser });
-
         if (!isAuthenticated) {
-            // console.log('[POLLING] Not authenticated, skipping');
             return;
         }
 
         if (isSpaceUser) {
-            // console.log('[POLLING] Starting SPACE polling every 5 seconds');
             fetchSpaceOrders();
             pollingIntervalRef.current = setInterval(fetchSpaceOrders, 5000);
         } else if (isRegularUser) {
-            // console.log('[POLLING] Starting USER polling every 5 seconds');
             fetchUserOrders();
             pollingIntervalRef.current = setInterval(fetchUserOrders, 5000);
-        } else {
-            // console.log('[POLLING] No matching user type, role:', user?.role);
         }
 
         return () => {
-            // console.log('[POLLING] Cleaning up interval');
             if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
             }
