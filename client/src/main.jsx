@@ -1,37 +1,60 @@
-import React, { StrictMode } from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import React from 'react';
 import './index.css';
 import App from './App.jsx';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    this.state = { hasError: false };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
-    this.setState({ errorInfo });
     console.error("Crash caught:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '20px', color: '#ff4444', background: '#1a1a1a', fontFamily: 'monospace', wordBreak: 'break-all', minHeight: '100vh', fontSize: '14px' }}>
-          <h3>CRASH SA IOS SAFARI:</h3>
-          <p><strong>Error:</strong> {this.state.error && this.state.error.toString()}</p>
-          <p style={{ marginTop: '15px', color: '#ffbb44' }}><strong>Stack Trace / Saan galing:</strong></p>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '11px', color: '#cccccc' }}>
-            {this.state.error && this.state.error.stack}
-          </pre>
-          <p style={{ marginTop: '15px', color: '#44ffff' }}><strong>Component Stack:</strong></p>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '11px', color: '#cccccc' }}>
-            {this.state.errorInfo && this.state.errorInfo.componentStack}
-          </pre>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          minHeight: '100vh', 
+          backgroundColor: '#0f0f12', 
+          color: '#ffffff', 
+          padding: '20px', 
+          fontFamily: 'sans-serif',
+          textAlign: 'center' 
+        }}>
+          <div style={{ maxWidth: '400px', background: '#18181b', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px', color: '#f87171' }}>Oops, may naganap na error!</h2>
+            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px', lineHeight: '1.5' }}>
+              Nagka-issue habang nagloload ang application sa iyong browser. Paki-contact ang developer para maayos ang isyung ito.
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              style={{ 
+                width: '100%',
+                padding: '10px 20px', 
+                background: '#4f46e5', 
+                color: '#ffffff', 
+                border: 'none', 
+                borderRadius: '8px', 
+                fontSize: '13px', 
+                fontWeight: 'bold', 
+                cursor: 'pointer' 
+              }}
+            >
+              I-refresh ang Pahina
+            </button>
+          </div>
         </div>
       );
     }
