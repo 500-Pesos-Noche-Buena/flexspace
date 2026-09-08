@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiGet, apiPost } from '@/utils/Api';
+import { apiGet, apiPost, apiPut } from '@/utils/Api';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Button } from '@/components/ui/button';
 import { FormInput, FormSelect, FormTextArea } from '@/components/FormValidation';
@@ -425,7 +425,9 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                 ? `/space/rooms/${editingRoom._id}`
                 : `/space/spaces/${spaceIdToUse}/rooms`;
 
-            const res = await apiPost(url, roomData);
+            const res = editingRoom
+                ? await apiPut(url, roomData)  
+                : await apiPost(url, roomData); 
 
             if (res.success) {
                 showToast({

@@ -35,6 +35,11 @@ const formatDate = (dateString) => {
     }
 };
 
+const formatTime = (date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+};
+
 const POS = () => {
     const { themeColor } = useTheme();
     const [cart, setCart] = useState([]);
@@ -158,7 +163,6 @@ const POS = () => {
         }
     };
 
-    // In POS.jsx - fetchCustomerBookings function
     const fetchCustomerBookings = async (searchTerm) => {
         if (!searchTerm || searchTerm.length < 2) {
             setCustomerBookings([]);
@@ -167,28 +171,62 @@ const POS = () => {
 
         setSearchingCustomers(true);
         try {
-            // Remove status filter - search ALL bookings
-            const res = await apiGet(`/space/bookings?search=${encodeURIComponent(searchTerm)}`);
+            const res = await apiGet(`/space/bookings?search=${encodeURIComponent(searchTerm)}&limit=100`);
             if (res.success) {
                 const bookings = res.data?.bookings || [];
-                // Filter unique customers
-                const uniqueCustomers = bookings.reduce((acc, booking) => {
+
+                // Group by customer name (case-insensitive)
+                const customersMap = {};
+                bookings.forEach(booking => {
                     const name = booking.user_id?.name || booking.guest_name || 'Guest';
                     const key = name.toLowerCase().trim();
-                    if (!acc.find(c => c.name.toLowerCase().trim() === key)) {
-                        acc.push({
+                    if (!customersMap[key]) {
+                        customersMap[key] = {
                             name: name,
-                            email: booking.user_id?.email || booking.guest_email,
-                            phone: booking.user_id?.phone || booking.guest_phone,
-                            bookingId: booking._id,
-                            lastVisit: booking.created_at,
-                            totalSpent: booking.total_amount || 0,
-                            status: booking.status
-                        });
+                            email: booking.user_id?.email || booking.guest_email || null,
+                            phone: booking.user_id?.phone || booking.guest_phone || null,
+                            totalSpent: 0,
+                            lastVisit: null,
+                            status: null,
+                            booking_type: null,
+                            bookable_type: null,
+                            room_name: null,
+                            start_time: null,
+                            has_promo: false,
+                            promo_name: null,
+                            // keep latest booking for extra fields
+                            latestBooking: null
+                        };
                     }
-                    return acc;
-                }, []);
-                setCustomerBookings(uniqueCustomers);
+                    const customer = customersMap[key];
+                    // Sum total spent
+                    customer.totalSpent += booking.total_amount || 0;
+                    // Track latest booking by creation date
+                    const bookingDate = new Date(booking.created_at);
+                    const currentLatest = customer.lastVisit ? new Date(customer.lastVisit) : null;
+                    if (!currentLatest || bookingDate > currentLatest) {
+                        customer.lastVisit = booking.created_at;
+                        customer.status = booking.status;
+                        customer.booking_type = booking.booking_type;
+                        customer.bookable_type = booking.bookable_type;
+                        // room name: if booking.room_id is populated
+                        if (booking.bookable_type === 'room' && booking.room_id) {
+                            customer.room_name = booking.room_id.name || null;
+                        } else {
+                            customer.room_name = null;
+                        }
+                        customer.start_time = booking.start_time;
+                        // Check promo snapshot
+                        const hasPromo = booking.promo_snapshot && Object.keys(booking.promo_snapshot).length > 0;
+                        customer.has_promo = hasPromo;
+                        customer.promo_name = hasPromo ? booking.promo_snapshot.promo_name : null;
+                        customer.latestBooking = booking;
+                    }
+                });
+
+                // Convert map to array
+                const customers = Object.values(customersMap);
+                setCustomerBookings(customers);
             } else {
                 setCustomerBookings([]);
             }
@@ -1198,19 +1236,39 @@ const POS = () => {
                                                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                                                         <User size={16} className="text-primary" />
                                                     </div>
+
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-foreground font-bold text-sm truncate">{customer.name}</p>
+                                                        {/* Customer Name + Badges */}
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <p className="text-foreground font-bold text-sm truncate">{customer.name}</p>
+
+                                                            {/* 🆕 Booking Type Badge */}
+                                                            {customer.booking_type && (
+                                                                <span className={cn(
+                                                                    "text-[7px] px-1.5 py-0.5 rounded-full font-black uppercase",
+                                                                    customer.booking_type === 'walkin'
+                                                                        ? "bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                                                                        : customer.booking_type === 'online'
+                                                                            ? "bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                                                                            : "bg-muted text-muted-foreground"
+                                                                )}>
+                                                                    {customer.booking_type}
+                                                                </span>
+                                                            )}
+
+                                                            {/* 🆕 Promo Indicator (if promo_snapshot exists) */}
+                                                            {customer.has_promo && (
+                                                                <span className="text-[7px] px-1.5 py-0.5 bg-amber-500/30 text-amber-700 dark:text-amber-300 rounded-full font-black uppercase flex items-center gap-1">
+                                                                    🎁 Promo
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Email / Phone / Total Spent */}
                                                         <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                            {customer.email && (
-                                                                <span className="text-[8px] text-muted-foreground">{customer.email}</span>
-                                                            )}
-                                                            {customer.phone && (
-                                                                <span className="text-[8px] text-muted-foreground">{customer.phone}</span>
-                                                            )}
-                                                            <span className="text-[8px] text-primary font-bold">
-                                                                ₱{customer.totalSpent.toFixed(2)} spent
-                                                            </span>
-                                                            {/* 🆕 Show booking status */}
+                                                            {customer.email && <span className="text-[8px] text-muted-foreground">{customer.email}</span>}
+                                                            {customer.phone && <span className="text-[8px] text-muted-foreground">{customer.phone}</span>}
+                                                            <span className="text-[8px] text-primary font-bold">₱{customer.totalSpent.toFixed(2)} spent</span>
                                                             {customer.status && (
                                                                 <span className={cn(
                                                                     "text-[8px] px-1.5 py-0.5 rounded font-bold",
@@ -1222,11 +1280,43 @@ const POS = () => {
                                                                 </span>
                                                             )}
                                                         </div>
+
+                                                        {/* 🆕 Room / Bookable Info */}
+                                                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                            {customer.bookable_type && (
+                                                                <span className="text-[8px] text-muted-foreground">
+                                                                    {customer.bookable_type === 'room' ? 'Room' : 'Space'}
+                                                                </span>
+                                                            )}
+                                                            {customer.room_name && (
+                                                                <span className="text-[8px] text-muted-foreground flex items-center gap-1">
+                                                                    <DoorOpen size={8} />
+                                                                    {customer.room_name}
+                                                                </span>
+                                                            )}
+                                                            {customer.start_time && (
+                                                                <span className="text-[8px] text-muted-foreground flex items-center gap-1">
+                                                                    <Clock size={8} />
+                                                                    {formatTime(customer.start_time)}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Last Visit */}
                                                         <p className="text-[8px] text-muted-foreground mt-1 flex items-center gap-1">
                                                             <Calendar size={8} />
                                                             Last visit: {formatDate(customer.lastVisit)}
                                                         </p>
+
+                                                        {/* 🆕 Show promo snapshot details (optional) */}
+                                                        {customer.promo_name && (
+                                                            <p className="text-[8px] text-amber-600 dark:text-amber-400 font-bold mt-0.5">
+                                                                Promo: {customer.promo_name}
+                                                            </p>
+                                                        )}
                                                     </div>
+
+                                                    {/* Checkmark icon */}
                                                     <div className="shrink-0">
                                                         <CheckCircle size={14} className="text-emerald-500" />
                                                     </div>
