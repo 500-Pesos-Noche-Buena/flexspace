@@ -6,9 +6,10 @@ const emailProcessor = async (job) => {
     console.log(`📧 Processing email job: ${type} for ${data.email}`);
     
     try {
+        let result;
         switch (type) {
             case 'welcome':
-                await emailService.sendWelcomeEmail(
+                result = await emailService.sendWelcomeEmail(
                     data.email,
                     data.name,
                     data.email,
@@ -18,7 +19,7 @@ const emailProcessor = async (job) => {
                 break;
                 
             case 'booking_confirmation':
-                await emailService.sendBookingConfirmation(
+                result = await emailService.sendBookingConfirmation(
                     data.email,
                     data.name,
                     data.bookingDetails
@@ -26,7 +27,7 @@ const emailProcessor = async (job) => {
                 break;
                 
             case 'booking_completion':
-                await emailService.sendBookingCompletionEmail(
+                result = await emailService.sendBookingCompletionEmail(
                     data.email,
                     data.name,
                     data.bookingDetails
@@ -34,7 +35,7 @@ const emailProcessor = async (job) => {
                 break;
                 
             case 'password_reset':
-                await emailService.sendPasswordResetEmail(
+                result = await emailService.sendPasswordResetEmail(
                     data.email,
                     data.name,
                     data.resetToken
@@ -42,9 +43,13 @@ const emailProcessor = async (job) => {
                 break;
                 
             default:
-                console.log(`Unknown email type: ${type}`);
+                throw new Error(`Unknown email type: ${type}`);
         }
         
+        if (result?.success === false) {
+            throw new Error(result.error || 'Email delivery failed');
+        }
+
         console.log(`✅ Email sent successfully: ${type} to ${data.email}`);
         return { success: true, type };
         

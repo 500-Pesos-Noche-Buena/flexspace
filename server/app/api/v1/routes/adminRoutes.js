@@ -54,6 +54,13 @@ class AdminRoutes {
 
     initializeRoutes = () => {
         console.log('--- 🛡️ Initializing Admin Routes (Arrow Mode) ---');
+        // Authentication alone does not authorize administrative operations.
+        this.router.use(auth, (req, res, next) => {
+            if (req.user?.role !== 'admin') {
+                return next(new (require('@/api/v1/utils/ApiError'))(403, 'Administrator access required.'));
+            }
+            next();
+        });
 
         // ============ DASHBOARD ============
         this.router.get('/dashboard', auth, (req, res, next) => dashboardController.index(req, res, next));

@@ -79,6 +79,7 @@ class VoucherController {
             const { code, discount_amount, expiry_days, usage_limit, min_spend, redemption_limit, max_uses_per_user } = req.body;
 
             // Check if code already exists
+            if (typeof code !== 'string' || !code.trim()) throw new ApiError(400, 'Voucher code is required.');
             const existingVoucher = await Voucher.findOne({ code: code.toUpperCase() });
             if (existingVoucher) {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Voucher code already exists');

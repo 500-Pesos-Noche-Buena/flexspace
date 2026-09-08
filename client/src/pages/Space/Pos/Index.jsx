@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
 import { useTheme } from '@/hooks/useTheme';
 import { PaymentQRModal } from '@/components/modal';
+
+import BookingOrderSelector from '@/components/BookingOrderSelector';
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -71,6 +73,52 @@ const POS = () => {
     const [currentOrderId, setCurrentOrderId] = useState('');
     const [paymentCompleted, setPaymentCompleted] = useState(false);
     const [pollingInterval, setPollingInterval] = useState(null);
+
+    const [selectedBooking, setSelectedBooking] = useState(null);
+    const [sessionRefresh, setSessionRefresh] = useState(0);
+    const requestRef = useRef(null);
+    const submittingRef = useRef(false);
+
+    const selectSession = useCallback((booking) => {
+        if (booking && String(booking.space_id._id) !== String(spaceId)) {
+            setCart([]);
+            setSpaceId(booking.space_id._id);
+        }
+        setSelectedBooking(booking);
+        requestRef.current = null;
+    }, [spaceId]);
+
+    const addBookingConsumables = async () => {
+        if (submittingRef.current || !selectedBooking || !cart.length) return;
+        submittingRef.current = true;
+        setIsProcessing(true);
+        const payload = {
+            booking_id: selectedBooking._id, space_id: selectedBooking.space_id._id,
+            items: cart.map(item => ({ product_id: item.id, quantity: item.quantity })),
+            discount_type: discountType, discount_value: discount
+        };
+        const fingerprint = JSON.stringify(payload);
+        if (requestRef.current?.fingerprint !== fingerprint) {
+            requestRef.current = { fingerprint, key: crypto.randomUUID() };
+        }
+        try {
+            const res = await apiPost('/space/orders', { ...payload, request_key: requestRef.current.key });
+            if (!res.success) throw new Error(res.message || 'Could not add consumables');
+            setCart([]);
+            setDiscount(0);
+            requestRef.current = null;
+            setSessionRefresh(n => n + 1);
+            fetchProducts();
+            fetchRecentOrders();
+            showToast({ icon: 'success', title: 'Added to room bill', text: `Order ${res.data.order_number}. Payment will be collected at booking checkout.` });
+        } catch (err) {
+            showToast({ icon: 'error', title: 'Could not add consumables', text: err.message });
+            setSessionRefresh(n => n + 1);
+        } finally {
+            submittingRef.current = false;
+            setIsProcessing(false);
+        }
+    };
 
     const getThemeColorClass = () => {
         const colors = {
@@ -153,11 +201,24 @@ const POS = () => {
     };
 
     const selectCustomer = (customer) => {
-        setCustomerName(customer.name);
+
+        setCustomerName(
+            customer.name
+        );
+
+        // Customer lookup fills the standalone sale name only.
+
         setShowCustomerSearch(false);
+
         setCustomerSearchTerm('');
+
         setCustomerBookings([]);
-        showToast({ icon: 'success', title: `Customer selected: ${customer.name}` });
+
+        showToast({
+            icon: 'success',
+            title:
+                `Customer selected: ${customer.name}`
+        });
     };
 
     useEffect(() => {
@@ -226,22 +287,22 @@ const POS = () => {
     };
 
     useEffect(() => {
-        fetchProducts();
         fetchRecentOrders();
         fetchPaymentQR();
         checkPayMongoStatus();
     }, []);
 
+    useEffect(() => { if (spaceId) fetchProducts(); }, [spaceId]);
+
     const fetchProducts = async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await apiGet('/space/products');
+            const res = await apiGet(`/space/products?space_id=${encodeURIComponent(spaceId || '')}`);
             if (res.success && res.data) {
                 setProducts(res.data);
-                if (res.data.length === 0) {
-                    setError('No products found. Please add products in Inventory first.');
-                }
+                if (res.data[0]?.space_id && String(res.data[0].space_id) !== String(spaceId)) setSpaceId(res.data[0].space_id);
+
             } else {
                 setError('Failed to load products');
             }
@@ -332,7 +393,7 @@ const POS = () => {
 
     // Remove + calculateTax() for tax
     const calculateTotal = () => {
-        return calculateSubtotal() - calculateDiscountAmount();
+        return Math.max(0, calculateSubtotal() - calculateDiscountAmount());
     };
 
     const applyDiscount = () => {
@@ -352,6 +413,7 @@ const POS = () => {
     };
 
     const handleCheckout = () => {
+        if (selectedBooking) { addBookingConsumables(); return; }
         if (cart.length === 0) {
             showToast({ icon: 'warning', title: 'Cart is empty' });
             return;
@@ -617,6 +679,8 @@ const POS = () => {
     const resetOrder = () => {
         setCart([]);
         setCustomerName('');
+        setSelectedBooking(null);
+        requestRef.current = null;
         setDiscount(0);
         setPaymentModal(false);
         setAmountReceived('');
@@ -786,32 +850,7 @@ const POS = () => {
     }
 
 
-    // Show empty state when no products exist (not an error)
-    if (!loading && products.length === 0) {
-        return (
-            <div className="h-[calc(100vh-80px)] flex flex-col items-center justify-center bg-card rounded-2xl border border-border p-12 text-center">
-                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-6">
-                    <Package size={48} className="text-muted-foreground" />
-                </div>
-                <h2 className="text-2xl font-black text-foreground mb-2">No Products Available</h2>
-                <p className="text-muted-foreground max-w-md mb-6">
-                    {selectedSpaceId
-                        ? `No products found in "${getCurrentSpaceName()}". Please add products in Inventory first.`
-                        : 'Please select a branch to view products.'
-                    }
-                </p>
-                {selectedSpaceId && (
-                    <Button
-                        onClick={() => window.location.href = '/inventory'}
-                        className={`bg-${getThemeColorClass()}-600 hover:bg-${getThemeColorClass()}-500 text-white rounded-xl px-6 py-2.5 text-sm font-bold`}
-                    >
-                        <Plus size={16} className="mr-2" />
-                        Go to Inventory
-                    </Button>
-                )}
-            </div>
-        );
-    }
+
 
     const color = getThemeColorClass();
 
@@ -919,6 +958,8 @@ const POS = () => {
                     </div>
                 </div>
 
+                <BookingOrderSelector selected={selectedBooking} onSelect={selectSession}
+                    refreshKey={sessionRefresh} cartTotal={calculateTotal()} disabled={isProcessing} />
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {cart.length === 0 ? (
                         <div className="text-center py-12">
@@ -995,10 +1036,11 @@ const POS = () => {
                             </Button>
                             <Button
                                 onClick={handleCheckout}
+                                disabled={isProcessing}
                                 className={`flex-1 bg-${color}-600 hover:bg-${color}-500 rounded-xl py-2 font-bold text-sm text-white`}
                             >
                                 <CreditCard size={14} className="mr-2" />
-                                Checkout
+                                {isProcessing ? 'Adding…' : selectedBooking ? 'Add to room bill' : 'Checkout'}
                             </Button>
                         </div>
                     </div>
@@ -1018,7 +1060,7 @@ const POS = () => {
                         {recentOrders.map(order => (
                             <div key={order._id} className="bg-muted rounded-xl p-3 hover:bg-muted/80 transition-colors">
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground text-xs">#{order.order_number}</span>
+                                    <span className="text-muted-foreground text-xs">#{order.order_number}{order.booking_id ? ' · Room bill' : ''}</span>
                                     <span className="text-emerald-600 dark:text-emerald-400 font-bold">₱{order.total}</span>
                                 </div>
                                 <p className="text-foreground text-xs mt-1">{order.customer_name}</p>

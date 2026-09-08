@@ -403,6 +403,13 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
         try {
             const roomData = {
                 ...roomForm,
+                hourly_rates: (roomForm.hourly_rates || []).map(r => ({ min_pax: Number(r.min_pax), max_pax: Number(r.max_pax), rate_hour: Number(r.rate_hour) })),
+                consumable_packages: (roomForm.consumable_packages || []).map(p => ({ ...p, price: Number(p.price), room_portion: p.room_portion === '' || p.room_portion == null ? null : Number(p.room_portion) })),
+                promo_room_portion: roomForm.promo_room_portion === '' || roomForm.promo_room_portion == null ? null : Number(roomForm.promo_room_portion),
+                has_consumable_promo: !!roomForm.has_consumable_promo,
+                consumable_allowance: Number(roomForm.consumable_allowance || 0),
+                promo_duration_hours: roomForm.promo_duration_hours ? Number(roomForm.promo_duration_hours) : null,
+                promo_price: roomForm.promo_price === '' || roomForm.promo_price == null ? null : Number(roomForm.promo_price),
                 rate_hour: parseFloat(roomForm.rate_hour),
                 capacity: parseInt(roomForm.capacity),
                 floor_number: parseInt(roomForm.floor_number)
@@ -453,6 +460,14 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
     const handleEditRoom = (room) => {
         setEditingRoom(room);
         setRoomForm({
+            hourly_rates: room.hourly_rates || [],
+            consumable_packages: room.consumable_packages || [],
+            has_consumable_promo: room.has_consumable_promo || false,
+            promo_room_portion: room.promo_room_portion ?? '',
+            promo_name: room.promo_name || '',
+            consumable_allowance: room.consumable_allowance || 0,
+            promo_duration_hours: room.promo_duration_hours || '',
+            promo_price: room.promo_price ?? (room.has_consumable_promo ? room.consumable_allowance : ''),
             name: room.name || '',
             type: room.type || 'private_office',
             capacity: room.capacity || 1,
@@ -1511,6 +1526,49 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                         </div>
 
                         <div className="p-6 space-y-4">
+                            <div className="p-4 border border-border rounded-xl space-y-3">
+                                <label className="block font-bold text-sm"><input type="checkbox" className="mr-2" checked={!!roomForm.hourly_rates?.length}
+                                    onChange={e => setRoomForm(prev => ({ ...prev, hourly_rates: e.target.checked ? [{ min_pax: 1, max_pax: Number(prev.capacity || 1), rate_hour: Number(prev.rate_hour || 0) }] : [] }))} />Hourly rates by guest count (pax)</label>
+                                {(roomForm.hourly_rates || []).map((tier, index) => <div key={index} className="grid grid-cols-4 gap-2 items-end">
+                                    {[['min_pax', 'From pax'], ['max_pax', 'To pax'], ['rate_hour', '₱ / hour']].map(([key, label]) => <label key={key} className="text-xs">{label}
+                                        <input type="number" min={key === 'rate_hour' ? 0 : 1} step={key === 'rate_hour' ? '0.01' : '1'} className="w-full p-2 border border-border rounded-lg bg-background" value={tier[key]} onChange={e => setRoomForm(prev => ({ ...prev, hourly_rates: prev.hourly_rates.map((r, i) => i === index ? { ...r, [key]: e.target.value } : r) }))} />
+                                    </label>)}
+                                    <button type="button" onClick={() => setRoomForm(prev => ({ ...prev, hourly_rates: prev.hourly_rates.filter((_, i) => i !== index) }))}>Remove</button>
+                                </div>)}
+                                {!!roomForm.hourly_rates?.length && <><button type="button" className="text-primary text-sm" onClick={() => setRoomForm(prev => ({ ...prev, hourly_rates: [...prev.hourly_rates, { min_pax: Number(prev.hourly_rates.at(-1).max_pax) + 1, max_pax: Number(prev.capacity), rate_hour: Number(prev.rate_hour || 0) }] }))}>Add guest range</button>
+                                <p className="text-xs text-muted-foreground">Cover every guest count from 1 to room capacity without overlapping. Example: 1–5 pax ₱150/hour; 6–10 pax ₱180/hour. Used for hourly bookings and package overtime.</p></>}
+                            </div>
+
+                            <div className="rounded-xl border border-border p-4 space-y-3">
+                                <label className="flex items-center gap-2 font-bold text-sm">
+                                    <input type="checkbox" checked={!!roomForm.has_consumable_promo}
+                                        onChange={e => setRoomForm(prev => ({ ...prev, has_consumable_promo: e.target.checked }))} />
+                                    Include a consumable promo
+                                </label>
+                                {roomForm.has_consumable_promo && <>
+                                    <label className="block text-sm"><input type="checkbox" className="mr-2" checked={!!roomForm.consumable_packages?.length}
+                                        onChange={e => setRoomForm(prev => ({ ...prev, consumable_packages: e.target.checked ? [{ audience: 'student', price: 1000, room_portion: 200 }, { audience: 'professional', price: 1100, room_portion: 250 }] : [] }))} />Student and professional packages</label>
+                                    {(roomForm.consumable_packages || []).map((pkg, index) => <div key={pkg.audience} className="p-3 bg-muted rounded-lg space-y-2">
+                                        <p className="font-bold capitalize">{pkg.audience}</p>
+                                        {[['price', 'Full package price (₱)'], ['room_portion', 'Included room portion (₱; blank = pax hourly rate)']].map(([key, label]) => <label key={key} className="block text-xs">{label}
+                                            <input type="number" min="0" step="0.01" className="w-full p-2 rounded-lg bg-background border border-border" value={pkg[key] ?? ''} onChange={e => setRoomForm(prev => ({ ...prev, consumable_packages: prev.consumable_packages.map((p, i) => i === index ? { ...p, [key]: e.target.value } : p) }))} />
+                                        </label>)}
+                                        <p className="text-xs">Food credit = package price − room portion. The room portion is included, never charged twice.</p>
+                                    </div>)}
+                                    {[
+                                        ['promo_name', 'Promo name', 'text'],
+                                        ['promo_duration_hours', 'Included hours', 'number'],
+
+                                        ...(!roomForm.consumable_packages?.length ? [['promo_price', 'Full package price (₱)', 'number'], ['promo_room_portion', 'Included room portion (₱; blank = pax hourly rate)', 'number']] : [])
+                                    ].map(([key, label, type]) => <label key={key} className="block text-xs space-y-1">
+                                        <span>{label}</span>
+                                        <input type={type} min="0" step="0.01" className="w-full p-2 rounded-lg border border-border bg-background"
+                                            value={roomForm[key] ?? ''} onChange={e => setRoomForm(prev => ({ ...prev, [key]: e.target.value }))} />
+                                    </label>)}
+                                    <p className="text-xs text-muted-foreground">Food credit is the package price minus the included room portion. Example: ₱900 package − ₱150 room = ₱750 food credit. ₱1,000 food orders means ₱250 excess and a ₱1,150 bill within the included hours. Blank room portion uses one hourly rate for the selected pax; overtime is extra.</p>
+                                </>}
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormInput
                                     label="Room Name"

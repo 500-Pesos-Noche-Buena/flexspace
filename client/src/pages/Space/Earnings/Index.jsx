@@ -94,10 +94,9 @@ const EarningsTracker = () => {
         }
     };
 
-    const exportToPDF = () => {
+    const exportToPDF = async () => {
         setExporting(true);
         try {
-            const reportHtml = generateReportHTML();
             const printWindow = window.open('', '_blank', 'width=1000,height=800,toolbar=yes,scrollbars=yes');
 
             if (!printWindow) {
@@ -106,6 +105,13 @@ const EarningsTracker = () => {
                 return;
             }
 
+            const params = new URLSearchParams({ period, export_all: 'true' });
+            if (dateFrom) params.append('dateFrom', dateFrom);
+            if (dateTo) params.append('dateTo', dateTo);
+            if (search) params.append('search', search);
+            const response = await apiGet(`/space/earnings?${params.toString()}`);
+            if (!response.success) throw new Error(response.message || 'Unable to load report');
+            const reportHtml = generateReportHTML(response.data);
             printWindow.document.write(reportHtml);
             printWindow.document.close();
 
@@ -122,7 +128,7 @@ const EarningsTracker = () => {
         }
     };
 
-    const generateReportHTML = () => {
+    const generateReportHTML = (data) => {
         const bookingBreakdown = data?.breakdown?.bookings || { revenue: 0, count: 0, discount: 0 };
         const posBreakdown = data?.breakdown?.pos_orders || { revenue: 0, count: 0, discount: 0 };
         
@@ -131,7 +137,7 @@ const EarningsTracker = () => {
         const totalRevenue = data?.totalRevenue || 0;
         const totalNetEarnings = data?.totalNetEarnings || 0;
         const totalPlatformFee = data?.totalPlatformFee || 0;
-        const feePercent = data?.feePercent || 10;
+        const feePercent = data?.feePercent ?? 3;
 
         const transactionsHTML = (data?.transactions || []).map(t => {
             const isPOS = t.source === 'pos' || t.type === 'POS';
@@ -271,10 +277,10 @@ const EarningsTracker = () => {
     const totalNetEarnings = data?.totalNetEarnings || 0;
     const totalPlatformFee = data?.totalPlatformFee || 0;
     const totalOrders = (data?.transactionCount || 0);
-    const feePercent = data?.feePercent || 10;
+    const feePercent = data?.feePercent ?? 3;
     
-    const bookingNetEarnings = bookingRevenue - (bookingRevenue * feePercent / 100);
-    const bookingPlatformFee = bookingRevenue * feePercent / 100;
+    const bookingNetEarnings = bookingBreakdown.netEarnings || 0;
+    const bookingPlatformFee = bookingBreakdown.platformFee || 0;
 
     const getTypeLabel = (transaction) => {
         if (transaction.source === 'pos' || transaction.type === 'POS') return 'POS';
@@ -342,7 +348,7 @@ const EarningsTracker = () => {
             {/* Overall Summary Cards */}
             <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <StatCard 
-                    title="Overall Gross Revenue" 
+                    title="Total amount collected" 
                     value={`₱${totalRevenue.toLocaleString()}`} 
                     icon={<TrendingUp size={20} />} 
                     trend="Bookings + POS" 
@@ -424,7 +430,7 @@ const EarningsTracker = () => {
             <div className="mb-6">
                 <div className="flex items-center gap-2 mb-3">
                     <Receipt size={14} className="text-primary" />
-                    <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Booking Earnings</h2>
+                    <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Booking + consumables collected</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard 
@@ -462,11 +468,18 @@ const EarningsTracker = () => {
                 </div>
             </div>
 
+            <div className="mb-6 p-4 rounded-xl border border-border bg-card text-sm">
+                <p className="font-bold mb-2">{data?.orderCount || 0} total orders · {bookingBreakdown.count || 0} bookings + {(posBreakdown.count || 0) + (data?.breakdown?.consumables?.count || 0)} product orders · {data?.transactionCount || 0} payments</p>
+                <p className="font-bold">Consumables settled with bookings · {data?.breakdown?.consumables?.count || 0} orders</p>
+                <p className="mt-2">Ordered: ₱{Number(data?.breakdown?.consumables?.total || 0).toFixed(2)} · Covered by promos: ₱{Number(data?.breakdown?.consumables?.covered || 0).toFixed(2)} · Excess collected: ₱{Number(data?.breakdown?.consumables?.excess || 0).toFixed(2)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Excess is already included in booking revenue. Standalone POS sales appear below.</p>
+            </div>
+
             {/* POS Sales Stats */}
             <div className="mb-8">
                 <div className="flex items-center gap-2 mb-3">
                     <ShoppingBag size={14} className="text-primary" />
-                    <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">POS Sales (Products)</h2>
+                    <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Standalone POS payments</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <StatCard 
@@ -486,10 +499,10 @@ const EarningsTracker = () => {
                         themeColor={color} 
                     />
                     <StatCard 
-                        title="Total POS Orders" 
-                        value={`${posBreakdown.count || 0}`} 
+                        title="All product orders" 
+                        value={`${(posBreakdown.count || 0) + (data?.breakdown?.consumables?.count || 0)}`} 
                         icon={<ShoppingBag size={20} />} 
-                        trend="Completed" 
+                        trend="Standalone + booking consumables" 
                         color="purple" 
                         themeColor={color} 
                     />
@@ -530,6 +543,10 @@ const EarningsTracker = () => {
                                     </div>
                                     <span className="font-mono text-primary font-black text-xs tracking-tighter">
                                         {r.reference}
+                                        {r.linked_orders?.length > 0 && <span className="block mt-1 font-normal text-muted-foreground">
+                                            {r.linked_orders.map(o => o.order_number).join(', ')}
+                                            <span className="block">Covered ₱{Number(r.consumableCovered || 0).toFixed(2)} · Excess ₱{Number(r.consumableExcess || 0).toFixed(2)}</span>
+                                        </span>}
                                     </span>
                                 </div>
                             )

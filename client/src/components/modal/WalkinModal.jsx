@@ -1,3 +1,6 @@
+import RoomGuestCount from '@/components/RoomGuestCount';
+import { roomHourlyRate, roomRateLabel, roomPackagePrice, roomPackageLabel, roomPackageCredit, roomPackageDeduction } from '@/utils/roomPricing';
+import RoomPackageChoice from '@/components/RoomPackageChoice';
 import React from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Users, CheckCircle, Loader2, UserPlus } from 'lucide-react';
@@ -49,11 +52,13 @@ export const WalkinModal = ({
     const getRoomRate = () => {
         if (formData.room_id) {
             const room = roomsWithAvailability.find(r => r._id === formData.room_id);
-            return room?.rate_hour || 0;
+            return roomHourlyRate(room, formData.guest_count || 1) ?? 0;
         }
         const space = spaces.find(s => s._id === formData.space_id);
         return space?.rate_hour || 0;
     };
+
+    const selectedRoom = roomsWithAvailability.find(room => room._id === formData.room_id);
 
     return (
         <Modal open={isOpen} onClose={onClose} title="New Walk-in Check-in" size="md">
@@ -95,7 +100,7 @@ export const WalkinModal = ({
                                                 if (formData.room_id === room._id) {
                                                     setFormData({ ...formData, room_id: '' }); // or null
                                                 } else {
-                                                    setFormData({ ...formData, room_id: room._id });
+                                                    setFormData({ ...formData, room_id: room._id, use_consumable_promo: true });
                                                 }
                                             }
                                         }}
@@ -114,7 +119,8 @@ export const WalkinModal = ({
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <Users size={12} className="text-muted-foreground" />
                                                     <span className="text-[10px] text-muted-foreground">Up to {room.capacity}</span>
-                                                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400">₱{room.rate_hour}/hr</span>
+                                                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400">{roomRateLabel(room)}</span>
+                                                    {room.has_consumable_promo && <span className="block text-xs text-emerald-600">{room.promo_name}: {room.promo_duration_hours} hours · {roomPackageLabel(room)} including room; food credit is after the room deduction</span>}
                                                 </div>
                                             </div>
                                             {!room.is_available ? (
@@ -138,6 +144,22 @@ export const WalkinModal = ({
                     </div>
                 )}
 
+                {selectedRoom?.has_consumable_promo && (
+                    <label className="block p-3 rounded-xl border border-border text-sm">
+                        <input type="checkbox" className="mr-2" checked={formData.use_consumable_promo !== false}
+                            onChange={e => setFormData({ ...formData, use_consumable_promo: e.target.checked })} />
+                        Use room consumable promo
+                        <span className="block mt-2 text-xs text-muted-foreground">
+                            {formData.use_consumable_promo !== false
+                                ? `Package: ${roomPackageLabel(selectedRoom)} for ${selectedRoom.promo_duration_hours} hours including room; food credit is after the room deduction. Excess and overtime are extra.`
+                                : 'Regular room pricing. Products added to this booking are charged in full.'}
+                        </span>
+                    </label>
+                )}
+
+                {formData.use_consumable_promo !== false && <RoomPackageChoice room={selectedRoom} value={formData.promo_audience} guestCount={formData.guest_count || 1} onChange={value => setFormData({ ...formData, promo_audience: value })} />}
+                <RoomGuestCount room={selectedRoom} value={formData.guest_count || 1} onChange={value => setFormData({ ...formData, guest_count: value })} />
+                {selectedRoom?.has_consumable_promo && formData.use_consumable_promo !== false && roomPackagePrice(selectedRoom, formData.promo_audience) != null && <p className="text-sm">Package ₱{Number(roomPackagePrice(selectedRoom, formData.promo_audience)).toFixed(2)} − room ₱{Number(roomPackageDeduction(selectedRoom, formData.promo_audience, formData.guest_count || 1)).toFixed(2)} = food credit ₱{Number(roomPackageCredit(selectedRoom, formData.promo_audience, formData.guest_count || 1)).toFixed(2)}</p>}
                 {/* Guest Name */}
                 <FormInput
                     label="Guest Name"
@@ -192,7 +214,9 @@ export const WalkinModal = ({
                 <div className="p-3 bg-primary/10 border border-primary/20 rounded-2xl">
                     <p className="text-[8px] text-primary font-black uppercase tracking-widest">Rate Info</p>
                     <p className="text-xs text-foreground font-bold mt-1">
-                        ₱{getRoomRate()}/hour
+                        {selectedRoom?.has_consumable_promo && formData.use_consumable_promo !== false
+                            ? `Package ${roomPackagePrice(selectedRoom, formData.promo_audience) == null ? "— choose a package" : "₱" + roomPackagePrice(selectedRoom, formData.promo_audience)} / ${selectedRoom.promo_duration_hours} hours; overtime ₱${getRoomRate()}/hour`
+                            : `₱${getRoomRate()}/hour`}
                     </p>
                     <p className="text-[8px] text-muted-foreground mt-1">
                         {formData.room_id ? 'Private room rate applied' : 'Open area / hot desk rate applied'}

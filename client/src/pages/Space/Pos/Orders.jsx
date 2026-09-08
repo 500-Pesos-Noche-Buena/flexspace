@@ -147,7 +147,7 @@ const Orders = () => {
                 ['confirmed', 'preparing', 'ready'].includes(o.status)
             );
             const revenue = orders
-                .filter(o => ['completed', 'ready', 'confirmed'].includes(o.status))
+                .filter(o => !o.booking_id && o.settlement_type !== 'booking' && o.payment_status === 'paid' && !['cancelled', 'rejected'].includes(o.status))
                 .reduce((sum, o) => sum + (o.total || 0), 0);
 
             return {
@@ -160,6 +160,7 @@ const Orders = () => {
                 completed: orders.filter(o => o.status === 'completed').length,
                 cancelled: orders.filter(o => o.status === 'cancelled').length,
                 revenue: revenue,
+                productValue: orders.filter(o => !['cancelled', 'rejected'].includes(o.status)).reduce((sum, o) => sum + Number(o.total || 0), 0),
                 active_count: active.length
             };
         };
@@ -210,7 +211,7 @@ const Orders = () => {
             results.push({ ...action, success });
             
             // Small delay to prevent rate limiting
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => { setTimeout(resolve, 100); });
         }
 
         const successCount = results.filter(r => r.success).length;
@@ -444,7 +445,7 @@ const Orders = () => {
             header: "Payment",
             cell: (row) => (
                 <div className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase", getPaymentColor(row.payment_method))}>
-                    {getPaymentIcon(row.payment_method)} {row.payment_method}
+                    {row.booking_id && <span className="block text-xs text-muted-foreground">Booking: {row.booking_id.ticket_number || 'Room session'} · {row.booking_id.room_id?.name || 'Open area'}</span>}{getPaymentIcon(row.payment_method)} {row.booking_id ? `Room bill · ${row.payment_status === 'paid' ? 'Settled' : 'Due at checkout'}` : row.payment_method}
                 </div>
             )
         },
@@ -460,10 +461,11 @@ const Orders = () => {
             }
         },
         {
-            header: "Total",
+            header: "Product value",
             cell: (row) => (
                 <div className="flex flex-col">
                     <span className="text-primary font-black text-base">₱{row.total?.toFixed(2)}</span>
+                    {row.booking_id && <span className="block text-xs text-muted-foreground">Included in booking bill; promo credit applies</span>}
                     {row.change > 0 && <span className="text-[8px] text-muted-foreground">Change: ₱{row.change.toFixed(2)}</span>}
                 </div>
             )
@@ -498,7 +500,7 @@ const Orders = () => {
                             </button>
                         )}
 
-                        {row.status === 'pending_payment' && (
+                        {!row.booking_id && row.status === 'pending_payment' && (
                             <button 
                                 onClick={() => handlePayNow(row)} 
                                 className="p-1.5 bg-purple-600/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-600 hover:text-white transition-all"
@@ -627,8 +629,9 @@ const Orders = () => {
                 <Card className="bg-cyan-500/5 border-cyan-500/20">
                     <CardContent className="p-4 text-center">
                         <DollarSign size={16} className="mx-auto text-cyan-500 mb-1" />
-                        <p className="text-[8px] font-black uppercase text-muted-foreground">Revenue</p>
-                        <p className="text-2xl font-black text-cyan-600 dark:text-cyan-400">₱{currentStats.revenue.toLocaleString()}</p>
+                        <p className="text-[8px] font-black uppercase text-muted-foreground">Product order value</p>
+                        <p className="text-2xl font-black text-cyan-600 dark:text-cyan-400">₱{Number(currentStats.productValue || 0).toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Standalone paid: ₱{currentStats.revenue.toLocaleString()} · Room orders settle in the booking bill</p>
                     </CardContent>
                 </Card>
             </div>
@@ -740,7 +743,7 @@ const Orders = () => {
                                 <div>
                                     <p className="text-[8px] text-muted-foreground">Payment</p>
                                     <div className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold", getPaymentColor(order.payment_method))}>
-                                        {getPaymentIcon(order.payment_method)} {order.payment_method}
+                                        {order.booking_id && <span className="block text-xs text-muted-foreground">Booking: {order.booking_id.ticket_number || 'Room session'} · {order.booking_id.room_id?.name || 'Open area'}</span>}{getPaymentIcon(order.payment_method)} {order.booking_id ? `Room bill · ${order.payment_status === 'paid' ? 'Settled' : 'Due at checkout'}` : order.payment_method}
                                     </div>
                                 </div>
                                 <p className="text-lg font-[1000] text-primary italic">₱{order.total?.toFixed(2)}</p>
@@ -764,7 +767,7 @@ const Orders = () => {
                                     </button>
                                 )}
 
-                                {order.status === 'pending_payment' && (
+                                {!order.booking_id && order.status === 'pending_payment' && (
                                     <button 
                                         onClick={() => handlePayNow(order)} 
                                         className="flex-1 py-2 bg-purple-600/20 text-purple-600 dark:text-purple-400 rounded-xl text-[10px] font-black uppercase hover:bg-purple-600 hover:text-white transition-all"

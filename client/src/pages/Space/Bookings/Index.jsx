@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import {
@@ -207,7 +208,7 @@ const BookingsIndex = () => {
                     const detailsRes = await apiGet(`/space/bookings/${selectedQR._id}/details`);
                     if (detailsRes.success) {
                         setSelectedQR(detailsRes.data);
-                        setLiveAmount(detailsRes.data.total_amount || 0);
+                        setLiveAmount(detailsRes.data.amount_due ?? detailsRes.data.total_amount ?? 0);
                     }
                 }
             }
@@ -237,18 +238,18 @@ const BookingsIndex = () => {
             const res = await apiGet(`/space/bookings/${row._id}/details`);
             if (res.success) {
                 setSelectedQR(res.data);
-                setLiveAmount(res.data.total_amount || 0);
+                setLiveAmount(res.data.amount_due ?? res.data.total_amount ?? 0);
                 setShowReceipt(false);
                 setReceiptData(null);
             } else {
                 setSelectedQR(row);
-                setLiveAmount(row.total_amount || 0);
+                setLiveAmount(row.amount_due ?? row.total_amount ?? 0);
                 setShowReceipt(false);
                 setReceiptData(null);
             }
         } catch {
             setSelectedQR(row);
-            setLiveAmount(row.total_amount || 0);
+            setLiveAmount(row.amount_due ?? row.total_amount ?? 0);
             setShowReceipt(false);
             setReceiptData(null);
         }
@@ -283,7 +284,7 @@ const BookingsIndex = () => {
                 };
 
                 setSelectedQR(bookingWithDuration);
-                setLiveAmount(updatedBooking.total_amount || 0);
+                setLiveAmount(updatedBooking.amount_due ?? updatedBooking.total_amount ?? 0);
             }
 
             showToast({ icon: 'success', title: 'Session frozen — collect payment' });
@@ -320,7 +321,7 @@ const BookingsIndex = () => {
     const handleApplyVoucher = async (updatedBooking) => {
         if (updatedBooking) {
             setSelectedQR(updatedBooking);
-            setLiveAmount(updatedBooking.total_amount || 0);
+            setLiveAmount(updatedBooking.amount_due ?? updatedBooking.total_amount ?? 0);
             await fetchData(paramsRef.current, true);
         }
     };
@@ -417,6 +418,7 @@ const BookingsIndex = () => {
             header: "Actions",
             cell: (row) => (
                 <div className="flex gap-2">
+                    {row.status === 'active' && <Link className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold" to={`/space/pos?booking_id=${row._id}`}>{row.consumable_allowance > 0 ? 'Add consumables' : 'Add order'}</Link>}
                     {row.status === 'pending' && (
                         <button onClick={() => fetchBookingDetails(row._id)} className="p-2 bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all">
                             <Eye size={14} />

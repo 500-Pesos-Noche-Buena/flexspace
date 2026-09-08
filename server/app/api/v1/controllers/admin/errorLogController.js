@@ -98,7 +98,8 @@ class ErrorLogController {
             const errorData = req.body;
             const user = req.user || null;
             
-            await errorLogService.logFrontendError(errorData, req, user);
+            const saved = await errorLogService.logFrontendError(errorData, req, user);
+            if (!saved) return res.status(503).json({ success: false, message: 'Unable to save error log.' });
             
             return res.status(HTTP_STATUS.OK).json({
                 success: true,

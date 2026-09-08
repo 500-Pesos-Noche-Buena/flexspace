@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
-import { FileSearch, ShieldCheck, XCircle, Eye, Inbox, Ban } from 'lucide-react';
+import { FileSearch, ShieldCheck, XCircle, Eye, Inbox, Ban, Calendar, Clock, User, Mail } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
@@ -90,7 +90,7 @@ const SpaceApplications = () => {
             if (document.visibilityState === 'visible') {
                 fetchData(paramsRef.current, statusRef.current, false);
             }
-        }, 3000);
+        }, 5000);
 
         return () => {
             if (globalAppPollingInstance) {
@@ -124,6 +124,32 @@ const SpaceApplications = () => {
         return fileName && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
     };
 
+    // Helper to get date safely
+    const getSafeDate = (date) => {
+        if (!date) return 'N/A';
+        const d = new Date(date);
+        return isNaN(d.getTime()) ? 'N/A' : d;
+    };
+
+    const formatDateDisplay = (date) => {
+        const d = getSafeDate(date);
+        if (d === 'N/A') return 'N/A';
+        return d.toLocaleDateString('en-PH', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+
+    const formatTimeDisplay = (date) => {
+        const d = getSafeDate(date);
+        if (d === 'N/A') return 'N/A';
+        return d.toLocaleTimeString('en-PH', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
     const columns = [
         {
             header: "Applicant Details",
@@ -138,18 +164,31 @@ const SpaceApplications = () => {
                     <div>
                         <p className="font-bold text-foreground leading-none uppercase tracking-tighter">{req.name}</p>
                         <p className="text-[11px] text-muted-foreground mt-1 font-medium italic">{req.email}</p>
+                        {req.createdAt && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                                <Clock size={8} className="text-muted-foreground" />
+                                <span className="text-[8px] text-muted-foreground">
+                                    Applied {formatDateDisplay(req.createdAt)}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
             )
         },
         {
             header: "Status",
-            cell: () => (
+            cell: (req) => (
                 <div className="flex items-center gap-2">
                     <div className={cn("w-1.5 h-1.5 rounded-full", statusFilter === 'pending' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500')}></div>
                     <span className={cn("text-[10px] font-black uppercase tracking-tighter", statusFilter === 'pending' ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400')}>
                         {statusFilter === 'pending' ? 'Waiting Review' : 'Rejected'}
                     </span>
+                    {req.updatedAt && statusFilter === 'rejected' && (
+                        <span className="text-[7px] text-muted-foreground">
+                            • {formatDateDisplay(req.updatedAt)}
+                        </span>
+                    )}
                 </div>
             )
         },
@@ -157,7 +196,8 @@ const SpaceApplications = () => {
             header: "Actions",
             cell: (req) => (
                 <div className="flex justify-end">
-                    <button onClick={() => { setSelectedReq(req); setOpenModal(true); }} className="px-5 py-2 bg-muted text-muted-foreground rounded-xl text-[10px] font-black uppercase hover:bg-primary hover:text-primary-foreground transition-all border border-border italic">
+                    <button onClick={() => { setSelectedReq(req); setOpenModal(true); }} className="px-5 py-2 bg-muted text-muted-foreground rounded-xl text-[10px] font-black uppercase hover:bg-primary hover:text-primary-foreground transition-all border border-border italic flex items-center gap-1.5">
+                        <Eye size={12} />
                         {statusFilter === 'pending' ? 'Review Docs' : 'View Audit'}
                     </button>
                 </div>
@@ -176,7 +216,7 @@ const SpaceApplications = () => {
 
             {/* STATS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-5 relative overflow-hidden group shadow-lg">
+                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-5 relative overflow-hidden group shadow-lg transition-all hover:border-amber-500/30">
                     <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:bg-amber-500 group-hover:text-white transition-all">
                         <Inbox size={24} className="text-amber-600 dark:text-amber-400 group-hover:text-white" />
                     </div>
@@ -185,7 +225,7 @@ const SpaceApplications = () => {
                         <p className="text-3xl font-black text-foreground italic">{formatNumber(stats.pending)}</p>
                     </div>
                 </div>
-                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-5 relative overflow-hidden group shadow-lg">
+                <div className="bg-card border-border p-6 rounded-[2.5rem] flex items-center gap-5 relative overflow-hidden group shadow-lg transition-all hover:border-rose-500/30">
                     <div className="w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20 group-hover:bg-rose-500 group-hover:text-white transition-all">
                         <Ban size={24} className="text-rose-600 dark:text-rose-400 group-hover:text-white" />
                     </div>
@@ -206,6 +246,7 @@ const SpaceApplications = () => {
                             statusFilter === 'pending' ? `bg-${color}-600 text-white shadow-lg shadow-${color}-900/40` : 'text-muted-foreground hover:text-foreground'
                         )}
                     >
+                        <Inbox size={12} className="inline mr-2" />
                         Pending
                     </button>
                     <button 
@@ -215,6 +256,7 @@ const SpaceApplications = () => {
                             statusFilter === 'rejected' ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/40' : 'text-muted-foreground hover:text-foreground'
                         )}
                     >
+                        <XCircle size={12} className="inline mr-2" />
                         Rejected
                     </button>
                 </div>
@@ -231,39 +273,56 @@ const SpaceApplications = () => {
                 loading={loading}
                 totalCount={totalCount}
                 onParamsChange={handleParamsChange}
-                renderMobileCard={(req) => (
-                    <div key={req._id} className="bg-card border-border p-6 rounded-[2.5rem] space-y-5 shadow-xl">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className={cn(
-                                    "w-14 h-14 rounded-2xl flex items-center justify-center font-black italic shadow-lg border border-border",
-                                    statusFilter === 'pending' ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
-                                )}>
-                                    {req.name?.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                    <h3 className="text-base font-black text-foreground leading-tight uppercase italic">{req.name}</h3>
-                                    <p className="text-[11px] font-bold text-muted-foreground italic">{req.email}</p>
+                renderMobileCard={(req) => {
+                    const date = req.createdAt || req.created_at;
+                    const updatedDate = req.updatedAt || req.updated_at;
+                    return (
+                        <div key={req._id} className="bg-card border-border p-6 rounded-[2.5rem] space-y-5 shadow-xl">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className={cn(
+                                        "w-14 h-14 rounded-2xl flex items-center justify-center font-black italic shadow-lg border border-border",
+                                        statusFilter === 'pending' ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                    )}>
+                                        {req.name?.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-black text-foreground leading-tight uppercase italic">{req.name}</h3>
+                                        <p className="text-[11px] font-bold text-muted-foreground italic flex items-center gap-1">
+                                            <Mail size={10} /> {req.email}
+                                        </p>
+                                        {date && (
+                                            <p className="text-[8px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                <Calendar size={9} />
+                                                Applied {formatDateDisplay(date)}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="flex items-center justify-between pt-5 border-t border-border">
-                            <div className="flex items-center gap-2">
-                                <div className={cn("w-1.5 h-1.5 rounded-full", statusFilter === 'pending' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500')}></div>
-                                <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", statusFilter === 'pending' ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400')}>
-                                    {statusFilter === 'pending' ? 'Pending' : 'Rejected'}
-                                </span>
+                            <div className="flex items-center justify-between pt-5 border-t border-border">
+                                <div className="flex items-center gap-2">
+                                    <div className={cn("w-1.5 h-1.5 rounded-full", statusFilter === 'pending' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500')}></div>
+                                    <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", statusFilter === 'pending' ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400')}>
+                                        {statusFilter === 'pending' ? 'Pending' : 'Rejected'}
+                                    </span>
+                                    {statusFilter === 'rejected' && updatedDate && (
+                                        <span className="text-[7px] text-muted-foreground">
+                                            • {formatDateDisplay(updatedDate)}
+                                        </span>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => { setSelectedReq(req); setOpenModal(true); }}
+                                    className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase flex items-center gap-2 active:scale-95 transition-all shadow-lg"
+                                >
+                                    <Eye size={14} /> Review
+                                </button>
                             </div>
-                            <button
-                                onClick={() => { setSelectedReq(req); setOpenModal(true); }}
-                                className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase flex items-center gap-2 active:scale-95 transition-all shadow-lg"
-                            >
-                                <Eye size={14} /> Review
-                            </button>
                         </div>
-                    </div>
-                )}
+                    );
+                }}
             />
 
             {/* Application Review Modal */}

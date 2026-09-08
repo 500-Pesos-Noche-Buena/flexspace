@@ -182,7 +182,7 @@ class LocationController {
             
             // Check if location has associated records (for districts with spaces)
             if (this.modelName === 'District') {
-                const Space = require('@/api/v1/models/Space');
+                const Space = require('@/api/v1/models/schema/Space');
                 const spaces = await Space.find({ district_id: id });
                 if (spaces.length > 0) {
                     return res.status(HTTP_STATUS.BAD_REQUEST).json({

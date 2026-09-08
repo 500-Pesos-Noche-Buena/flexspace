@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
@@ -33,6 +33,7 @@ export const FormInput = ({
     className = "",
     endAdornment = null // ← NEW: For eye button or other elements
 }) => {
+    const inputId = useId();
     // Built-in validation for numeric fields
     const getValidationError = (val) => {
         if (required && !val) return `${label} is required`;
@@ -87,7 +88,7 @@ export const FormInput = ({
     
     return (
         <div className="mb-4">
-            <label className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
+            <label htmlFor={inputId} className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
                 {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
                 {maxLength && (
                     <span className="text-muted-foreground/60 ml-2">
@@ -100,6 +101,9 @@ export const FormInput = ({
             <div className="relative mt-2">
                 <input
                     type={type}
+                    id={inputId}
+                    required={required}
+                    aria-invalid={Boolean(displayError && touched)}
                     name={name}
                     value={value}
                     onChange={handleChange}
@@ -150,6 +154,7 @@ export const FormSelect = ({
     error,
     touched
 }) => {
+    const inputId = useId();
     const getValidationError = (val) => {
         if (required && !val) return `${label} is required`;
         return null;
@@ -159,10 +164,13 @@ export const FormSelect = ({
     
     return (
         <div className="mb-4">
-            <label className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
+            <label htmlFor={inputId} className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
                 {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
             </label>
             <select
+                id={inputId}
+                required={required}
+                aria-invalid={Boolean(displayError && touched)}
                 name={name}
                 value={value}
                 onChange={onChange}
@@ -204,6 +212,7 @@ export const FormTextArea = ({
     error,
     touched
 }) => {
+    const inputId = useId();
     const getValidationError = (val) => {
         if (required && !val) return `${label} is required`;
         return null;
@@ -213,7 +222,7 @@ export const FormTextArea = ({
     
     return (
         <div className="mb-4">
-            <label className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
+            <label htmlFor={inputId} className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1">
                 {label} {required && <span className="text-red-500 dark:text-red-400">*</span>}
                 {maxLength && (
                     <span className="text-muted-foreground/60 ml-2">
@@ -222,6 +231,9 @@ export const FormTextArea = ({
                 )}
             </label>
             <textarea
+                id={inputId}
+                required={required}
+                aria-invalid={Boolean(displayError && touched)}
                 name={name}
                 value={value}
                 onChange={onChange}

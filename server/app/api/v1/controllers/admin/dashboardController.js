@@ -1,15 +1,32 @@
-const { User, Space, SpaceRequest, Booking, Earnings } = require('@/api/v1/models');
+const { User, Space, SpaceRequest, Booking, Earnings, Order, Review, Voucher } = require('@/api/v1/models');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 
 class DashboardController {
     index = async (req, res, next) => {
         try {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
             const [
                 totalUsers,
                 totalSpaceHubs,
                 activeSpaces,
                 pendingRequestsCount,
-                platformRevenueData
+                platformRevenueData,
+                totalBookings,
+                activeBookings,
+                completedBookings,
+                totalOrders,
+                totalVouchers,
+                vouchersUsed,
+                platformFeesCollected,
+                pendingFeesData,
+                newUsersThisMonth,
+                usersLastMonth,
+                totalReviews,
+                avgRatingData,
+                totalEarningsData
             ] = await Promise.all([
                 User.countDocuments({ role: 'user' }),
                 User.countDocuments({ role: 'space' }),
@@ -19,39 +36,95 @@ class DashboardController {
                     {
                         $match: {
                             fee_status: 'collected',
-                            collected_at: {
-                                $gte: new Date(new Date().setDate(1))
-                            }
+                            collected_at: { $gte: startOfMonth }
                         }
                     },
+                    { $group: { _id: null, total: { $sum: "$platform_fee" } } }
+                ]),
+                Booking.countDocuments(),
+                Booking.countDocuments({ status: 'active' }),
+                Booking.countDocuments({ status: 'completed' }),
+                Order.countDocuments({ status: 'completed', payment_status: 'paid' }),
+                Voucher.countDocuments(),
+                Voucher.aggregate([
+                    { $match: { redemption_count: { $gt: 0 } } },
+                    { $group: { _id: null, total: { $sum: "$redemption_count" } } }
+                ]),
+                Earnings.aggregate([
                     {
-                        $group: { 
-                            _id: null, 
-                            total: { $sum: "$platform_fee" }
+                        $match: {
+                            fee_status: 'collected',
+                            collected_at: { $gte: startOfMonth }
                         }
-                    }
+                    },
+                    { $group: { _id: null, total: { $sum: "$platform_fee" } } }
+                ]),
+                Earnings.aggregate([
+                    { $match: { fee_status: 'pending' } },
+                    { $group: { _id: null, total: { $sum: "$platform_fee" } } }
+                ]),
+                User.countDocuments({ 
+                    role: 'user',
+                    created_at: { $gte: startOfMonth }
+                }),
+                User.countDocuments({ 
+                    role: 'user',
+                    created_at: { $gte: startOfLastMonth, $lt: startOfMonth }
+                }),
+                Review.countDocuments(),
+                Review.aggregate([
+                    { $group: { _id: null, avg: { $avg: "$rating" } } }
+                ]),
+                Earnings.aggregate([
+                    { $match: { fee_status: 'collected' } },
+                    { $group: { _id: null, total: { $sum: "$owner_earnings" } } }
                 ])
             ]);
 
             const platformRevenue = platformRevenueData.length > 0 ? platformRevenueData[0].total : 0;
+            const vouchersUsedTotal = vouchersUsed.length > 0 ? vouchersUsed[0].total : 0;
+            const pendingFees = pendingFeesData.length > 0 ? pendingFeesData[0].total : 0;
+            const platformFeesCollectedTotal = platformFeesCollected.length > 0 ? platformFeesCollected[0].total : 0;
+            const avgRating = avgRatingData.length > 0 ? avgRatingData[0].avg : 0;
+            const totalEarnings = totalEarningsData.length > 0 ? totalEarningsData[0].total : 0;
+
+            // Calculate growth
+            const userGrowth = usersLastMonth > 0 
+                ? Math.round(((newUsersThisMonth - usersLastMonth) / usersLastMonth) * 100) 
+                : 0;
+
+            // Calculate booking growth (compare to last month)
+            const bookingsLastMonth = await Booking.countDocuments({
+                created_at: { $gte: startOfLastMonth, $lt: startOfMonth }
+            });
+            const bookingGrowth = bookingsLastMonth > 0 
+                ? Math.round(((totalBookings - bookingsLastMonth) / bookingsLastMonth) * 100) 
+                : 0;
+
+            // Calculate revenue growth
+            const revenueLastMonth = await Earnings.aggregate([
+                {
+                    $match: {
+                        fee_status: 'collected',
+                        collected_at: { $gte: startOfLastMonth, $lt: startOfMonth }
+                    }
+                },
+                { $group: { _id: null, total: { $sum: "$platform_fee" } } }
+            ]);
+            const revenueLastMonthTotal = revenueLastMonth.length > 0 ? revenueLastMonth[0].total : 0;
+            const revenueGrowth = revenueLastMonthTotal > 0 
+                ? Math.round(((platformRevenue - revenueLastMonthTotal) / revenueLastMonthTotal) * 100) 
+                : 0;
 
             const grossBookingData = await Booking.aggregate([
                 {
                     $match: {
                         status: 'completed',
-                        check_in_at: {
-                            $gte: new Date(new Date().setDate(1))
-                        }
+                        check_in_at: { $gte: startOfMonth }
                     }
                 },
-                {
-                    $group: { 
-                        _id: null, 
-                        total: { $sum: "$total_amount" } 
-                    }
-                }
+                { $group: { _id: null, total: { $sum: "$total_amount" } } }
             ]);
-            
             const grossVolume = grossBookingData.length > 0 ? grossBookingData[0].total : 0;
 
             const recentRequests = await SpaceRequest.find({ status: 'pending' })
@@ -74,7 +147,23 @@ class DashboardController {
                         location: "Iloilo City",
                         status: req.status,
                         createdAt: req.created_at
-                    }))
+                    })),
+                    // New stats
+                    totalBookings,
+                    activeBookings,
+                    completedBookings,
+                    totalOrders,
+                    totalVouchers,
+                    vouchersUsed: vouchersUsedTotal,
+                    platformFeesCollected: platformFeesCollectedTotal,
+                    pendingFees,
+                    newUsersThisMonth,
+                    userGrowth,
+                    revenueGrowth,
+                    bookingGrowth,
+                    totalReviews,
+                    avgRating,
+                    totalEarnings
                 }
             });
         } catch (error) {
@@ -82,6 +171,7 @@ class DashboardController {
             next(error);
         }
     };
+
 
     // ============================================
     // 1. PLATFORM OCCUPANCY ANALYTICS
@@ -196,11 +286,11 @@ class DashboardController {
     };
 
     // ============================================
-    // 3. TOP PERFORMING SPACES
+    // 3. TOP PERFORMING SPACES (by Bookings with Ratings)
     // ============================================
     getTopSpaces = async (req, res, next) => {
         try {
-            const { limit = 10 } = req.query;
+            const { limit = 5, sort = 'bookings' } = req.query;
 
             const topSpaces = await Booking.aggregate([
                 { $match: { status: 'completed' } },
@@ -209,7 +299,8 @@ class DashboardController {
                         _id: "$space_id",
                         totalRevenue: { $sum: "$total_amount" },
                         totalBookings: { $sum: 1 },
-                        totalWalkins: { $sum: { $cond: [{ $eq: ["$booking_type", "walkin"] }, 1, 0] } }
+                        totalWalkins: { $sum: { $cond: [{ $eq: ["$booking_type", "walkin"] }, 1, 0] } },
+                        totalOnline: { $sum: { $cond: [{ $eq: ["$booking_type", "online"] }, 1, 0] } }
                     }
                 },
                 {
@@ -223,6 +314,14 @@ class DashboardController {
                 { $unwind: "$space" },
                 {
                     $lookup: {
+                        from: "reviews",
+                        localField: "space._id",
+                        foreignField: "space_id",
+                        as: "reviews"
+                    }
+                },
+                {
+                    $lookup: {
                         from: "users",
                         localField: "space.user_id",
                         foreignField: "_id",
@@ -231,6 +330,18 @@ class DashboardController {
                 },
                 { $unwind: "$owner" },
                 {
+                    $addFields: {
+                        averageRating: {
+                            $cond: [
+                                { $gt: [{ $size: "$reviews" }, 0] },
+                                { $avg: "$reviews.rating" },
+                                0
+                            ]
+                        },
+                        reviewCount: { $size: "$reviews" }
+                    }
+                },
+                {
                     $project: {
                         spaceName: "$space.name",
                         ownerName: "$owner.name",
@@ -238,10 +349,13 @@ class DashboardController {
                         totalRevenue: 1,
                         totalBookings: 1,
                         totalWalkins: 1,
-                        capacity: "$space.capacity"
+                        totalOnline: 1,
+                        capacity: "$space.capacity",
+                        rating: "$averageRating",
+                        reviewCount: 1
                     }
                 },
-                { $sort: { totalRevenue: -1 } },
+                { $sort: { totalBookings: -1 } },
                 { $limit: parseInt(limit) }
             ]);
 

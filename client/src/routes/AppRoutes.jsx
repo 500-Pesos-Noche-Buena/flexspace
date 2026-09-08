@@ -153,7 +153,6 @@ export const AppRoutes = () => {
 
             {/* 3. AUTH ROUTES */}
             <Route path="" element={<AuthLayout />}>
-                <Route index element={<Navigate to="login" replace />} />
                 <Route path="login" element={<Login />} />
                 <Route path="/auth/google-callback" element={<GoogleCallback />} />
                 <Route path="register" element={<Register />} />

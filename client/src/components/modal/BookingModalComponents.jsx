@@ -1,3 +1,5 @@
+import { estimateBookingTotal } from '@/utils/bookingEstimate';
+import BookingBillBreakdown from '@/components/BookingBillBreakdown';
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from "@/lib/utils";
 import { CheckCircle2, DoorOpen, Banknote, QrCode, CreditCard, Loader2, BadgeCheck, AlertCircle, Clock } from 'lucide-react';
@@ -18,7 +20,7 @@ export const LiveBillingTimer = ({
     const [minutesAtThreshold, setMinutesAtThreshold] = useState(0);
     const intervalRef = useRef(null);
 
-    const hourlyRate = booking?.space_id?.rate_hour || 0;
+    const hourlyRate = booking?.rate_per_hour ?? booking?.room_id?.rate_hour ?? booking?.space_id?.rate_hour ?? 0;
     const perMinuteRate = hourlyRate / 60;
 
     const isBillCalculated = booking?.status === 'pending_payment' || isCalculated;
@@ -42,7 +44,7 @@ export const LiveBillingTimer = ({
 
     useEffect(() => {
         // If bill is calculated, use the booking's total_amount
-        if (isBillCalculated && booking?.total_amount) {
+        if (isBillCalculated && booking?.total_amount != null) {
             setCurrentAmount(booking.total_amount);
             
             // Calculate minutes from actual_duration or fallback
@@ -90,6 +92,7 @@ export const LiveBillingTimer = ({
                 isMinCharge = false;
             }
 
+            amount = estimateBookingTotal(booking);
             setCurrentAmount(parseFloat(amount.toFixed(2)));
             setIsMinimumChargeApplied(isMinCharge);
             setMinutesAtThreshold(minutes);
@@ -199,7 +202,7 @@ export const LiveBillingTimer = ({
 };
 
 // Payment Panel Component
-export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onApplyVoucher, onOpenOnlinePayment }) => {
+export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmitting, onApplyVoucher, onOpenOnlinePayment, hideBreakdown = false, allowVoucher = true }) => {
     const { themeColor } = useTheme();
     const [method, setMethod] = useState('cash');
     const [received, setReceived] = useState('');
@@ -219,7 +222,7 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
     const qrPaymentImage = booking?.space_id?.user_id?.business_payment_qr || booking?.space_id?.business_payment_qr || booking?.business_payment_qr || null;
 
     useEffect(() => {
-        if (liveTotalAmount > 0) setCurrentTotal(liveTotalAmount);
+        setCurrentTotal(liveTotalAmount || 0);
     }, [liveTotalAmount]);
 
     const numericReceived = parseFloat(received) || 0;
@@ -228,7 +231,7 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
     const hasExistingVoucher = booking?.voucher_discount > 0;
     const existingDiscount = booking?.voucher_discount || 0;
     const originalAmount = hasExistingVoucher ? (currentTotal + existingDiscount) : currentTotal;
-    const finalTotal = hasExistingVoucher ? currentTotal : Math.max(0, currentTotal - voucherDiscount);
+    const finalTotal = currentTotal;
 
     const handleApplyVoucher = async () => {
         if (!voucherCode.trim()) {
@@ -241,7 +244,7 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
             if (res.success) {
                 setVoucherDiscount(res.data.discount_amount);
                 setAppliedVoucher({ code: voucherCode.trim().toUpperCase(), discount: res.data.discount_amount });
-                setCurrentTotal(res.data.total_amount);
+                setCurrentTotal(res.data.booking?.amount_due ?? res.data.total_amount);
                 showToast({ icon: 'success', title: `Voucher applied! Save ₱${res.data.discount_amount}` });
                 if (onApplyVoucher) onApplyVoucher(res.data.booking);
             }
@@ -278,10 +281,11 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
                 </div>
             )}
             <div className="px-5 pt-5 pb-3 border-b border-border">
+                {!hideBreakdown && <BookingBillBreakdown booking={booking} showItems />}
                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Payment</p>
                 <div className="flex justify-between items-center mb-2">
-                    <span className="text-[8px] text-muted-foreground">Rate</span>
-                    <span className="text-[8px] text-foreground font-bold">₱{ratePerHour}/hour</span>
+                    <span className="text-[8px] text-muted-foreground">{hideBreakdown ? 'Payment covers all listed orders' : 'Rate'}</span>
+                    {!hideBreakdown && <span className="text-[8px] text-foreground font-bold">₱{ratePerHour}/hour</span>}
                 </div>
                 {(hasExistingVoucher || appliedVoucher) && (
                     <>
@@ -309,7 +313,7 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
                 )}
             </div>
 
-            {!hasExistingVoucher && !appliedVoucher && (
+            {allowVoucher && !hasExistingVoucher && !appliedVoucher && (
                 <div className="px-4 pt-4 pb-2 border-b border-border">
                     <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mb-2">Have a voucher?</p>
                     <div className="flex gap-2">
@@ -364,12 +368,14 @@ export const PaymentPanel = ({ booking, liveTotalAmount, onComplete, isSubmittin
                 >
                     <QrCode size={13} /> GCash / QR
                 </button>
+                {!booking?.billing_revision && (
                 <button
                     onClick={() => onOpenOnlinePayment && onOpenOnlinePayment({ amount: finalTotal, orderNumber: booking.ticket_number, bookingId: booking._id, spaceId: booking.space_id?._id })}
                     className="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 border transition-all bg-purple-600/20 border-purple-500/50 text-purple-600 dark:text-purple-400 hover:bg-purple-600 hover:text-white"
                 >
                     <CreditCard size={13} /> Online
                 </button>
+                )}
             </div>
 
             {method === 'cash' && (
@@ -478,6 +484,7 @@ export const ReceiptScreen = ({ booking, onClose, reviewQrUrl }) => {
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-5">Payment recorded successfully</p>
 
             <div className="bg-muted rounded-2xl border border-border divide-y divide-border text-left mb-5">
+                <BookingBillBreakdown booking={booking} showItems />
                 <div className="flex justify-between px-4 py-3">
                     <span className="text-[10px] text-muted-foreground font-black uppercase">Ticket</span>
                     <span className="text-[10px] text-foreground font-black italic">#{booking?.ticket_number}</span>
@@ -491,22 +498,7 @@ export const ReceiptScreen = ({ booking, onClose, reviewQrUrl }) => {
                     <span className="text-[10px] text-foreground font-black">{booking?.space_id?.name}</span>
                 </div>
 
-                {booking?.voucher_discount > 0 && (
-                    <>
-                        <div className="flex justify-between px-4 py-3">
-                            <span className="text-[10px] text-muted-foreground font-black uppercase">Subtotal</span>
-                            <span className="text-[10px] text-muted-foreground line-through">₱{(booking.total_amount + booking.voucher_discount).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between px-4 py-3">
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black uppercase">Voucher Savings</span>
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">-₱{booking.voucher_discount.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between px-4 py-3 bg-muted">
-                            <span className="text-[10px] text-muted-foreground font-black uppercase">Voucher Code</span>
-                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">{booking.voucher_applied}</span>
-                        </div>
-                    </>
-                )}
+
 
                 <div className="flex justify-between px-4 py-3 bg-muted">
                     <span className="text-[10px] font-black uppercase text-foreground">Total Paid</span>

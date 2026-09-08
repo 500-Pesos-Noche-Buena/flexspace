@@ -40,60 +40,15 @@ class DashboardController {
                 startDate.setHours(0, 0, 0, 0);
             }
 
-            // ── REVENUE FROM BOOKINGS (completed) ──────────────────────────
-            const bookingRevenueData = await Booking.aggregate([
-                {
-                    $match: {
-                        space_id: { $in: userSpaces },
-                        status: 'completed',
-                        updated_at: { $gte: startDate, $lte: now }
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        total: { $sum: "$total_amount" },
-                        count: { $sum: 1 }
-                    }
-                }
-            ]);
-
-            // ── REVENUE FROM POS ORDERS (completed) ──────────────────────────
-            const posRevenueData = await Order.aggregate([
-                {
-                    $match: {
-                        space_id: { $in: userSpaces },
-                        status: 'completed',
-                        payment_status: 'paid',
-                        updated_at: { $gte: startDate, $lte: now }
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        total: { $sum: "$total" },
-                        count: { $sum: 1 }
-                    }
-                }
-            ]);
-
-            const bookingRevenue = bookingRevenueData[0]?.total || 0;
-            const bookingCount = bookingRevenueData[0]?.count || 0;
-            const posRevenue = posRevenueData[0]?.total || 0;
-            const posCount = posRevenueData[0]?.count || 0;
-
-            // ── TOTAL REVENUE (Bookings + POS) ──────────────────────────────
-            const totalRevenue = bookingRevenue + posRevenue;
-            const totalOrders = bookingCount + posCount;
-
-            // ── PLATFORM FEE FROM SETTINGS ──────────────────────────────────
-            const Settings = require('@/api/v1/models/schema/Settings');
-            const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
-            const platformFeePercent = feeSetting?.value ?? 3;
-
-            // Calculate fees on TOTAL revenue (Bookings + POS)
-            const platformFees = totalRevenue * (platformFeePercent / 100);
-            const netRevenue = totalRevenue - platformFees;
+            // Use the same settlement ledger and period as Earnings Tracker.
+            const ledger = await require('./earningController').report(req);
+            const bookingRevenue = ledger.breakdown.bookings.revenue;
+            const posRevenue = ledger.breakdown.pos_orders.revenue;
+            const totalRevenue = ledger.totalRevenue;
+            const totalOrders = ledger.orderCount;
+            const platformFeePercent = ledger.feePercent;
+            const platformFees = ledger.totalPlatformFee;
+            const netRevenue = ledger.totalNetEarnings;
 
             // ── PENDING FEES ──────────────────────────────────────────────────
             const pendingFeesData = await Earnings.aggregate([
@@ -125,7 +80,7 @@ class DashboardController {
             const [stats, activeSessions, voucherStats] = await Promise.all([
                 Promise.all([
                     isStaff ? null : Space.countDocuments({ user_id: ownerId }),
-                    Booking.countDocuments({ space_id: { $in: userSpaces } }),
+                    Booking.countDocuments({ space_id: { $in: userSpaces }, created_at: { $gte: startDate, $lte: now } }),
                     Booking.countDocuments({
                         booking_type: 'walkin',
                         space_id: { $in: userSpaces },
@@ -134,9 +89,8 @@ class DashboardController {
                     // POS orders count for the period
                     Order.countDocuments({
                         space_id: { $in: userSpaces },
-                        status: 'completed',
-                        payment_status: 'paid',
-                        created_at: { $gte: startDate, $lte: now }
+                        status: { $nin: ['cancelled', 'rejected'] },
+                        createdAt: { $gte: startDate, $lte: now }
                     })
                 ]),
                 Booking.find({ status: 'active', space_id: { $in: userSpaces } })
@@ -218,7 +172,7 @@ class DashboardController {
                     bookings: stats[1],
                     walkins: stats[2],
                     posOrders: posOrdersCount,
-                    totalOrders: totalOrders,
+                    totalOrders: stats[1] + posOrdersCount,
                     grossRevenue: totalRevenue, // Bookings + POS
                     bookingRevenue: bookingRevenue,
                     posRevenue: posRevenue,
@@ -536,6 +490,7 @@ class DashboardController {
 
             // ── POS ORDERS TREND ─────────────────────────────────────────────
             const posTrend = await Order.aggregate([
+                    { $match: { booking_id: null, settlement_type: { $ne: 'booking' } } },
                 {
                     $match: {
                         space_id: { $in: userSpaces },

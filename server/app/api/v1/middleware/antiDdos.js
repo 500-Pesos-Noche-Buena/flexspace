@@ -44,7 +44,7 @@ setInterval(() => {
 
     serverLoad.totalRequests = 0;
     serverLoad.lastReset = now;
-}, 60000);
+}, 60000).unref();
 
 const antiDdos = {
     detectAttack: (req, res, next) => {

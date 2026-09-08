@@ -22,7 +22,7 @@ class BaseController {
         
         // If staff, find their parent (the owner)
         if (req.user?.role === 'staff') {
-            const User = require('../models/User'); // Adjust path as needed
+            const User = require('../models/schema/User'); // Adjust path as needed
             const staffRecord = await User.findById(userId).select('parent_id');
             if (staffRecord?.parent_id) {
                 return staffRecord.parent_id.toString();

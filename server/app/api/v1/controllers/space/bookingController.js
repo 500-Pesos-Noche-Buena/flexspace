@@ -3,7 +3,7 @@ const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const rewardService = require('@/api/v1/services/rewardService');
 const emailService = require('@/api/v1/services/emailService');
-
+const bookingBillingService = require('@/api/v1/services/bookingBillingService');
 class BookingController {
 
     // Helper to get the actual "Boss" ID
@@ -143,7 +143,7 @@ class BookingController {
 
             console.log(`🔍 updateStatus called - Booking ID: ${id}, Action: ${action}`);
 
-            const booking = await Booking.findById(id).populate('space_id').populate('user_id');
+            const booking = await Booking.findOne({ _id: id, ...await require('@/api/v1/services/bookingOrderService').scope(req) }).populate('space_id').populate('user_id');
 
             if (!booking || String(booking.space_id.user_id) !== String(ownerId)) {
                 throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Unauthorized access.');
@@ -159,6 +159,9 @@ class BookingController {
             };
             if (!statusMap[action]) throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Unknown action: ${action}`);
 
+            if (['active', 'pending_payment', 'completed'].includes(booking.status) || action === 'complete') {
+                throw new ApiError(400, 'Use booking checkout to close and settle this session.');
+            }
             booking.status = statusMap[action];
             if (action === 'confirm') booking.notes = '';
             await booking.save();
@@ -265,340 +268,29 @@ class BookingController {
     };
     calculateBill = async (req, res, next) => {
         try {
-            const { id } = req.params;
-            const ownerId = await this.getOwnerId(req);
-
-            let booking = await Booking.findById(id).populate('space_id').populate('user_id');
-
-            if (!booking || String(booking.space_id.user_id) !== String(ownerId)) {
-                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Unauthorized access.');
-            }
-
-            const now = new Date();
-
-            if (!booking.check_in_at) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No check-in recorded. User must scan QR code first.');
-            }
-
-            const checkInTime = new Date(booking.check_in_at);
-
-            let checkOutTime;
-            if (booking.check_out_at) {
-                checkOutTime = new Date(booking.check_out_at);
-            } else {
-                checkOutTime = now;
-            }
-
-            if (checkOutTime <= checkInTime) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Check-out time must be after check-in time.');
-            }
-
-            // Calculate exact time elapsed
-            const timeDiffMs = checkOutTime - checkInTime;
-            const rawMinutes = timeDiffMs / (1000 * 60);
-            const minutesSpent = Math.ceil(rawMinutes); // Ceiled to full minutes
-            const hoursSpent = timeDiffMs / (1000 * 60 * 60);
-            const hourlyRate = parseFloat(booking.space_id.rate_hour || 0);
-            const perMinuteRate = hourlyRate / 60;
-
-            // Breakdown hours and remaining excess minutes
-            const fullHours = Math.floor(minutesSpent / 60);
-            const remMinutes = minutesSpent % 60;
-
-            let totalAmount = 0;
-            let chargeType = '';
-            let hoursToCharge = 0;
-
-            if (fullHours === 0) {
-                // Under 1 Hour
-                if (minutesSpent <= 30) {
-                    // 1 to 30 mins: Pro-rated per minute
-                    totalAmount = minutesSpent * perMinuteRate;
-                    chargeType = 'pro_rated_under_30m';
-                    hoursToCharge = minutesSpent / 60;
-                } else {
-                    // 31 to 60 mins: Pay full 1 hour rate
-                    totalAmount = hourlyRate;
-                    chargeType = 'full_hour_31m_plus';
-                    hoursToCharge = 1;
-                }
-            } else {
-                // Over 1 Hour
-                if (remMinutes === 0) {
-                    totalAmount = fullHours * hourlyRate;
-                    hoursToCharge = fullHours;
-                    chargeType = 'exact_full_hours';
-                } else if (remMinutes <= 30) {
-                    // Excess minutes <= 30: Full hours + pro-rated excess
-                    totalAmount = (fullHours * hourlyRate) + (remMinutes * perMinuteRate);
-                    hoursToCharge = fullHours + (remMinutes / 60);
-                    chargeType = 'full_hours_plus_pro_rated';
-                } else {
-                    // Excess minutes > 30 (31-59 mins): Round up excess to another full hour
-                    totalAmount = (fullHours + 1) * hourlyRate;
-                    hoursToCharge = fullHours + 1;
-                    chargeType = 'full_hours_rounded_up';
-                }
-            }
-
-            // Round final calculation to 2 decimal places
-            totalAmount = parseFloat(totalAmount.toFixed(2));
-
-            console.log(`=== BILL CALCULATION DEBUG ===`);
-            console.log(`Check-in: ${checkInTime.toISOString()}`);
-            console.log(`Check-out: ${checkOutTime.toISOString()}`);
-            console.log(`Minutes spent: ${minutesSpent}m (Raw: ${rawMinutes.toFixed(2)}m)`);
-            console.log(`Hourly rate: ₱${hourlyRate}`);
-            console.log(`Charge type: ${chargeType}`);
-            console.log(`Calculated Total: ₱${totalAmount}`);
-            console.log(`=================================`);
-
-            // Apply voucher discount if applicable
-            const hasVoucher = booking.voucher_applied && booking.voucher_discount > 0;
-            let discount = 0;
-            let finalAmount = totalAmount;
-
-            if (hasVoucher) {
-                discount = booking.voucher_discount;
-                finalAmount = Math.max(0, totalAmount - discount);
-                console.log(`Voucher discount: -₱${discount}, Final: ₱${finalAmount}`);
-            }
-
-            // Update booking database entry
-            const updateData = {
-                total_amount: finalAmount,
-                total_hours: hoursToCharge,
-                status: 'pending_payment',
-                payment_status: 'unpaid',
-                check_out_at: checkOutTime
-            };
-
-            const updated = await Booking.findByIdAndUpdate(
-                id,
-                { $set: updateData },
-                { new: true }
-            ).populate('space_id').populate('user_id');
-
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: {
-                    booking: updated,
-                    sub_total: totalAmount,
-                    discount: discount,
-                    total_amount: finalAmount,
-                    has_voucher: hasVoucher,
-                    voucher_code: booking.voucher_applied,
-                    actual_duration: {
-                        hours: Math.floor(timeDiffMs / 3600000),
-                        minutes: Math.floor((timeDiffMs % 3600000) / 60000),
-                        seconds: Math.floor((timeDiffMs % 60000) / 1000),
-                        total_hours: hoursSpent,
-                        total_minutes: rawMinutes
-                    },
-                    billing_duration: {
-                        minutes: minutesSpent,
-                        hours: hoursToCharge,
-                        charge_type: chargeType,
-                        hours_charged: hoursToCharge
-                    },
-                    rate: {
-                        hourly: hourlyRate,
-                        per_minute: perMinuteRate
-                    },
-                    rule_applied: chargeType
-                }
-            });
-        } catch (error) {
-            console.error('Calculate bill error:', error);
-            next(error);
-        }
+            const data = await require('@/api/v1/services/bookingOrderService').freeze(req);
+            return res.status(HTTP_STATUS.OK).json({ success: true, data });
+        } catch (error) { next(error); }
     };
 
     checkout = async (req, res, next) => {
         try {
-            const { id } = req.params;
-            const ownerId = await this.getOwnerId(req);
-            const { payment_method, amount_received } = req.body;
-
-            const booking = await Booking.findById(id).populate('space_id').populate('user_id');
-
-            if (!booking || String(booking.space_id.user_id) !== String(ownerId)) {
-                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Unauthorized access.');
-            }
-
-            if (booking.status !== 'pending_payment') {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Booking is not awaiting payment.');
-            }
-
-            const totalDue = booking.total_amount;
-            const received = parseFloat(amount_received) || 0;
-            const change = payment_method === 'cash' ? Math.max(0, received - totalDue) : 0;
-
-            const originalAmount = totalDue + (booking.voucher_discount || 0);
-            const discountApplied = booking.voucher_discount || 0;
-
-            let referenceNumber = null;
-            if (payment_method !== 'cash') {
-                referenceNumber = `REF-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-            }
-
-            const paymentDoc = await Payment.create({
-                booking_id: booking._id,
-                method: payment_method,
-                amount_total: totalDue,
-                amount_original: originalAmount,
-                discount_applied: discountApplied,
-                amount_received: payment_method === 'cash' ? received : totalDue,
-                change,
-                reference_number: referenceNumber,
-                status: 'completed',
-                processed_by: ownerId,
-            });
-
-            // ✅ FIX: Use .save() instead of findByIdAndUpdate
-            booking.status = 'completed';
-            booking.payment_status = 'paid';
-            booking.payment_id = paymentDoc._id;
-
-            // ✅ THIS triggers the pre('save') hook and creates Earnings!
-            await booking.save();
-
-            // Populate after save
-            await booking.populate('space_id');
-            await booking.populate('user_id');
-
-            // 🔥 FALLBACK: Create earnings directly if hook fails
-            try {
-                const Settings = require('@/api/v1/models/schema/Settings');
-                const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
-                const platformFeePercent = feeSetting?.value ?? 3;
-
-                const existingEarnings = await Earnings.findOne({ booking_id: booking._id });
-                if (!existingEarnings) {
-                    const platformFee = (totalDue * platformFeePercent) / 100;
-                    const ownerEarnings = totalDue - platformFee;
-                    const month = new Date().toISOString().slice(0, 7);
-                    const prefix = booking.booking_type === 'online' ? 'ONL' : 'WLK';
-                    const orderNumber = `${prefix}-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-
-                    await Earnings.create({
-                        owner_id: booking.space_id.user_id,
-                        space_id: booking.space_id._id,
-                        order_number: orderNumber,
-                        booking_id: booking._id,
-                        total_amount: totalDue,
-                        platform_fee_percent: platformFeePercent,
-                        platform_fee: parseFloat(platformFee.toFixed(4)),
-                        owner_earnings: parseFloat(ownerEarnings.toFixed(4)),
-                        payment_method: booking.booking_type === 'online' ? 'online' : payment_method,
-                        payment_intent_id: booking.payment_intent_id || paymentDoc._id.toString(),
-                        auto_collected: booking.booking_type === 'online' || payment_method !== 'cash',
-                        fee_status: 'pending',
-                        collected_at: null,
-                        booking_date: booking.start_time || booking.created_at,
-                        month: month,
-                        notes: `Platform fee pending collection from space owner (fallback)`
-                    });
-                    console.log(`✅ Earnings created (fallback) for booking ${booking.ticket_number}: ₱${totalDue}`);
-                }
-            } catch (earningsError) {
-                console.error('❌ Failed to create earnings (fallback):', earningsError);
-            }
-
-            // Points and email...
-            if (booking.user_id && totalDue > 0) {
-                await rewardService.awardPoints(booking.user_id, totalDue);
-                // ... email code ...
-            }
-
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                message: 'Payment completed. Points earned!',
-                data: { booking: booking }
-            });
-        } catch (error) {
-            console.error('Checkout error:', error);
-            next(error);
-        }
+            const booking = await require('@/api/v1/services/bookingOrderService').settle(req);
+            const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+            return res.status(HTTP_STATUS.OK).json({ success: true, message: 'Payment completed!', data: {
+                booking,
+                review_qr_url: booking.qr_code_token ? `${backendUrl}/api/v1/space/qr/${booking.qr_code_token}` : null
+            } });
+        } catch (error) { next(error); }
     };
 
 
     // FIXED: applyVoucher - uses the already calculated total_amount from the booking
     applyVoucher = async (req, res, next) => {
         try {
-            const { id } = req.params;
-            const { voucherCode } = req.body;
-            const ownerId = await this.getOwnerId(req);
-
-            const booking = await Booking.findById(id).populate('space_id').populate('user_id');
-
-            if (!booking || String(booking.space_id.user_id) !== String(ownerId)) {
-                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Unauthorized access.');
-            }
-
-            // Only allow voucher application if booking is in pending_payment status
-            if (booking.status !== 'pending_payment') {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Vouchers can only be applied to pending payments');
-            }
-
-            // Don't allow if voucher already applied
-            if (booking.voucher_applied) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'A voucher has already been applied to this booking');
-            }
-
-            // USE THE ALREADY CALCULATED total_amount from the booking
-            // This is the amount calculated by calculateBill
-            const totalAmount = booking.total_amount;
-
-            if (!totalAmount || totalAmount <= 0) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid total amount. Please calculate bill first.');
-            }
-
-            console.log(`Current total_amount from booking: ₱${totalAmount}`);
-
-            // Validate the voucher (includes min_spend check)
-            const validationResult = await rewardService.validateVoucher(voucherCode, booking.user_id?._id || booking.user_id);
-
-            // Check minimum spend requirement
-            if (validationResult.min_spend && totalAmount < validationResult.min_spend) {
-                throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Minimum spend of ₱${validationResult.min_spend} required to use this voucher. Current total: ₱${totalAmount.toFixed(2)}`);
-            }
-
-            // Consume the voucher
-            const voucherResult = await rewardService.validateAndUseVoucher(voucherCode, booking.user_id?._id || booking.user_id);
-
-            const discount = voucherResult.discount_amount;
-            const finalAmount = Math.max(0, totalAmount - discount);
-
-            console.log(`Voucher applied: ${voucherCode}, discount: ₱${discount}, final: ₱${finalAmount}`);
-
-            // Update booking with discounted amount
-            const updatedBooking = await Booking.findByIdAndUpdate(
-                id,
-                {
-                    $set: {
-                        total_amount: finalAmount,
-                        voucher_applied: voucherCode,
-                        voucher_discount: discount
-                    }
-                },
-                { new: true }
-            ).populate('space_id').populate('user_id');
-
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                message: 'Voucher applied successfully',
-                data: {
-                    booking: updatedBooking,
-                    discount_amount: discount,
-                    total_amount: finalAmount,
-                    original_amount: totalAmount
-                }
-            });
-        } catch (error) {
-            console.error('Apply voucher error:', error);
-            next(error);
-        }
+            const data = await require('@/api/v1/services/bookingOrderService').applyVoucher(req);
+            return res.json({ success: true, data });
+        } catch (error) { next(error); }
     };
 
     // Add this method to check if user has reviewed a booking

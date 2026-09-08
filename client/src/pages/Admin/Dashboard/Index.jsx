@@ -5,7 +5,12 @@ import { apiGet } from '@/utils/Api';
 import {
     Users, MapPin, Clock, Banknote, ArrowUpRight, Loader2, RefreshCw,
     Building2, TrendingUp, TrendingDown, Activity, Award, Crown,
-    AlertTriangle, BarChart3, Calendar
+    AlertTriangle, BarChart3, Calendar, Star, StarHalf,
+    ShoppingBag, Ticket, Gift, Coins, Zap, Target, Globe,
+    MessageSquare, CheckCircle, XCircle, Clock as ClockIcon,
+    TrendingUp as TrendingUpIcon, DollarSign, PieChart,
+    Layers, Sparkles, Shield, Zap as ZapIcon, Eye,
+    Calendar as CalendarIcon, UserCheck, UserX, UserPlus
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,11 +20,21 @@ import { useTheme } from '@/hooks/useTheme';
 
 let globalDashboardPollingInstance = null;
 
-const StatCard = ({ title, value, icon, trend }) => {
+const StatCard = ({ title, value, icon, trend, subValue, color = 'primary' }) => {
     const { themeColor } = useTheme();
-    const color = themeColor;
+    const theme = themeColor;
 
-    // If value already has ₱, keep it as string, otherwise format number
+    const colorMap = {
+        primary: `text-${theme}-600 dark:text-${theme}-400 bg-${theme}-500/10 border-${theme}-500/20`,
+        blue: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
+        emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+        purple: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
+        amber: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
+        rose: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20',
+        indigo: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+        cyan: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+    };
+
     const displayValue = typeof value === 'string' && value.includes('₱')
         ? value
         : formatNumber(value);
@@ -27,15 +42,88 @@ const StatCard = ({ title, value, icon, trend }) => {
     return (
         <div className="bg-card p-5 rounded-4xl border border-border group hover:border-primary/30 transition-all duration-500 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-                <div className={`p-2.5 bg-muted rounded-xl group-hover:bg-${color}-500/10 transition-all duration-500 border border-border`}>{icon}</div>
+                <div className={cn("p-2.5 rounded-xl border transition-all duration-500", colorMap[color] || colorMap.primary)}>
+                    {icon}
+                </div>
+                {trend && (
+                    <span className="text-[7px] font-black text-muted-foreground uppercase tracking-wider bg-muted px-2 py-1 rounded-lg">
+                        {trend}
+                    </span>
+                )}
             </div>
             <h4 className="text-xl font-black text-foreground mb-0.5 truncate italic tracking-tighter">{displayValue}</h4>
-            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3">{title}</p>
-            <div className="text-[8px] font-black text-primary flex items-center gap-1.5 uppercase tracking-tighter">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                {trend}
-            </div>
+            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{title}</p>
+            {subValue && (
+                <p className="text-[8px] text-muted-foreground/70 mt-1">{subValue}</p>
+            )}
         </div>
+    );
+};
+
+// Star Rating Component
+const StarRating = ({ rating }) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    return (
+        <div className="flex items-center gap-0.5">
+            {[...Array(fullStars)].map((_, i) => (
+                <Star key={`full-${i}`} size={12} className="fill-amber-500 text-amber-500" />
+            ))}
+            {hasHalfStar && <StarHalf size={12} className="fill-amber-500 text-amber-500" />}
+            {[...Array(emptyStars)].map((_, i) => (
+                <Star key={`empty-${i}`} size={12} className="text-muted-foreground/30" />
+            ))}
+            <span className="text-[8px] text-muted-foreground ml-1">({rating.toFixed(1)})</span>
+        </div>
+    );
+};
+
+// Mini Progress Bar
+const MiniProgress = ({ value, max, label, color = 'emerald' }) => {
+    const percentage = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+    const colorMap = {
+        emerald: 'bg-emerald-500',
+        amber: 'bg-amber-500',
+        rose: 'bg-rose-500',
+        blue: 'bg-blue-500',
+        purple: 'bg-purple-500',
+    };
+
+    return (
+        <div className="flex items-center gap-2">
+            <span className="text-[8px] text-muted-foreground w-12 truncate">{label}</span>
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className={cn("h-full rounded-full", colorMap[color] || 'bg-primary')} style={{ width: `${percentage}%` }} />
+            </div>
+            <span className="text-[7px] font-black text-muted-foreground w-8 text-right">{value}</span>
+        </div>
+    );
+};
+
+// Quick Action Button
+const QuickAction = ({ icon: Icon, label, onClick, color = 'primary' }) => {
+    const colorMap = {
+        primary: 'bg-primary/10 text-primary hover:bg-primary hover:text-white',
+        emerald: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white',
+        purple: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500 hover:text-white',
+        blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white',
+        amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white',
+        rose: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white',
+    };
+
+    return (
+        <button
+            onClick={onClick}
+            className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all active:scale-95",
+                colorMap[color] || colorMap.primary
+            )}
+        >
+            <Icon size={14} />
+            {label}
+        </button>
     );
 };
 
@@ -50,7 +138,23 @@ const AdminDashboard = () => {
         activeSpaces: 0,
         pendingRequests: 0,
         monthlyRevenue: "0",
-        recentRequests: []
+        recentRequests: [],
+        // New stats
+        totalBookings: 0,
+        activeBookings: 0,
+        completedBookings: 0,
+        totalOrders: 0,
+        totalVouchers: 0,
+        vouchersUsed: 0,
+        platformFeesCollected: 0,
+        pendingFees: 0,
+        newUsersThisMonth: 0,
+        userGrowth: 0,
+        revenueGrowth: 0,
+        bookingGrowth: 0,
+        totalReviews: 0,
+        avgRating: 0,
+        totalEarnings: 0
     });
 
     // Advanced analytics states
@@ -108,7 +212,7 @@ const AdminDashboard = () => {
             const [occupancyRes, revenueRes, topSpacesRes, userGrowthRes] = await Promise.all([
                 apiGet('/admin/dashboard/occupancy'),
                 apiGet(`/admin/dashboard/revenue-trend?period=${trendPeriod}`),
-                apiGet('/admin/dashboard/top-spaces?limit=5'),
+                apiGet('/admin/dashboard/top-spaces?limit=5&sort=bookings'),
                 apiGet('/admin/dashboard/user-growth')
             ]);
 
@@ -132,7 +236,7 @@ const AdminDashboard = () => {
             if (document.visibilityState === 'visible') {
                 fetchDashboardData(false);
             }
-        }, 10000);
+        }, 15000);
 
         return () => {
             if (globalDashboardPollingInstance) {
@@ -152,7 +256,7 @@ const AdminDashboard = () => {
                     </div>
                 </div>
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground italic">
-                    Initializing System Core...
+                    Loading Platform Intelligence...
                 </p>
             </div>
         );
@@ -160,37 +264,145 @@ const AdminDashboard = () => {
 
     const color = getColorClass();
 
+    // Quick actions
+    const quickActions = [
+        { icon: Users, label: 'Manage Users', path: '/admin/users', color: 'blue' },
+        { icon: Building2, label: 'Spaces', path: '/admin/space/management', color: 'emerald' },
+        { icon: Ticket, label: 'Vouchers', path: '/admin/vouchers', color: 'purple' },
+        { icon: DollarSign, label: 'Earnings', path: '/admin/earnings', color: 'amber' },
+        { icon: BarChart3, label: 'Analytics', path: '/admin/insights', color: 'indigo' },
+        { icon: Activity, label: 'Queue', path: '/admin/queues', color: 'cyan' },
+    ];
+
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
             <div className="mb-6 md:mb-8 flex flex-row justify-between items-center gap-4">
                 <div>
-                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase italic">System Overview</h1>
-                    <p className="text-[10px] md:text-xs text-muted-foreground font-medium uppercase tracking-widest">Network health monitoring & analytics</p>
+                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase italic">Platform Command Center</h1>
+                    <p className="text-[10px] md:text-xs text-muted-foreground font-medium uppercase tracking-widest">Real-time platform intelligence & monitoring</p>
                 </div>
-                <button onClick={() => { fetchDashboardData(true); fetchAnalytics(); }} className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group">
-                    <RefreshCw className="w-4 h-4 text-primary group-hover:rotate-180 transition-transform duration-500" />
-                </button>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-[8px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Live
+                    </div>
+                    <button onClick={() => { fetchDashboardData(true); fetchAnalytics(); }} className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group">
+                        <RefreshCw className="w-4 h-4 text-primary group-hover:rotate-180 transition-transform duration-500" />
+                    </button>
+                </div>
             </div>
 
-            {/* Primary Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-8">
-                <StatCard title="Users" value={stats.totalUsers} icon={<Users size={16} className="text-blue-600 dark:text-blue-400" />} trend="Active" />
-                <StatCard title="Space Owners" value={stats.totalSpaceHubs} icon={<Building2 size={16} className="text-purple-600 dark:text-purple-400" />} trend="Registered" />
-                <StatCard title="Active Spaces" value={stats.activeSpaces} icon={<MapPin size={16} className="text-emerald-600 dark:text-emerald-400" />} trend="Live Now" />
-                <StatCard title="Pending" value={stats.pendingRequests} icon={<Clock size={16} className="text-amber-600 dark:text-amber-400" />} trend="Applications" />
-                <StatCard
-                    title="Platform Revenue (Monthly)"
-                    value={`₱${formatNumber(stats.monthlyRevenue)}`}
-                    icon={<Banknote size={16} className="text-rose-600 dark:text-rose-400" />}
-                    trend="Platform Fees"
+            {/* Primary Stats Grid - Expanded */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-8">
+                <StatCard 
+                    title="Total Users" 
+                    value={stats.totalUsers} 
+                    icon={<Users size={16} />} 
+                    trend="Active" 
+                    color="blue"
+                    subValue={`+${stats.newUsersThisMonth || 0} this month`}
                 />
+                <StatCard 
+                    title="Space Owners" 
+                    value={stats.totalSpaceHubs} 
+                    icon={<Building2 size={16} />} 
+                    trend="Registered" 
+                    color="purple"
+                />
+                <StatCard 
+                    title="Active Spaces" 
+                    value={stats.activeSpaces} 
+                    icon={<MapPin size={16} />} 
+                    trend="Live Now" 
+                    color="emerald"
+                />
+                <StatCard 
+                    title="Pending" 
+                    value={stats.pendingRequests} 
+                    icon={<Clock size={16} />} 
+                    trend="Applications" 
+                    color="amber"
+                />
+                <StatCard 
+                    title="Total Bookings" 
+                    value={stats.totalBookings || 0} 
+                    icon={<CalendarIcon size={16} />} 
+                    trend="All Time" 
+                    color="indigo"
+                />
+                <StatCard 
+                    title="Platform Revenue" 
+                    value={`₱${formatNumber(stats.monthlyRevenue)}`} 
+                    icon={<Banknote size={16} />} 
+                    trend="This Month" 
+                    color="rose"
+                />
+            </div>
 
-                {stats.grossVolume && (
-                    <div className="text-center text-[8px] text-muted-foreground mt-1">
-                        Gross Volume: ₱{formatNumber(stats.grossVolume)}
-                    </div>
-                )}
+            {/* Secondary Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-8">
+                <StatCard 
+                    title="Active Bookings" 
+                    value={stats.activeBookings || 0} 
+                    icon={<Zap size={14} />} 
+                    trend="Now" 
+                    color="emerald"
+                />
+                <StatCard 
+                    title="Completed" 
+                    value={stats.completedBookings || 0} 
+                    icon={<CheckCircle size={14} />} 
+                    trend="All Time" 
+                    color="blue"
+                />
+                <StatCard 
+                    title="POS Orders" 
+                    value={stats.totalOrders || 0} 
+                    icon={<ShoppingBag size={14} />} 
+                    trend="Sales" 
+                    color="purple"
+                />
+                <StatCard 
+                    title="Vouchers" 
+                    value={stats.totalVouchers || 0} 
+                    icon={<Ticket size={14} />} 
+                    trend="Created" 
+                    color="amber"
+                />
+                <StatCard 
+                    title="Reviews" 
+                    value={stats.totalReviews || 0} 
+                    icon={<MessageSquare size={14} />} 
+                    trend={`⭐ ${(stats.avgRating || 0).toFixed(1)}`} 
+                    color="cyan"
+                />
+                <StatCard 
+                    title="Platform Fees" 
+                    value={`₱${formatNumber(stats.platformFeesCollected || 0)}`} 
+                    icon={<Coins size={14} />} 
+                    trend="Collected" 
+                    color="rose"
+                />
+            </div>
+
+            {/* Quick Actions */}
+            <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                    <ZapIcon size={14} className="text-primary" />
+                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Quick Actions</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {quickActions.map((action, idx) => (
+                        <QuickAction
+                            key={idx}
+                            icon={action.icon}
+                            label={action.label}
+                            color={action.color}
+                            onClick={() => navigate(action.path)}
+                        />
+                    ))}
+                </div>
             </div>
 
             {/* Platform Analytics Section */}
@@ -211,7 +423,7 @@ const AdminDashboard = () => {
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-2">
                                     <Activity size={16} className="text-emerald-600 dark:text-emerald-400" />
-                                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Platform Occupancy</h3>
+                                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Live Occupancy</h3>
                                 </div>
                                 <span className={cn(
                                     "text-[8px] font-black px-2 py-1 rounded-full",
@@ -230,9 +442,27 @@ const AdminDashboard = () => {
                                 {platformOccupancy.platform.activeBookings} active of {platformOccupancy.platform.totalCapacity} total seats
                             </p>
 
+                            {/* Thriving Spaces */}
+                            {platformOccupancy.thrivingSpaces?.length > 0 && (
+                                <div className="mt-3 p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Sparkles size={12} className="text-emerald-600 dark:text-emerald-400" />
+                                        <p className="text-[8px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Thriving Spaces</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {platformOccupancy.thrivingSpaces.slice(0, 3).map((space, idx) => (
+                                            <div key={idx} className="flex justify-between text-[9px]">
+                                                <span className="text-muted-foreground">{space.name}</span>
+                                                <span className="text-emerald-600 dark:text-emerald-400">{space.occupancyRate}% occupied</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Struggling Spaces Alert */}
                             {platformOccupancy.strugglingSpaces?.length > 0 && (
-                                <div className="mt-4 p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
+                                <div className="mt-3 p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
                                     <div className="flex items-center gap-2 mb-2">
                                         <AlertTriangle size={12} className="text-rose-600 dark:text-rose-400" />
                                         <p className="text-[8px] text-rose-600 dark:text-rose-400 uppercase tracking-wider">Needs Attention</p>
@@ -258,7 +488,7 @@ const AdminDashboard = () => {
                                     <TrendingUp size={16} className="text-primary" />
                                     <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Revenue Trend</h3>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-1">
                                     {['daily', 'weekly', 'monthly'].map(p => (
                                         <button key={p} onClick={() => setTrendPeriod(p)} className={cn(
                                             "text-[8px] px-2 py-1 rounded-lg uppercase font-black transition-all",
@@ -301,32 +531,34 @@ const AdminDashboard = () => {
                     </Card>
                 </div>
 
-                {/* Row 2: Top Spaces + User Growth */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Row 2: Top Spaces + User Growth + Activity Stats */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Top Performing Spaces */}
                     <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500">
                         <CardContent className="p-6">
                             <div className="flex items-center gap-2 mb-4">
                                 <Crown size={16} className="text-amber-600 dark:text-amber-400" />
-                                <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">🏆 Top Performing Spaces</h3>
+                                <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">🏆 Most Visited</h3>
                             </div>
                             <div className="space-y-3">
-                                {topSpaces.map((space, idx) => (
-                                    <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded-xl">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 w-5">#{idx + 1}</span>
-                                            <div>
-                                                <p className="text-[11px] font-black text-foreground">{space.spaceName}</p>
-                                                <p className="text-[7px] text-muted-foreground">{space.ownerName}</p>
+                                {topSpaces.length > 0 ? (
+                                    topSpaces.map((space, idx) => (
+                                        <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded-xl">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 w-5">#{idx + 1}</span>
+                                                <div>
+                                                    <p className="text-[11px] font-black text-foreground">{space.spaceName}</p>
+                                                    <p className="text-[7px] text-muted-foreground">{space.ownerName}</p>
+                                                    <StarRating rating={space.rating || 0} />
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{formatNumber(space.totalBookings)} visits</p>
+                                                <p className="text-[7px] text-muted-foreground">{formatNumber(space.totalWalkins || 0)} walk-ins</p>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">₱{formatNumber(space.totalRevenue)}</p>
-                                            <p className="text-[7px] text-muted-foreground">{formatNumber(space.totalBookings)} bookings</p>
-                                        </div>
-                                    </div>
-                                ))}
-                                {topSpaces.length === 0 && (
+                                    ))
+                                ) : (
                                     <p className="text-center text-[9px] text-muted-foreground py-4">No booking data yet</p>
                                 )}
                             </div>
@@ -366,13 +598,53 @@ const AdminDashboard = () => {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Platform Status Card */}
+                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500">
+                        <CardContent className="p-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Shield size={16} className="text-primary" />
+                                <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Platform Health</h3>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground">Total Spaces</span>
+                                    <span className="text-[10px] font-black text-foreground">{stats.activeSpaces || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground">Total Bookings</span>
+                                    <span className="text-[10px] font-black text-foreground">{stats.totalBookings || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground">Total Reviews</span>
+                                    <span className="text-[10px] font-black text-foreground">{stats.totalReviews || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground">Average Rating</span>
+                                    <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">⭐ {(stats.avgRating || 0).toFixed(1)}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground">Pending Requests</span>
+                                    <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">{stats.pendingRequests || 0}</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
 
             {/* Recent Applications Section */}
             <div className="mt-6 bg-card rounded-[2.5rem] border border-border overflow-hidden shadow-2xl">
                 <div className="px-6 py-5 border-b border-border flex justify-between items-center">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground italic">Incoming Applications</h3>
+                    <div className="flex items-center gap-3">
+                        <ClockIcon size={14} className="text-muted-foreground" />
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground italic">Incoming Applications</h3>
+                        {stats.pendingRequests > 0 && (
+                            <span className="text-[8px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-black">
+                                {stats.pendingRequests} pending
+                            </span>
+                        )}
+                    </div>
                     <button onClick={() => navigate('/admin/space/applications')} className="text-[10px] font-black text-primary hover:text-primary/80 uppercase tracking-widest transition-all flex items-center gap-1">
                         Review All <ArrowUpRight className="w-3 h-3" />
                     </button>

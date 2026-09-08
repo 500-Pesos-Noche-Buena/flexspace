@@ -1,3 +1,6 @@
+import RoomGuestCount from '@/components/RoomGuestCount';
+import { roomHourlyRate, roomRateLabel, roomPackagePrice, roomPackageLabel, roomPackageCredit, roomPackageDeduction } from '@/utils/roomPricing';
+import RoomPackageChoice from '@/components/RoomPackageChoice';
 import React from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { 
@@ -111,7 +114,8 @@ export const UserBookingModal = ({
                                                 <Users size={10} className="text-slate-400" />
                                                 <span className="text-[10px] text-slate-500">Up to {room.capacity}</span>
                                             </div>
-                                            <p className="text-xs font-bold text-indigo-600 mt-1">₱{room.rate_hour}/hr</p>
+                                            <p className="text-xs font-bold text-indigo-600 mt-1">{roomRateLabel(room)}</p>
+                                                    {room.has_consumable_promo && <span className="block text-xs text-emerald-600">{room.promo_name}: {room.promo_duration_hours} hours · {roomPackageLabel(room)} including room; food credit is after the room deduction</span>}
                                         </button>
                                     );
                                 })}
@@ -119,6 +123,9 @@ export const UserBookingModal = ({
                         </div>
                     )}
 
+                    {selectedBookableType === 'room' && <RoomPackageChoice room={selectedRoom} value={bookingData.promo_audience} guestCount={bookingData.guest_count || 1} onChange={value => setBookingData({ ...bookingData, promo_audience: value })} />}
+                    {selectedBookableType === 'room' && <RoomGuestCount room={selectedRoom} value={bookingData.guest_count || 1} onChange={value => setBookingData({ ...bookingData, guest_count: value })} />}
+                    {selectedBookableType === 'room' && selectedRoom?.has_consumable_promo && roomPackagePrice(selectedRoom, bookingData.promo_audience) != null && <p className="text-sm">Package ₱{Number(roomPackagePrice(selectedRoom, bookingData.promo_audience)).toFixed(2)} − included room ₱{Number(roomPackageDeduction(selectedRoom, bookingData.promo_audience, bookingData.guest_count || 1)).toFixed(2)} = food credit ₱{Number(roomPackageCredit(selectedRoom, bookingData.promo_audience, bookingData.guest_count || 1)).toFixed(2)}</p>}
                     {/* Selected item info */}
                     <div className={`rounded-2xl p-4 ${isClosedOnSelectedDate
                         ? 'bg-red-50 border border-red-200'
@@ -134,7 +141,7 @@ export const UserBookingModal = ({
                                 : getBookableName(selectedBookableType, selectedRoom, space)}
                         </h3>
                         <div className="flex items-center gap-3 mt-1">
-                            <p className="text-[10px] text-slate-500">₱{getRatePerHour(selectedBookableType, selectedRoom, space)}/hour</p>
+                            <p className="text-[10px] text-slate-500">₱{selectedBookableType === "room" ? roomHourlyRate(selectedRoom, bookingData.guest_count || 1) : getRatePerHour(selectedBookableType, selectedRoom, space)}/hour</p>
                             <div className="flex items-center gap-1">
                                 <Users size={10} className="text-slate-400" />
                                 <p className="text-[10px] text-slate-500">Capacity: {getBookableCapacity(selectedBookableType, selectedRoom, space)}</p>

@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-      "client": "npm run dev --prefix client -- --host",
-      "start": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue,bgMagenta\" \"nodemon server/server.js\" \"npm run client\"",
-      "server": "nodemon server/server.js",
-      "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue,bgMagenta\" \"nodemon server/server.js\" \"npm run client\""
+    "client": "npm run dev --prefix client -- --host",
+    "start": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue,bgMagenta\" \"nodemon server/server.js\" \"npm run client\"",
+    "server": "nodemon server/server.js",
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue,bgMagenta\" \"nodemon server/server.js\" \"npm run client\"",
+    "test": "node test.js",
+    "test:server": "npm --prefix server test",
+    "test:client": "npm --prefix client test",
+    "test:strict": "node test.js --require-full-coverage"
   },
   "keywords": [],
   "author": "Josiah",

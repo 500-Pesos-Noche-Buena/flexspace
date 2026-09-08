@@ -189,12 +189,14 @@ class RoomController {
             const updates = { ...req.body };
             delete updates._id;
             delete updates.created_at;
+            delete updates.space_id;
 
             if (updates.amenities && typeof updates.amenities === 'string') {
                 updates.amenities = JSON.parse(updates.amenities);
             }
 
-            const updatedRoom = await Room.findByIdAndUpdate(roomId, updates, { new: true });
+            room.set(updates);
+            const updatedRoom = await room.save();
 
             // ✅ Update space room count
             await this.updateSpaceRoomCount(room.space_id._id);

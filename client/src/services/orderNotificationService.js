@@ -22,7 +22,14 @@ class OrderNotificationService {
     setupAudioContext() {
         // Create AudioContext but keep it suspended
         if (typeof window !== 'undefined' && !this.audioContext) {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            try {
+                this.audioContext = new AudioContext();
+            } catch (error) {
+                console.warn('Web Audio unavailable:', error);
+                return;
+            }
             
             // Add event listeners for user interaction
             const resumeAudio = () => {
@@ -120,12 +127,14 @@ class OrderNotificationService {
         const message = `New order from ${order.customer_name}. Total ₱${order.total}.`;
         this.speakMessage(message);
         
-        if (typeof window !== 'undefined' && Notification.permission === 'granted') {
+        if (typeof window !== 'undefined' && window.Notification?.permission === 'granted') {
+            try {
             new Notification('🛒 New Order!', {
                 body: `${order.customer_name} placed an order worth ₱${order.total}`,
                 icon: '/favicon.ico',
                 tag: `order-${order.order_number}`
             });
+            } catch (error) { console.warn('Desktop notifications unavailable:', error); }
         }
     }
 
@@ -141,12 +150,14 @@ class OrderNotificationService {
         const message = `Hello ${order.customer_name}, your order is ready for pickup! Please come to the counter.`;
         this.speakMessage(message);
         
-        if (typeof window !== 'undefined' && Notification.permission === 'granted') {
+        if (typeof window !== 'undefined' && window.Notification?.permission === 'granted') {
+            try {
             new Notification('📦 Order Ready for Pickup!', {
                 body: `Your order #${order.order_number} is ready. Please come to the counter.`,
                 icon: '/favicon.ico',
                 tag: `order-${order.order_number}-ready`
             });
+            } catch (error) { console.warn('Desktop notifications unavailable:', error); }
         }
     }
 

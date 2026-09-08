@@ -1,3 +1,4 @@
+import { roomHourlyRate, roomPackagePrice } from '@/utils/roomPricing';
 // pages/SpaceDetails.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -348,7 +349,7 @@ const SpaceDetails = () => {
 
     const getRatePerHour = () => {
         if (selectedBookableType === 'room' && selectedRoom) {
-            return selectedRoom.rate_hour;
+            return roomHourlyRate(selectedRoom, bookingData.guest_count || 1) ?? 0;
         }
         return space?.rate_hour || 0;
     };
@@ -379,6 +380,13 @@ const SpaceDetails = () => {
 
     const calculateEstimatedPrice = () => {
         const rateHour = getRatePerHour();
+        const packagePrice = selectedBookableType === 'room' ? roomPackagePrice(selectedRoom, bookingData.promo_audience) : null;
+        if (packagePrice != null) {
+            const start = new Date(`2000-01-01T${bookingData.start_time || '00:00'}`);
+            const end = new Date(`2000-01-01T${bookingData.end_time || '00:00'}`);
+            const minutes = isOpenTime ? 0 : Math.max(0, Math.ceil((end - start) / 60000) - selectedRoom.promo_duration_hours * 60);
+            return Number(packagePrice) + (Math.floor(minutes / 60) + (minutes % 60 > 30 ? 1 : minutes % 60 / 60)) * rateHour;
+        }
 
         if (isOpenTime) {
             return rateHour;
@@ -408,6 +416,11 @@ const SpaceDetails = () => {
 
     const isBookingDisabled = () => {
         if (isBooking) return true;
+        if (selectedBookableType === 'room' && selectedRoom) {
+            const count = Number(bookingData.guest_count || 1);
+            if (!Number.isSafeInteger(count) || count < 1 || count > selectedRoom.capacity || roomHourlyRate(selectedRoom, count) == null) return true;
+            if (selectedRoom.consumable_packages?.length && roomPackagePrice(selectedRoom, bookingData.promo_audience) == null) return true;
+        }
 
         // Check if space is closed on selected date
         if (isSpaceClosedOnSelectedDate()) return true;
@@ -461,6 +474,8 @@ const SpaceDetails = () => {
         try {
             const payload = {
                 bookable_type: selectedBookableType,
+                promo_audience: bookingData.promo_audience,
+                guest_count: Number(bookingData.guest_count || 1),
                 space_id: space._id,
                 room_id: selectedBookableType === 'room' ? selectedRoom._id : null,
                 date: bookingData.date,

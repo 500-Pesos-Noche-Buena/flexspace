@@ -95,6 +95,7 @@ getMyBookings = async (req, res, next) => {
                 date, start_time, end_time, is_open_time, notes
             } = req.body;
 
+            if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(date) || !Number.isFinite(Date.parse(date))) throw new ApiError(400, 'A valid booking date is required.');
             // Parse dates
             const dateStr = date.split('T')[0];
             const selectedDate = new Date(dateStr);
@@ -135,11 +136,13 @@ getMyBookings = async (req, res, next) => {
 
             // Get rate
             let rate_per_hour = 0;
+            let promo = { consumable_allowance: 0, promo_snapshot: null };
 
             if (bookable_type === 'room' && room_id) {
-                const room = await Room.findById(room_id);
+                const room = await Room.findOne({ _id: room_id, space_id, is_available: true });
                 if (!room) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Room not found');
-                rate_per_hour = room.rate_hour;
+                rate_per_hour = require('@/api/v1/services/roomPricingService').selectRate(room, req.body.guest_count ?? 1).rate_per_hour;
+                promo = require('@/api/v1/services/roomPromoService').snapshot(room, true, req.body.promo_audience, req.body.guest_count ?? 1);
             } else if (space_id) {
                 const space = await Space.findById(space_id);
                 if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
@@ -195,6 +198,8 @@ getMyBookings = async (req, res, next) => {
 
             // Create booking
             const bookingData = {
+                ...promo,
+                guest_count: bookable_type === 'room' ? Number(req.body.guest_count ?? 1) : 1,
                 booking_type: 'online',
                 bookable_type,
                 user_id: userId,
@@ -302,6 +307,7 @@ getMyBookings = async (req, res, next) => {
                 totalAmount = parseFloat((seconds * ratePerSecond).toFixed(2));
             }
 
+            if (typeof voucherCode !== 'string' || !voucherCode.trim()) throw new ApiError(400, 'Voucher code is required.');
             const voucherResult = await rewardService.validateVoucher(voucherCode, userId);
 
             if (voucherResult.min_spend && totalAmount < voucherResult.min_spend) {
@@ -398,6 +404,7 @@ getMyBookings = async (req, res, next) => {
             const userId = this.getUserId(req);
             const { voucherCode } = req.body;
 
+            if (typeof voucherCode !== 'string' || !voucherCode.trim()) throw new ApiError(400, 'Voucher code is required.');
             const voucherResult = await rewardService.validateVoucher(voucherCode, userId);
 
             return res.status(HTTP_STATUS.OK).json({

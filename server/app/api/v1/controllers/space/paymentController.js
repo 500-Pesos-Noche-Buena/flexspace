@@ -63,6 +63,8 @@ class PaymentController {
             const Booking = require('@/api/v1/models/schema/Booking');
             const existingOrder = await Order.findOne({ order_number });
             const existingBooking = existingOrder ? null : await Booking.findOne({ ticket_number: order_number });
+            if (existingOrder?.booking_id || existingOrder?.settlement_type === 'booking') throw new ApiError(400, 'Settle consumables through the booking.');
+            if (existingBooking?.billing_revision > 0) throw new ApiError(400, 'Use cash or verified QR in booking checkout to settle the combined bill.');
             const recordType = existingOrder ? 'order' : 'booking';
 
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -347,7 +349,7 @@ class PaymentController {
                     if (metadata.type === 'order') {
                         const Order = require('@/api/v1/models/schema/Order');
                         const order = await Order.findOne({ order_number: orderNumber });
-                        if (order && order.status === 'pending_payment') {
+                        if (order && !order.booking_id && order.settlement_type !== 'booking' && order.status === 'pending_payment') {
                             order.status = 'confirmed';
                             order.payment_status = 'paid';
                             order.payment_intent_id = paymentIntentId;
@@ -356,7 +358,7 @@ class PaymentController {
                     } else {
                         const Booking = require('@/api/v1/models/schema/Booking');
                         const booking = await Booking.findOne({ ticket_number: orderNumber });
-                        if (booking && booking.status === 'pending_payment') {
+                        if (booking && !booking.billing_revision && booking.status === 'pending_payment') {
                             booking.status = 'confirmed';
                             booking.payment_status = 'paid';
                             await booking.save();

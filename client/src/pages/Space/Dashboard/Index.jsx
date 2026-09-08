@@ -268,14 +268,14 @@ const SpaceDashboard = () => {
                             <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg uppercase tracking-tighter">Live</span>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Total Revenue ({period})</p>
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1">Amount collected ({period})</p>
                             <p className="text-2xl font-black text-foreground tracking-tighter">
                                 ₱{stats.grossRevenue?.toLocaleString()}
                             </p>
                             {/* Breakdown */}
                             <div className="mt-2 flex gap-3 text-[9px]">
-                                <span className="text-muted-foreground">Booking: <span className="font-bold text-emerald-600">₱{stats.bookingRevenue?.toLocaleString()}</span></span>
-                                <span className="text-muted-foreground">POS: <span className="font-bold text-blue-600">₱{stats.posRevenue?.toLocaleString()}</span></span>
+                                <span className="text-muted-foreground">Booking + consumables: <span className="font-bold text-emerald-600">₱{stats.bookingRevenue?.toLocaleString()}</span></span>
+                                <span className="text-muted-foreground">Standalone POS: <span className="font-bold text-blue-600">₱{stats.posRevenue?.toLocaleString()}</span></span>
                             </div>
                             <div className="mt-3 pt-3 border-t border-border">
                                 <div className="flex justify-between items-center text-[10px]">
@@ -311,7 +311,7 @@ const SpaceDashboard = () => {
                             <p className="text-3xl font-black text-foreground tracking-tighter">{stats.totalOrders}</p>
                             <div className="flex gap-3 text-[9px] mt-1">
                                 <span className="text-muted-foreground">Bookings: <span className="font-bold">{stats.bookings}</span></span>
-                                <span className="text-muted-foreground">POS: <span className="font-bold">{stats.posOrders}</span></span>
+                                <span className="text-muted-foreground">POS / consumables: <span className="font-bold">{stats.posOrders}</span></span>
                             </div>
                         </div>
                     </CardContent>

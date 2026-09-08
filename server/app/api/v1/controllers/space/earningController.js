@@ -1,404 +1,112 @@
-const { Booking, Space, User, Settings, Order, Earnings } = require('@/api/v1/models');
+const { Space, Settings, Order, Earnings } = require('@/api/v1/models');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
+const ApiError = require('@/api/v1/utils/ApiError');
+const money = value => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 
 class EarningsController {
-
-    getOwnerId = async (req) => {
-        const userId = req.user?.sub || req.user?._id || req.user?.id;
-        if (req.user?.role === 'staff') {
-            const staffRecord = await User.findById(userId).select('parent_id');
-            if (staffRecord?.parent_id) return staffRecord.parent_id.toString();
-        }
-        return userId?.toString();
-    };
-
-    getAccessibleSpaceIds = async (req) => {
-        const userId = req.user?.sub || req.user?._id || req.user?.id;
-        const user = req.user;
-
-        if (user?.role === 'staff') {
-            const staffUser = await User.findById(userId).select('space_id parent_id');
-            if (staffUser?.space_id) return [staffUser.space_id];
-            if (staffUser?.parent_id) {
-                const userSpaces = await Space.find({ user_id: staffUser.parent_id }).select('_id');
-                return userSpaces.map(s => s._id);
+    // The screen and CSV use the same ledger and filters. Booking-linked orders
+    // are detail lines in the booking settlement, never another revenue entry.
+    report = async req => {
+        const scope = req.user?.role === 'admin'
+            ? { space_id: { $in: (await Space.find({}).select('_id')).map(s => s._id) } }
+            : await require('@/api/v1/services/bookingOrderService').scope(req);
+        const { period = 'daily', dateFrom, dateTo, search = '' } = req.query;
+        let start = new Date();
+        let end = new Date();
+        if (dateFrom || dateTo) {
+            if (!dateFrom || !dateTo || !/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+                throw new ApiError(400, 'Choose a valid start and end date.');
             }
-            return [];
+            start = new Date(`${dateFrom}T00:00:00`);
+            end = new Date(`${dateTo}T23:59:59.999`);
+        } else {
+            if (period === 'weekly') start.setDate(start.getDate() - 7);
+            else if (period === 'monthly') start.setMonth(start.getMonth() - 1);
+            else if (period === 'yearly') start.setFullYear(start.getFullYear() - 1);
+            else if (period !== 'daily') throw new ApiError(400, 'Invalid reporting period.');
+            start.setHours(0, 0, 0, 0);
+            end.setHours(23, 59, 59, 999);
         }
-
-        const userSpaces = await Space.find({ user_id: userId }).select('_id');
-        return userSpaces.map(s => s._id);
-    };
-
-    getFeePercent = async () => {
-        try {
-            const feeSetting = await Settings.findOne({ key: 'platform_fee_percent' });
-            return feeSetting?.value || 3; // Default to 3% if not found
-        } catch (error) {
-            console.error('Failed to fetch platform fee:', error);
-            return 3; // Default fallback
-        }
+        if (!Number.isFinite(+start) || !Number.isFinite(+end) || start > end) throw new ApiError(400, 'Invalid date range.');
+        const setting = await Settings.findOne({ key: 'platform_fee_percent' }).lean();
+        const feePercent = Number(setting?.value ?? 3);
+        const earnings = await Earnings.find({ ...scope, booking_date: { $gte: start, $lte: end } })
+            .populate('space_id', 'name')
+            .populate({ path: 'booking_id', populate: [{ path: 'user_id', select: 'name' }, { path: 'room_id', select: 'name' }] })
+            .sort({ booking_date: -1, _id: -1 }).lean();
+        const orders = earnings.length ? await Order.find({ ...scope, $or: [
+            { booking_id: { $in: earnings.filter(e => e.booking_id).map(e => e.booking_id._id) } },
+            { order_number: { $in: earnings.filter(e => !e.booking_id).map(e => e.order_number) } }
+        ] }).populate('user_id', 'name').lean() : [];
+        const needle = String(search).trim().toLowerCase();
+        const transactions = earnings.flatMap(e => {
+            const booking = e.booking_id;
+            const order = !booking && orders.find(o => o.order_number === e.order_number);
+            if (!booking && (order?.booking_id || order?.settlement_type === 'booking' || (order && (order.payment_status !== 'paid' || ['cancelled', 'rejected'].includes(order.status))))) return [];
+            const linked = booking ? (booking.billing_orders?.length ? booking.billing_orders : orders.filter(o => String(o.booking_id) === String(booking._id))) : [];
+            const included = linked.filter(o => !['cancelled', 'rejected'].includes(o.status));
+            const consumableTotal = money(included.reduce((sum, o) => sum + Number(o.total || 0), 0));
+            const covered = Math.min(consumableTotal, Number(booking?.consumable_allowance || 0));
+            const discount = Number(booking?.voucher_discount || order?.discount_amount || 0);
+            const transaction = {
+                id: e._id, reference: booking?.ticket_number || e.order_number,
+                guest: booking?.guest_name || booking?.user_id?.name || order?.customer_name || order?.user_id?.name || 'Guest',
+                space: e.space_id?.name || 'N/A', room: booking?.room_id?.name || '',
+                amount: money(e.total_amount), originalAmount: money(e.total_amount + discount), discount,
+                platformFee: money(e.platform_fee), netEarnings: money(e.owner_earnings),
+                type: booking ? (included.length ? 'Booking + consumables' : 'Booking') : 'POS',
+                source: booking ? 'booking' : 'pos', date: e.booking_date || e.createdAt,
+                hasVoucher: Boolean(booking?.voucher_applied), linked_orders: included,
+                roomCharge: Number(booking?.room_charge || 0),
+                roomPortion: booking?.promo_snapshot?.room_portion ?? null,
+                consumableTotal, consumableCovered: money(covered), consumableExcess: money(consumableTotal - covered)
+            };
+            const searchable = [transaction.reference, e.order_number, transaction.guest, transaction.space, transaction.room,
+                ...included.map(o => o.order_number), ...included.flatMap(o => (o.items || []).map(i => i.name))].join(' ').toLowerCase();
+            return !needle || searchable.includes(needle) ? [transaction] : [];
+        });
+        const sum = (rows, key) => money(rows.reduce((total, row) => total + Number(row[key] || 0), 0));
+        const bookings = transactions.filter(t => t.source === 'booking');
+        const pos = transactions.filter(t => t.source === 'pos');
+        return {
+            totalRevenue: sum(transactions, 'amount'), totalNetEarnings: sum(transactions, 'netEarnings'),
+            totalPlatformFee: sum(transactions, 'platformFee'), feePercent,
+            transactionCount: transactions.length, total: transactions.length,
+            orderCount: transactions.length + bookings.reduce((sum, b) => sum + b.linked_orders.length, 0),
+            totalDiscountGiven: sum(transactions, 'discount'), totalVoucherDiscount: sum(bookings, 'discount'),
+            bookingsWithVouchers: bookings.filter(t => t.hasVoucher).length,
+            breakdown: {
+                bookings: { revenue: sum(bookings, 'amount'), netEarnings: sum(bookings, 'netEarnings'),
+                    platformFee: sum(bookings, 'platformFee'), count: bookings.length, discount: sum(bookings, 'discount') },
+                pos_orders: { revenue: sum(pos, 'amount'), count: pos.length, discount: sum(pos, 'discount') },
+                consumables: { count: bookings.reduce((sum, b) => sum + b.linked_orders.length, 0),
+                    total: sum(bookings, 'consumableTotal'), covered: sum(bookings, 'consumableCovered'), excess: sum(bookings, 'consumableExcess') }
+            }, transactions
+        };
     };
 
     index = async (req, res, next) => {
         try {
-            const ownerId = await this.getOwnerId(req);
-            const isAdmin = req.user?.role === 'admin';
-
-            const {
-                period = 'daily',
-                dateFrom = null,
-                dateTo = null,
-                page = 1,
-                limit = 10,
-                search = ''
-            } = req.query;
-
-            // ── Get date range ─────────────────────────────────────────────
-            let startDate, endDate;
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-            if (dateFrom && dateTo) {
-                const fromParts = dateFrom.split('-');
-                const toParts = dateTo.split('-');
-                startDate = new Date(parseInt(fromParts[0]), parseInt(fromParts[1]) - 1, parseInt(fromParts[2]));
-                startDate.setHours(0, 0, 0, 0);
-                endDate = new Date(parseInt(toParts[0]), parseInt(toParts[1]) - 1, parseInt(toParts[2]));
-                endDate.setHours(23, 59, 59, 999);
-            } else {
-                if (period === 'daily') {
-                    startDate = new Date(today);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate = new Date(today);
-                    endDate.setHours(23, 59, 59, 999);
-                } else if (period === 'weekly') {
-                    startDate = new Date(today);
-                    startDate.setDate(startDate.getDate() - 7);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate = new Date(today);
-                    endDate.setHours(23, 59, 59, 999);
-                } else if (period === 'monthly') {
-                    startDate = new Date(today);
-                    startDate.setMonth(startDate.getMonth() - 1);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate = new Date(today);
-                    endDate.setHours(23, 59, 59, 999);
-                } else if (period === 'yearly') {
-                    startDate = new Date(today);
-                    startDate.setFullYear(startDate.getFullYear() - 1);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate = new Date(today);
-                    endDate.setHours(23, 59, 59, 999);
-                }
-            }
-
-            console.log(`📅 Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-
-            // ── Space scope ───────────────────────────────────────────────
-            let spaceIds = [];
-            if (isAdmin) {
-                const all = await Space.find({}).select('_id');
-                spaceIds = all.map(s => s._id);
-            } else {
-                const own = await Space.find({ user_id: ownerId }).select('_id');
-                spaceIds = own.map(s => s._id);
-            }
-
-            // ── Get platform fee from Settings ────────────────────────────
-            const feePercent = await this.getFeePercent();
-            console.log(`📊 Platform fee: ${feePercent}%`);
-
-            // ── Get ALL Earnings (Bookings + POS) ──────────────────────────
-            let bookingEarningsQuery = {
-                space_id: { $in: spaceIds },
-                booking_id: { $ne: null },
-                booking_date: { $gte: startDate, $lte: endDate }
-            };
-
-            let posEarningsQuery = {
-                space_id: { $in: spaceIds },
-                booking_id: null,
-                booking_date: { $gte: startDate, $lte: endDate }
-            };
-
-            if (search) {
-                bookingEarningsQuery.$or = [
-                    { order_number: { $regex: search, $options: 'i' } }
-                ];
-                posEarningsQuery.$or = [
-                    { order_number: { $regex: search, $options: 'i' } }
-                ];
-            }
-
-            // ── Aggregated stats ──────────────────────────────────────────
-            const [bookingEarningsAgg, bookingEarningsCount, posEarningsAgg, posEarningsCount] = await Promise.all([
-                Earnings.aggregate([
-                    { $match: bookingEarningsQuery },
-                    { $group: { _id: null, totalRevenue: { $sum: '$total_amount' }, count: { $sum: 1 }, totalDiscount: { $sum: 0 } } }
-                ]),
-                Earnings.countDocuments(bookingEarningsQuery),
-                Earnings.aggregate([
-                    { $match: posEarningsQuery },
-                    { $group: { _id: null, totalRevenue: { $sum: '$total_amount' }, count: { $sum: 1 }, totalDiscount: { $sum: 0 } } }
-                ]),
-                Earnings.countDocuments(posEarningsQuery)
-            ]);
-
-            console.log(`📊 Booking Earnings Count: ${bookingEarningsCount}`);
-            console.log(`📊 POS Earnings Count: ${posEarningsCount}`);
-
-            // ── Combine totals ──────────────────────────────────────────
-            const bookingRevenue = bookingEarningsAgg[0]?.totalRevenue || 0;
-            const posRevenue = posEarningsAgg[0]?.totalRevenue || 0;
-            const totalRevenue = bookingRevenue + posRevenue;
-
-            const bookingCountTotal = bookingEarningsCount || 0;
-            const posCountTotal = posEarningsCount || 0;
-            const totalTransactions = bookingCountTotal + posCountTotal;
-
-            // Calculate fees using the fetched percentage
-            const totalPlatformFee = totalRevenue * (feePercent / 100);
-            const totalNetEarnings = totalRevenue - totalPlatformFee;
-
-            const bookingPlatformFee = bookingRevenue * (feePercent / 100);
-            const bookingNetEarnings = bookingRevenue - bookingPlatformFee;
-
-            // ── Fetch combined transactions ──────────────────────────────
-            const bookingEarnings = await Earnings.find(bookingEarningsQuery)
-                .populate('space_id', 'name')
-                .sort({ booking_date: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit);
-
-            const posEarnings = await Earnings.find(posEarningsQuery)
-                .populate('space_id', 'name')
-                .sort({ booking_date: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit);
-
-            console.log(`📊 Found ${bookingEarnings.length} booking earnings and ${posEarnings.length} POS earnings`);
-
-            // Combine and sort transactions by date
-            let combinedTransactions = [
-                ...bookingEarnings.map(e => ({
-                    id: e._id,
-                    reference: e.order_number || e._id.toString().slice(-8),
-                    guest: 'Booking Customer',
-                    space: e.space_id?.name || 'N/A',
-                    amount: e.total_amount || 0,
-                    originalAmount: e.total_amount || 0,
-                    discount: 0,
-                    type: 'Booking',
-                    date: e.booking_date || e.created_at,
-                    hasVoucher: false,
-                    source: 'booking'
-                })),
-                ...posEarnings.map(e => ({
-                    id: e._id,
-                    reference: e.order_number || e._id.toString().slice(-8),
-                    guest: 'POS Customer',
-                    space: e.space_id?.name || 'N/A',
-                    amount: e.total_amount || 0,
-                    originalAmount: e.total_amount || 0,
-                    discount: 0,
-                    type: 'POS',
-                    date: e.booking_date || e.created_at,
-                    hasVoucher: false,
-                    source: 'pos'
-                }))
-            ];
-
-            // Sort by date descending
-            combinedTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            // Paginate
-            const total = combinedTransactions.length;
-            const paginatedTransactions = combinedTransactions.slice(
-                (page - 1) * limit,
-                page * limit
-            );
-
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: {
-                    // Overall totals
-                    totalRevenue,
-                    totalNetEarnings,
-                    totalPlatformFee,
-                    feePercent,
-                    transactionCount: totalTransactions,
-                    totalDiscountGiven: 0,
-                    totalVoucherDiscount: 0,
-                    bookingsWithVouchers: 0,
-                    total,
-                    // Booking breakdown
-                    breakdown: {
-                        bookings: {
-                            revenue: bookingRevenue,
-                            netEarnings: bookingNetEarnings,
-                            platformFee: bookingPlatformFee,
-                            count: bookingCountTotal,
-                            discount: 0
-                        },
-                        pos_orders: {
-                            revenue: posRevenue,
-                            count: posCountTotal,
-                            discount: 0
-                        }
-                    },
-                    transactions: paginatedTransactions
-                }
-            });
-        } catch (error) {
-            console.error('Earnings error:', error);
-            next(error);
-        }
+            const data = await this.report(req);
+            const page = Math.max(1, parseInt(req.query.page) || 1);
+            const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 10));
+            if (req.query.export_all !== 'true') data.transactions = data.transactions.slice((page - 1) * limit, page * limit);
+            return res.status(HTTP_STATUS.OK).json({ success: true, data });
+        } catch (error) { next(error); }
     };
 
-    // ============================================
-    // EXPORT TO CSV
-    // ============================================
     exportCSV = async (req, res, next) => {
         try {
-            const ownerId = await this.getOwnerId(req);
-            const isAdmin = req.user?.role === 'admin';
-
-            const {
-                period = 'daily',
-                dateFrom = null,
-                dateTo = null,
-                search = ''
-            } = req.query;
-
-            let startDate, endDate;
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-            if (dateFrom && dateTo) {
-                const fromParts = dateFrom.split('-');
-                const toParts = dateTo.split('-');
-                startDate = new Date(parseInt(fromParts[0]), parseInt(fromParts[1]) - 1, parseInt(fromParts[2]));
-                startDate.setHours(0, 0, 0, 0);
-                endDate = new Date(parseInt(toParts[0]), parseInt(toParts[1]) - 1, parseInt(toParts[2]));
-                endDate.setHours(23, 59, 59, 999);
-            } else {
-                if (period === 'daily') {
-                    startDate = new Date(today);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate = new Date(today);
-                    endDate.setHours(23, 59, 59, 999);
-                } else if (period === 'weekly') {
-                    startDate = new Date(today);
-                    startDate.setDate(startDate.getDate() - 7);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate = new Date(today);
-                    endDate.setHours(23, 59, 59, 999);
-                } else if (period === 'monthly') {
-                    startDate = new Date(today);
-                    startDate.setMonth(startDate.getMonth() - 1);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate = new Date(today);
-                    endDate.setHours(23, 59, 59, 999);
-                } else if (period === 'yearly') {
-                    startDate = new Date(today);
-                    startDate.setFullYear(startDate.getFullYear() - 1);
-                    startDate.setHours(0, 0, 0, 0);
-                    endDate = new Date(today);
-                    endDate.setHours(23, 59, 59, 999);
-                }
-            }
-
-            let spaceIds = [];
-            if (isAdmin) {
-                const all = await Space.find({}).select('_id');
-                spaceIds = all.map(s => s._id);
-            } else {
-                const own = await Space.find({ user_id: ownerId }).select('_id');
-                spaceIds = own.map(s => s._id);
-            }
-
-            const bookingQuery = {
-                space_id: { $in: spaceIds },
-                status: 'completed',
-                created_at: { $gte: startDate, $lte: endDate }
-            };
-
-            const posOrderQuery = {
-                space_id: { $in: spaceIds },
-                order_type: 'pos',
-                status: 'completed',
-                payment_status: 'paid',
-                created_at: { $gte: startDate, $lte: endDate }
-            };
-
-            const onlineOrderQuery = {
-                space_id: { $in: spaceIds },
-                order_type: 'online',
-                status: { $in: ['completed', 'confirmed', 'ready'] },
-                payment_status: 'paid',
-                created_at: { $gte: startDate, $lte: endDate }
-            };
-
-            if (search) {
-                bookingQuery.$or = [
-                    { ticket_number: { $regex: search, $options: 'i' } },
-                    { guest_name: { $regex: search, $options: 'i' } }
-                ];
-                posOrderQuery.$or = [
-                    { order_number: { $regex: search, $options: 'i' } },
-                    { customer_name: { $regex: search, $options: 'i' } }
-                ];
-                onlineOrderQuery.$or = [
-                    { order_number: { $regex: search, $options: 'i' } },
-                    { customer_name: { $regex: search, $options: 'i' } }
-                ];
-            }
-
-            const bookings = await Booking.find(bookingQuery)
-                .populate('space_id', 'name')
-                .sort({ created_at: -1 });
-
-            const posOrders = await Order.find(posOrderQuery)
-                .populate('space_id', 'name')
-                .sort({ created_at: -1 });
-
-            const onlineOrders = await Order.find(onlineOrderQuery)
-                .populate('space_id', 'name')
-                .sort({ created_at: -1 });
-
-            let csv = 'Reference,Guest,Space,Original Amount,Discount,Net Amount,Type,Source,Date\n';
-
-            for (const t of bookings) {
-                const originalAmount = (t.total_amount || 0) + (t.voucher_discount || 0);
-                const spaceName = t.space_id?.name || 'N/A';
-                const guestName = t.guest_name || 'Guest';
-                csv += `"${t.ticket_number || 'N/A'}","${guestName}","${spaceName}","${originalAmount}","${t.voucher_discount || 0}","${t.total_amount || 0}","${t.booking_type || 'booking'}","booking","${new Date(t.created_at).toLocaleString()}"\n`;
-            }
-
-            for (const t of posOrders) {
-                const originalAmount = (t.total || 0) + (t.discount_amount || 0);
-                const spaceName = t.space_id?.name || 'N/A';
-                const guestName = t.customer_name || 'Guest';
-                csv += `"${t.order_number || 'N/A'}","${guestName}","${spaceName}","${originalAmount}","${t.discount_amount || 0}","${t.total || 0}","POS","pos","${new Date(t.created_at).toLocaleString()}"\n`;
-            }
-
-            for (const t of onlineOrders) {
-                const originalAmount = (t.total || 0) + (t.discount_amount || 0);
-                const spaceName = t.space_id?.name || 'N/A';
-                const guestName = t.customer_name || 'Guest';
-                csv += `"${t.order_number || 'N/A'}","${guestName}","${spaceName}","${originalAmount}","${t.discount_amount || 0}","${t.total || 0}","Online","online","${new Date(t.created_at).toLocaleString()}"\n`;
-            }
-
+            const data = await this.report(req);
+            const cell = value => `"${String(value ?? '').replace(/^[=+@-]/, "'$&").replace(/"/g, '""')}"`;
+            const rows = [['Reference', 'Guest', 'Space', 'Room', 'Original Amount', 'Discount', 'Net Amount', 'Type', 'Date', 'Consumables', 'Covered', 'Excess', 'Linked Orders'],
+                ...data.transactions.map(t => [t.reference, t.guest, t.space, t.room, t.originalAmount, t.discount, t.amount,
+                    t.type, new Date(t.date).toISOString(), t.consumableTotal, t.consumableCovered, t.consumableExcess,
+                    t.linked_orders.map(o => o.order_number).join('; ')])];
             res.setHeader('Content-Type', 'text/csv; charset=utf-8');
             res.setHeader('Content-Disposition', `attachment; filename=earnings_${Date.now()}.csv`);
-            return res.status(HTTP_STATUS.OK).send(csv);
-
-        } catch (error) {
-            console.error('Export CSV error:', error);
-            next(error);
-        }
+            return res.status(HTTP_STATUS.OK).send(rows.map(row => row.map(cell).join(',')).join('\r\n'));
+        } catch (error) { next(error); }
     };
 }
-
 module.exports = new EarningsController();

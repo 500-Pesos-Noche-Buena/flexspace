@@ -1,4 +1,4 @@
-const { Order, Product, Space, User, Payment, Earnings } = require('@/api/v1/models');
+const { Order, Product, Space, User, Payment, Earnings, Booking } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 
@@ -168,12 +168,34 @@ class POSController {
         }
     };
 
+    getActiveSessions = async (req, res, next) => {
+        try {
+            const data = await require('@/api/v1/services/bookingOrderService').activeSessions(req);
+            return res.json({ success: true, data });
+        } catch (error) { next(error); }
+    };
+
     // ============ ORDERS ============
     createOrder = async (req, res, next) => {
         try {
+            if (req.body.booking_id) {
+                const order = await require('@/api/v1/services/bookingOrderService').addOrder(req);
+                return res.status(HTTP_STATUS.CREATED).json({ success: true, data: order });
+            }
+            if (req.body.payment_method === 'booking') throw new ApiError(400, 'Select an active booking.');
             const userId = req.user?.sub || req.user?._id || req.user?.id;
             const userRole = req.user?.role;
-            const { space_id, items, payment_method, amount_received, total, subtotal, customer_name, order_type } = req.body;
+            const {
+                space_id,
+                booking_id,
+                items,
+                payment_method,
+                amount_received,
+                total,
+                subtotal,
+                customer_name,
+                order_type
+            } = req.body;
 
             let targetSpaceId = space_id;
 
@@ -219,26 +241,113 @@ class POSController {
                 isPayLater = true;
             }
 
+
+            let linkedBooking = null;
+
+            if (booking_id) {
+
+                linkedBooking =
+                    await Booking.findOne({
+                        _id: booking_id,
+                        space_id: targetSpaceId,
+
+                        status: {
+                            $in: [
+                                'active',
+                                'confirmed'
+                            ]
+                        }
+                    });
+
+
+                if (!linkedBooking) {
+                    throw new ApiError(
+                        HTTP_STATUS.BAD_REQUEST,
+                        'Active booking/session not found.'
+                    );
+                }
+            }
+
+            if (linkedBooking) {
+
+                initialStatus =
+                    'confirmed';
+
+                paymentStatus =
+                    'unpaid';
+
+                isPayLater =
+                    false;
+            }
+
             const orderData = {
-                order_number: orderNumber,
-                space_id: targetSpaceId,
-                processed_by: userId,
-                items: items,
-                subtotal: subtotal,
-                tax: req.body.tax || 0,
-                discount_type: req.body.discount_type || null,
-                discount_value: req.body.discount_value || 0,
-                discount_amount: req.body.discount_amount || 0,
-                total: total,
-                payment_method: payment_method,
-                is_pay_later: isPayLater, // ✅ FIX: Set is_pay_later flag
-                pay_later_status: isPayLater ? 'pending' : 'pending',
-                amount_received: amount_received || 0,
-                change: change,
-                customer_name: customer_name || 'Walk-in Customer',
-                order_type: order_type || 'pos',
-                status: initialStatus,
-                payment_status: paymentStatus
+
+                order_number:
+                    orderNumber,
+
+                space_id:
+                    targetSpaceId,
+
+
+                // ✅ NEW
+                booking_id:
+                    linkedBooking?._id || null,
+
+                settlement_type:
+                    linkedBooking
+                        ? 'booking'
+                        : 'standalone',
+
+
+                processed_by:
+                    userId,
+
+                items,
+
+                subtotal,
+
+                tax:
+                    req.body.tax || 0,
+
+                discount_type:
+                    req.body.discount_type || null,
+
+                discount_value:
+                    req.body.discount_value || 0,
+
+                discount_amount:
+                    req.body.discount_amount || 0,
+
+                total,
+
+                payment_method:
+                    payment_method,
+
+                is_pay_later:
+                    isPayLater,
+
+                amount_received:
+                    linkedBooking
+                        ? 0
+                        : (amount_received || 0),
+
+                change:
+                    linkedBooking
+                        ? 0
+                        : change,
+
+                customer_name:
+                    customer_name ||
+                    'Walk-in Customer',
+
+                order_type:
+                    order_type || 'pos',
+
+                status:
+                    initialStatus,
+
+                payment_status:
+                    paymentStatus
             };
 
             const order = await Order.create(orderData);
@@ -308,7 +417,7 @@ class POSController {
                 }
             }
 
-            const orders = await Order.find(query).sort({ created_at: -1 });
+            const orders = await Order.find(query).populate('user_id', 'name').populate({ path: 'booking_id', select: 'ticket_number guest_name room_id', populate: { path: 'room_id', select: 'name' } }).sort({ created_at: -1 });
             return res.status(HTTP_STATUS.OK).json({ success: true, data: orders });
         } catch (error) {
             next(error);
@@ -345,7 +454,7 @@ class POSController {
                 }
             }
 
-            const orders = await Order.find(query).sort({ created_at: -1 }).limit(10);
+            const orders = await Order.find(query).populate('user_id', 'name').populate({ path: 'booking_id', select: 'ticket_number guest_name room_id', populate: { path: 'room_id', select: 'name' } }).sort({ created_at: -1 }).limit(10);
             return res.status(HTTP_STATUS.OK).json({ success: true, data: orders });
         } catch (error) {
             next(error);
@@ -373,6 +482,8 @@ class POSController {
             }
 
             const amount = parseFloat(amount_received) || order.total;
+            if (order.booking_id || order.settlement_type === 'booking') throw new ApiError(400, 'Settle this order through its booking.');
+
             const remaining = order.total - (order.pay_later_total_accumulated || 0);
 
             if (amount > remaining) {
@@ -517,6 +628,10 @@ class POSController {
                 }
             }
 
+            if (order.booking_id || order.settlement_type === 'booking') {
+                const updated = await require('@/api/v1/services/bookingOrderService').updateOrder(order._id, status);
+                return res.json({ success: true, data: updated });
+            }
             // Skip earnings creation for Pay Later orders - handled by settlePayLater
             const isPayLater = order.is_pay_later || order.payment_method === 'pay_later';
 
@@ -622,6 +737,8 @@ class POSController {
             if (!order) {
                 throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Order not found');
             }
+
+            if (order.booking_id || order.settlement_type === 'booking') throw new ApiError(400, 'Settle this order through its booking.');
 
             console.log(`🔧 Fixing order ${order.order_number}`);
 
@@ -741,18 +858,22 @@ class POSController {
 
             const [daily, weekly, monthly, total] = await Promise.all([
                 Order.aggregate([
+                    { $match: { booking_id: null, settlement_type: { $ne: 'booking' } } },
                     { $match: { ...matchQuery, created_at: { $gte: today } } },
                     { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
                 ]),
                 Order.aggregate([
+                    { $match: { booking_id: null, settlement_type: { $ne: 'booking' } } },
                     { $match: { ...matchQuery, created_at: { $gte: weekAgo } } },
                     { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
                 ]),
                 Order.aggregate([
+                    { $match: { booking_id: null, settlement_type: { $ne: 'booking' } } },
                     { $match: { ...matchQuery, created_at: { $gte: monthAgo } } },
                     { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
                 ]),
                 Order.aggregate([
+                    { $match: { booking_id: null, settlement_type: { $ne: 'booking' } } },
                     { $match: matchQuery },
                     { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
                 ])
@@ -781,6 +902,8 @@ class POSController {
             if (!order) {
                 throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Order not found');
             }
+
+            if (order.booking_id || order.settlement_type === 'booking') throw new ApiError(400, 'Settle this order through its booking.');
 
             order.status = 'confirmed';
             order.payment_status = 'paid';

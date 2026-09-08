@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiGet } from '@/utils/Api';
 import { useAuth } from '@/context/AuthContext';
 import orderNotificationService from '@/services/orderNotificationService';
@@ -6,26 +6,12 @@ import { Bell, Volume2, VolumeX } from 'lucide-react';
 
 const OrderNotificationListener = () => {
     const { user, isAuthenticated } = useAuth();
-    const [lastUserOrders, setLastUserOrders] = useState([]);
-    const [notifiedReadyOrders, setNotifiedReadyOrders] = useState(new Set());
-    const [notifiedSpaceOrders, setNotifiedSpaceOrders] = useState(new Set());
     const [audioEnabled, setAudioEnabled] = useState(true);
     const [voiceEnabled, setVoiceEnabled] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
-    const pollingIntervalRef = useRef(null);
 
     const isSpaceUser = isAuthenticated && (user?.role === 'space' || user?.role === 'staff');
     const isRegularUser = isAuthenticated && user?.role === 'user';
-
-    // Debug logging
-    // useEffect(() => {
-    //     console.log('🔍 [OrderNotificationListener] Component mounted/updated');
-    //     console.log('🔍 isAuthenticated:', isAuthenticated);
-    //     console.log('🔍 user:', user);
-    //     console.log('🔍 user?.role:', user?.role);
-    //     console.log('🔍 isSpaceUser:', isSpaceUser);
-    //     console.log('🔍 isRegularUser:', isRegularUser);
-    // }, [isAuthenticated, user]);
 
     // Initialize notification service
     useEffect(() => {
@@ -47,121 +33,61 @@ const OrderNotificationListener = () => {
             orderNotificationService.setVoiceEnabled(voiceEnabled);
         }
 
-        // Request notification permission
-        if (typeof window !== 'undefined' && Notification && Notification.permission === 'default') {
-            Notification.requestPermission();
+        // Safe check para sa iOS Safari para maiwasan ang ReferenceError
+        if (typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'default') {
+            try {
+                Promise.resolve(window.Notification.requestPermission()).catch(() => {});
+            } catch (e) {}
         }
     }, []);
 
-    // For Space Owners: Check for new paid orders (confirmed + paid)
-    const fetchSpaceOrders = useCallback(async () => {
-        try {
-            // console.log('[SPACE] Fetching space orders...');
-            const res = await apiGet('/space/orders');
-            // console.log('[SPACE] Response:', res);
+    const userId = user?._id || user?.id;
+    const customerName = user?.name || user?.full_name || 'Customer';
 
-            if (res.success) {
-                const orders = res.data || [];
-                // console.log('[SPACE] Orders found:', orders.length);
-
-                for (const order of orders) {
-                    // Only notify if status is 'confirmed' AND payment_status is 'paid' AND not notified yet
-                    if (order.status === 'confirmed' &&
-                        order.payment_status === 'paid' &&
-                        !notifiedSpaceOrders.has(order.order_number)) {
-
-                        // console.log(`🔔 [SPACE] New paid order: ${order.order_number} - ${order.customer_name}`);
-                        orderNotificationService.notifyNewOrder(order);
-                        setNotifiedSpaceOrders(prev => new Set([...prev, order.order_number]));
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('[SPACE] Failed to fetch space orders:', err);
-        }
-    }, [notifiedSpaceOrders]);
-
-    // For Regular Users: Check if their order status changed to 'ready'
-    const fetchUserOrders = useCallback(async () => {
-        // Try both _id and id since we don't know which one is available
-        const userId = user?._id || user?.id;
-        // console.log('[USER] fetchUserOrders called, userId:', userId);
-        // console.log('[USER] Full user object:', user);
-
-        if (!userId) {
-            // console.log('[USER] No user ID, skipping');
-            return;
-        }
-
-        try {
-            // console.log('[USER] Fetching user orders from /user/orders...');
-            const res = await apiGet('/user/orders');
-            // console.log('[USER] API Response:', res);
-
-            if (res && res.success) {
-                const orders = res.data?.orders || [];
-                // console.log('[USER] Orders found:', orders.length);
-
-                if (orders.length > 0) {
-                    orders.forEach(order => {
-                        // console.log(`[USER] Order ${order.order_number}: status=${order.status}, payment_status=${order.payment_status}`);
-                    });
-                }
-
-                for (const currentOrder of orders) {
-                    const readyKey = `${currentOrder.order_number}-ready`;
-
-                    // Check if order status is 'ready' and we haven't notified yet
-                    if (currentOrder.status === 'ready' && !notifiedReadyOrders.has(readyKey)) {
-                        // console.log(`🔔 [USER] Order ready for pickup: ${currentOrder.order_number}`);
-
-                        orderNotificationService.notifyOrderReady({
-                            order_number: currentOrder.order_number,
-                            customer_name: user?.name || user?.full_name || 'Customer',
-                            total: currentOrder.total
-                        });
-                        setNotifiedReadyOrders(prev => new Set([...prev, readyKey]));
-                    }
-                }
-
-                setLastUserOrders(orders);
-            } else {
-                // console.log('[USER] API response success false or missing data');
-            }
-        } catch (err) {
-            console.error('[USER] Failed to fetch user orders:', err);
-            console.error('[USER] Error details:', err.response?.data || err.message);
-        }
-    }, [user, notifiedReadyOrders]); // Changed dependency to 'user' instead of user?._id
-
-    // Start polling
     useEffect(() => {
-        // console.log('[POLLING] useEffect triggered:', { isAuthenticated, isSpaceUser, isRegularUser });
+        if (!isAuthenticated || (!isSpaceUser && !isRegularUser) || (isRegularUser && !userId)) return;
 
-        if (!isAuthenticated) {
-            // console.log('[POLLING] Not authenticated, skipping');
-            return;
-        }
-
-        if (isSpaceUser) {
-            // console.log('[POLLING] Starting SPACE polling every 5 seconds');
-            fetchSpaceOrders();
-            pollingIntervalRef.current = setInterval(fetchSpaceOrders, 5000);
-        } else if (isRegularUser) {
-            // console.log('[POLLING] Starting USER polling every 5 seconds');
-            fetchUserOrders();
-            pollingIntervalRef.current = setInterval(fetchUserOrders, 5000);
-        } else {
-            // console.log('[POLLING] No matching user type, role:', user?.role);
-        }
-
-        return () => {
-            // console.log('[POLLING] Cleaning up interval');
-            if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
+        // Keep deduplication and pending requests scoped to this signed-in account.
+        const notifiedOrders = new Set();
+        let cancelled = false;
+        let pending = false;
+        const poll = async () => {
+            if (pending || cancelled) return;
+            pending = true;
+            try {
+                const response = await apiGet(isSpaceUser ? '/space/orders' : '/user/orders');
+                if (cancelled || !response?.success) return;
+                const orders = isSpaceUser ? response.data : response.data?.orders;
+                if (!Array.isArray(orders)) return;
+                for (const order of orders) {
+                    const eligible = isSpaceUser
+                        ? order.status === 'confirmed' && order.payment_status === 'paid'
+                        : order.status === 'ready';
+                    if (!eligible || !order.order_number || notifiedOrders.has(order.order_number)) continue;
+                    notifiedOrders.add(order.order_number);
+                    if (isSpaceUser) {
+                        orderNotificationService.notifyNewOrder(order);
+                    } else {
+                        orderNotificationService.notifyOrderReady({
+                            order_number: order.order_number,
+                            customer_name: customerName,
+                            total: order.total
+                        });
+                    }
+                }
+            } catch (error) {
+                if (!cancelled) console.error('Failed to fetch order notifications:', error);
+            } finally {
+                pending = false;
             }
         };
-    }, [isAuthenticated, isSpaceUser, isRegularUser, fetchSpaceOrders, fetchUserOrders]);
+        poll();
+        const interval = setInterval(poll, 5000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [isAuthenticated, isSpaceUser, isRegularUser, userId, customerName]);
 
     const toggleAudio = () => {
         const newValue = !audioEnabled;
@@ -191,6 +117,8 @@ const OrderNotificationListener = () => {
         <div className="fixed bottom-6 left-6 z-50">
             <div className="relative">
                 <button
+                    aria-label="Notification settings"
+                    aria-expanded={showSettings}
                     onClick={() => setShowSettings(!showSettings)}
                     className="w-10 h-10 rounded-xl bg-[#111114] border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-all"
                 >

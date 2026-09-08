@@ -1,3 +1,9 @@
+import RoomGuestCount from '@/components/RoomGuestCount';
+import { roomHourlyRate, roomRateLabel, roomPackagePrice, roomPackageLabel, roomPackageCredit, roomPackageDeduction } from '@/utils/roomPricing';
+import RoomPackageChoice from '@/components/RoomPackageChoice';
+import { estimateBookingTotal } from '@/utils/bookingEstimate';
+import { Link } from 'react-router-dom';
+import BookingBillBreakdown from '@/components/BookingBillBreakdown';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
 import { UserPlus, Clock, Banknote, QrCode, BadgeCheck, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
@@ -35,10 +41,7 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
             const hrs = Math.floor(seconds / 3600);
             const mins = Math.floor((seconds % 3600) / 60);
             const secs = seconds % 60;
-            const hoursSpent = seconds / 3600;
-            let total = hoursSpent * (rateHour || 0);
-
-            if (hasVoucher && total > 0) total = Math.max(0, total - voucherDiscount);
+                        const total = estimateBookingTotal(booking);
 
             setElapsed(`${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
             setAmount(total);
@@ -51,10 +54,7 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
             const hrs = Math.floor(seconds / 3600);
             const mins = Math.floor((seconds % 3600) / 60);
             const secs = seconds % 60;
-            const hoursSpent = seconds / 3600;
-            let total = hoursSpent * (rateHour || 0);
-
-            if (hasVoucher && total > 0) total = Math.max(0, total - voucherDiscount);
+                        const total = estimateBookingTotal(booking);
 
             setElapsed(`${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
             setAmount(total);
@@ -64,7 +64,7 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
         calculate(Date.now());
         const id = setInterval(() => calculate(Date.now()), 1000);
         return () => clearInterval(id);
-    }, [checkInAt, checkOutAt, rateHour, hasVoucher, voucherDiscount, isOpenTime, isFrozen, onAmountUpdate]);
+    }, [checkInAt, checkOutAt, rateHour, hasVoucher, voucherDiscount, isOpenTime, isFrozen, onAmountUpdate, booking]);
 
     // OPEN TIME (true) - Show counting timer
     if (isOpenTime) {
@@ -109,7 +109,7 @@ const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, boo
     if (scheduledStart && scheduledEnd) {
         const diffMs = new Date(scheduledEnd) - new Date(scheduledStart);
         scheduledHours = diffMs / (1000 * 60 * 60);
-        scheduledTotal = scheduledHours * (rateHour || 0);
+        scheduledTotal = estimateBookingTotal(booking);
     }
 
     return (
@@ -155,6 +155,7 @@ const PaymentPanel = ({ booking, totalAmount, onComplete, isSubmitting }) => {
     return (
         <div className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/5 overflow-hidden">
             <div className="px-5 pt-5 pb-3 border-b border-white/10">
+                <BookingBillBreakdown booking={booking} showItems />
                 <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Payment</p>
                 <div className="flex items-baseline justify-between">
                     <span className="text-xs text-slate-400 font-bold uppercase">Total Due</span>
@@ -289,6 +290,7 @@ const ReceiptScreen = ({ booking, onClose }) => (
             </div>
         </div>
 
+        <BookingBillBreakdown booking={booking} showItems />
         <button onClick={onClose} className="w-full py-3 bg-white/5 border border-white/10 text-slate-400 rounded-2xl font-black uppercase text-xs hover:bg-white/10 transition-all">
             Close
         </button>
@@ -310,6 +312,7 @@ const WalkinsIndex = () => {
 
     const [formData, setFormData] = useState({
         space_id: '',
+        room_id: '',
         name: '',
         email: '',
         is_open_time: true,  // Default: Open Time (timer counts)
@@ -340,7 +343,7 @@ const WalkinsIndex = () => {
 
     const fetchSpaces = useCallback(async () => {
         try {
-            const res = await apiGet('/space/spaces');
+            const res = await apiGet('/space/walkins/spaces-with-rooms');
             setSpaces(res.data || []);
         } catch { }
     }, []);
@@ -472,7 +475,7 @@ const WalkinsIndex = () => {
                 <LiveBillingTimer
                     checkInAt={row.check_in_at}
                     checkOutAt={row.check_out_at}
-                    rateHour={row.space_id?.rate_hour}
+                    rateHour={row.rate_per_hour ?? row.room_id?.rate_hour ?? row.space_id?.rate_hour}
                     onAmountUpdate={() => { }}
                     booking={row}
                 />
@@ -482,6 +485,7 @@ const WalkinsIndex = () => {
             header: "Actions",
             cell: (row) => (
                 <div className="flex gap-2">
+                    {row.status === 'active' && <Link className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold" to={`/space/pos?booking_id=${row._id}`}>{row.consumable_allowance > 0 ? 'Add consumables' : 'Add order'}</Link>}
                     {row.status === 'active' ? (
                         <button
                             onClick={() => handleStopTimer(row._id)}
@@ -535,11 +539,29 @@ const WalkinsIndex = () => {
                             required
                             className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:border-emerald-500 outline-none transition-all"
                             value={formData.space_id}
-                            onChange={(e) => setFormData({ ...formData, space_id: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, space_id: e.target.value, room_id: '' })}
                         >
                             <option value="" className="bg-[#111114]">Select Space</option>
                             {spaces.map(s => <option key={s._id} value={s._id} className="bg-[#111114] text-white">{s.name}</option>)}
                         </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label htmlFor="walkin-room" className="text-xs text-slate-400">Room</label>
+                        <select id="walkin-room" className="w-full bg-background border border-border rounded-xl p-3 text-foreground"
+                            value={formData.room_id || ''} onChange={e => setFormData({ ...formData, room_id: e.target.value, use_consumable_promo: true })}>
+                            <option value="">Open area / hot desk</option>
+                            {(spaces.find(s => s._id === formData.space_id)?.rooms || []).map(room =>
+                                <option key={room._id} value={room._id}>{room.name} · ₱{room.rate_hour}/hr{room.has_consumable_promo ? ` · ${room.promo_name}: ${room.promo_duration_hours}h + ₱${room.consumable_allowance} consumables${room.promo_price != null ? ` for ₱${room.promo_price}` : ''}` : ''}</option>
+                            )}
+                        </select><RoomGuestCount room={(spaces.find(s => s._id === formData.space_id)?.rooms || []).find(r => r._id === formData.room_id)} value={formData.guest_count || 1} onChange={value => setFormData({ ...formData, guest_count: value })} />{formData.use_consumable_promo !== false && <RoomPackageChoice room={(spaces.find(s => s._id === formData.space_id)?.rooms || []).find(r => r._id === formData.room_id)} value={formData.promo_audience} guestCount={formData.guest_count || 1} onChange={value => setFormData({ ...formData, promo_audience: value })} />}
+                        {(spaces.find(s => s._id === formData.space_id)?.rooms || []).find(r => r._id === formData.room_id)?.has_consumable_promo && (
+                            <label className="block text-sm text-foreground">
+                                <input type="checkbox" className="mr-2" checked={formData.use_consumable_promo !== false}
+                                    onChange={e => setFormData({ ...formData, use_consumable_promo: e.target.checked })} />
+                                Use room consumable promo (excess payable at checkout)
+                            </label>
+                        )}
                     </div>
 
                     <div className="space-y-2">
@@ -652,7 +674,7 @@ const WalkinsIndex = () => {
                 ) : checkoutSession && (
                     <PaymentPanel
                         booking={checkoutSession}
-                        totalAmount={checkoutSession.total_amount}
+                        totalAmount={checkoutSession.amount_due ?? checkoutSession.total_amount}
                         onComplete={handleFinalCheckout}
                         isSubmitting={isSubmitting}
                     />

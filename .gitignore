@@ -26,3 +26,6 @@
 .idea/
 npm-debug.log*
 yarn-debug.log*
+# Automated project check output
+/test-result/
+/test-results/

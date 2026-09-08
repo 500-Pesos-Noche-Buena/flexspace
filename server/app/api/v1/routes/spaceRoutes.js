@@ -206,6 +206,7 @@ class SpaceRoutes {
         this.router.put('/products/:id', auth, (req, res, next) => POSController.updateProduct(req, res, next));
         this.router.delete('/products/:id', auth, (req, res, next) => POSController.deleteProduct(req, res, next));
         this.router.post('/orders/:orderId/confirm-payment', auth, (req, res, next) => POSController.confirmOnlinePayment(req, res, next));
+        this.router.get('/pos/active-sessions', auth, (req, res, next) => POSController.getActiveSessions(req, res, next));
         this.router.get('/orders', auth, (req, res, next) => POSController.getOrders(req, res, next));
         this.router.get('/orders/recent', auth, (req, res, next) => POSController.getRecentOrders(req, res, next));
         this.router.post('/orders', auth, (req, res, next) => POSController.createOrder(req, res, next));

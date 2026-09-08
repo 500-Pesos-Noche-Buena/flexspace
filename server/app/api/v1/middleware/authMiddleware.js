@@ -10,7 +10,6 @@ class AuthMiddleware {
     handle = async (req, res, next) => {
         try {
             const authHeader = req.headers.authorization;
-            console.log('--- Auth Header Received ---', authHeader); // 🕵️‍♂️ DEBUG 1
 
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
                 console.error('Missing or Malformed Header');
@@ -20,7 +19,6 @@ class AuthMiddleware {
             const token = authHeader.split(' ')[1];
             const decoded = jwt.verify(token, config.jwt.secret);
 
-            console.log('--- Token Decoded Successfully ---', decoded); // 🕵️‍♂️ DEBUG 2
 
             req.user = decoded;
             next();

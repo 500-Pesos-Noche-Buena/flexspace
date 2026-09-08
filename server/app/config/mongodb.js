@@ -16,10 +16,10 @@ const connectToMongoDB = async () => {
         }
 
         const dbName = config.mongo.dbName || 'test';
-        const connectionString = uri.endsWith('/') ? `${uri}${dbName}` : `${uri}/${dbName}`;
 
-        // Connect with a short timeout to avoid hanging
-        await mongoose.connect(connectionString, {
+        // Keep URI query parameters intact and select the database separately.
+        await mongoose.connect(uri, {
+            dbName,
             serverSelectionTimeoutMS: 5000,
         });
 

@@ -1,3 +1,5 @@
+import BookingBillBreakdown from '@/components/BookingBillBreakdown';
+import { settledBookingOrder, settledOrderGroup } from '@/utils/orderReceipt';
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiGet, apiPost, apiPut } from '@/utils/Api';
 import {
@@ -169,10 +171,11 @@ const TotalOrders = () => {
     // 🆕 PRINT RECEIPT FUNCTION
     const printReceipt = (order) => {
         const receiptWindow = window.open('', '_blank');
+        if (!receiptWindow) { showToast({ icon: 'warning', title: 'Allow pop-ups to print your receipt' }); return; }
         const isGrouped = order.is_grouped || (order.grouped_orders && order.grouped_orders.length > 0);
         const isCash = order.payment_method === 'cash';
         const isPayLater = order.payment_method === 'pay_later' || order.is_pay_later;
-        const changeAmount = isCash && order.amount_received ? (order.amount_received - order.total).toFixed(2) : '0.00';
+        const changeAmount = Number(order.change ?? Math.max(0, Number(order.amount_received || 0) - Number(order.total || 0))).toFixed(2);
         const amountReceived = order.amount_received ? order.amount_received.toFixed(2) : order.total.toFixed(2);
 
         const paymentMethodDisplay = {
@@ -208,6 +211,20 @@ const TotalOrders = () => {
             total: o.total || 0
         })) : [];
 
+        const escapeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+        const bookingDetails = (order.grouped_orders || [order]).filter(o => o.order_type === 'booking').map(o => `
+            <div class="grouped-summary"><strong>Booking ${escapeText(o.order_number)}</strong><br>
+                ${(o.linked_orders || []).filter(linked => !['cancelled', 'rejected'].includes(linked.status)).map(linked => `
+                    ${escapeText(linked.order_number)}: ${(linked.items || []).map(item => `${item.quantity} × ${escapeText(item.name)}`).join(', ')} — ₱${Number(linked.total || 0).toFixed(2)}<br>
+                `).join('')}
+                Room / package charge: ₱${Number(o.room_charge || 0).toFixed(2)}<br>
+                Consumables ordered: ₱${Number(o.consumable_total || 0).toFixed(2)}<br>
+                Promo covers: ₱${Number(o.consumable_covered || 0).toFixed(2)}<br>
+                Excess included in booking: ₱${Number(o.consumable_excess || 0).toFixed(2)}<br>
+                Other charges: ₱${Number(o.other_charges || 0).toFixed(2)}<br>
+                Final booking bill: ₱${Number(o.total || 0).toFixed(2)}
+            </div>`).join('');
+
         receiptWindow.document.write(`
         <html>
         <head>
@@ -237,9 +254,9 @@ const TotalOrders = () => {
                 <div>${new Date().toLocaleTimeString('en-PH')}</div>
             </div>
             <div style="margin-bottom: 10px;">
-                <strong>Order #:</strong> ${orderNumber}<br>
-                <strong>Customer:</strong> ${order.customer_name || 'Walk-in Customer'}
-                ${isGrouped ? `<br><strong>Grouped Orders:</strong> ${order.grouped_orders?.length || 0} order(s)` : ''}
+                <strong>Order #:</strong> ${escapeText(orderNumber)}<br>
+                <strong>Customer:</strong> ${escapeText(order.customer_name || 'Walk-in Customer')}
+                ${isGrouped ? `<br><strong>Grouped Orders:</strong> ${(order.order_count || 1) + (order.linked_order_count || 0)} order(s)` : ''}
             </div>
             
             ${isPayLater ? `
@@ -253,24 +270,25 @@ const TotalOrders = () => {
                 <div class="grouped-summary">
                     <strong>Order Summary:</strong><br>
                     ${groupedSummary.map(o => `
-                        <span class="order-type-badge">${o.type}</span> #${o.number} - ₱${o.total.toFixed(2)}<br>
+                        <span class="order-type-badge">${o.type}</span> #${escapeText(o.number)} - ₱${o.total.toFixed(2)}<br>
                     `).join('')}
                 </div>
             ` : ''}
             
-            <table class="items">
+            ${bookingDetails}
+            ${allItems.length ? `<table class="items">
                 <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
                 <tbody>
                     ${allItems.map(item => `
                         <tr>
-                            <td>${item.name}</td>
+                            <td>${escapeText(item.name)}</td>
                             <td>${item.quantity}</td>
                             <td>₱${item.price.toFixed(2)}</td>
                             <td>₱${(item.price * item.quantity).toFixed(2)}</td>
                         </tr>
                     `).join('')}
                 </tbody>
-            </table>
+            </table>` : ''}
             <div class="total">
                 <div><strong>Subtotal:</strong> ₱${order.subtotal.toFixed(2)}</div>
                 ${order.discount_amount > 0 ? `<div><strong>Discount:</strong> -₱${order.discount_amount.toFixed(2)}</div>` : ''}
@@ -285,7 +303,7 @@ const TotalOrders = () => {
                 <div><strong>Payment Method:</strong> ${paymentMethodDisplay}</div>
                 ${isCash ? `<div><strong>Amount Received:</strong> ₱${amountReceived}</div>` : ''}
                 ${isCash ? `<div><strong>Change:</strong> ₱${changeAmount}</div>` : ''}
-                ${order.payment_method === 'online' ? `<div><strong>Status:</strong> PAID ✓</div>` : ''}
+                <div><strong>Status:</strong> ${order.payment_status === 'paid' ? 'PAID' : 'NOT SETTLED — provisional bill'}</div>
                 ${isPayLater ? `
                     <div style="color: #d97706; font-weight: bold; margin-top: 5px;">
                         ⚠️ Unpaid - Please settle when ready
@@ -373,13 +391,6 @@ const TotalOrders = () => {
         return row;
     };
 
-    // 🆕 Get all orders for a customer
-    const getCustomerOrders = (customerName) => {
-        return orders.filter(o =>
-            o.customer_name?.toLowerCase() === customerName.toLowerCase()
-        );
-    };
-
     // 🆕 Handle Close Session - Open modal with timer
     const handleCloseSession = (row) => {
         console.log('🔍 Row data for close session:', row);
@@ -410,6 +421,7 @@ const TotalOrders = () => {
         try {
             const customerName = bookingToClose.customer_name || bookingToClose.guest_name || 'Guest';
             const exactCustomerName = customerName.trim();
+            const selectedIds = new Set((bookingToClose.grouped_orders || [bookingToClose]).map(o => String(o._id)));
 
             console.log(`🔍 Searching for orders for customer: "${exactCustomerName}"`);
 
@@ -430,14 +442,15 @@ const TotalOrders = () => {
                 const bookings = bookingsRes.data.bookings
                     .filter(b => {
                         const name = b.guest_name || b.user_id?.name || 'Guest';
-                        return name.trim().toLowerCase() === exactCustomerName.toLowerCase();
+                        return selectedIds.has(String(b._id)) && name.trim().toLowerCase() === exactCustomerName.toLowerCase();
                     })
                     .map(b => ({
+                        booking: b,
                         _id: b._id,
                         order_number: b.ticket_number || b._id,
                         order_type: 'booking',
                         customer_name: b.guest_name || b.user_id?.name || 'Guest',
-                        total: b.total_amount || 0,
+                        total: b.amount_due ?? b.total_amount ?? 0,
                         status: b.status,
                         payment_method: b.payment_method || 'online',
                         is_pay_later: false,
@@ -460,7 +473,7 @@ const TotalOrders = () => {
                         const name = o.customer_name || 'Guest';
                         const match = name.trim().toLowerCase() === exactCustomerName.toLowerCase();
                         console.log(`  Comparing: "${name.trim().toLowerCase()}" === "${exactCustomerName.toLowerCase()}" -> ${match}`);
-                        return match;
+                        return match && selectedIds.has(String(o._id)) && !o.booking_id && o.settlement_type !== 'booking';
                     })
                     .map(o => ({
                         _id: o._id,
@@ -490,29 +503,33 @@ const TotalOrders = () => {
             const ordersToProcessList = [];
 
             // Find the booking to process
-            const bookingToProcess = allCustomerOrders.find(o =>
+            const bookingsToProcess = allCustomerOrders.filter(o =>
                 o.order_type === 'booking' &&
-                (o.status === 'pending_payment' || o.status === 'active' || o.status === 'confirmed')
+                (o.status === 'pending_payment' || o.status === 'active')
             );
 
-            if (bookingToProcess) {
+            for (const bookingToProcess of bookingsToProcess) {
                 let bookingTotal = bookingToProcess.total || 0;
+                let calculatedBooking = bookingToProcess.booking;
 
                 // If booking is active, calculate bill first
                 if (bookingToProcess.status === 'active' || bookingToProcess.status === 'confirmed') {
                     try {
                         const calcRes = await apiPost(`/space/bookings/${bookingToProcess._id}/calculate`);
+                        if (!calcRes.success || !calcRes.data?.booking) throw new Error('Unable to calculate booking bill.');
                         if (calcRes.success) {
-                            bookingTotal = calcRes.data.total_amount || 0;
+                            calculatedBooking = calcRes.data.booking;
+                            bookingTotal = calcRes.data.booking?.amount_due ?? calcRes.data.total_amount ?? 0;
                             console.log(`📊 Booking calculated: ₱${bookingTotal}`);
                         }
                     } catch (e) {
-                        console.error('Failed to calculate booking:', e);
+                        throw e;
                     }
                 }
 
                 ordersToProcessList.push({
                     id: bookingToProcess._id,
+                    booking: calculatedBooking,
                     type: 'booking',
                     total: bookingTotal,
                     status: bookingToProcess.status,
@@ -587,8 +604,13 @@ const TotalOrders = () => {
             return;
         }
 
+        if (!Number.isFinite(Number(amount)) || Number(amount) < ordersToProcess.reduce((sum, o) => sum + o.total, 0)) {
+            showToast({ icon: 'warning', title: 'Payment received is less than the total due' });
+            return;
+        }
         setIsSubmitting(true);
         let successCount = 0;
+        const savedOrders = [];
         let failedOrders = [];
 
         try {
@@ -600,7 +622,12 @@ const TotalOrders = () => {
                             payment_method: method,
                             amount_received: order.total
                         };
-                        await apiPost(`/space/bookings/${order.id}/checkout`, payload);
+                        // Record the cash surplus once, on the first booking payment.
+                        if (method === 'cash' && order === ordersToProcess.find(row => row.type === 'booking')) {
+                            payload.amount_received += Math.max(0, Number(amount) - ordersToProcess.reduce((sum, row) => sum + row.total, 0));
+                        }
+                        const response = await apiPost(`/space/bookings/${order.id}/checkout`, payload);
+                        savedOrders.push(settledBookingOrder(response.data?.booking));
                         successCount++;
                         console.log(`✅ Booking ${order.order_number} completed`);
                     } else if (order.type === 'pay_later') {
@@ -609,7 +636,9 @@ const TotalOrders = () => {
                             amount_received: order.total,
                             payment_method: method
                         };
-                        await apiPost(`/space/orders/${order.id}/settle-pay-later`, payload);
+                        const response = await apiPost(`/space/orders/${order.id}/settle-pay-later`, payload);
+                        if (!response.success || !response.data?.order?._id) throw new Error('Payment response is missing the saved order.');
+                        savedOrders.push({ ...response.data.order, order_type: 'pos_order' });
                         successCount++;
                         console.log(`✅ Pay Later order ${order.order_number} settled`);
                     }
@@ -622,7 +651,7 @@ const TotalOrders = () => {
             if (successCount > 0) {
                 showToast({
                     icon: 'success',
-                    title: 'All orders completed!',
+                    title: failedOrders.length ? 'Some orders could not be completed' : 'All orders completed!',
                     text: `Processed ${successCount}/${ordersToProcess.length} orders. Total: ₱${amount.toFixed(2)}`
                 });
 
@@ -634,38 +663,15 @@ const TotalOrders = () => {
                 setShowOrderModal(false);
                 setSelectedOrder(null);
 
-                // Get the customer name from the first order
-                const customerName = ordersToProcess[0]?.customer_name || bookingToClose?.customer_name || 'Guest';
-
-                // Get all orders for this customer from the refreshed data
-                const updatedCustomerOrders = getCustomerOrders(customerName);
-
-                if (updatedCustomerOrders.length > 0) {
-                    const combinedOrder = {
-                        _id: `combined-${Date.now()}`,
-                        customer_name: customerName,
-                        total: updatedCustomerOrders.reduce((sum, o) => sum + (o.total || 0), 0),
-                        status: 'completed',
-                        payment_status: 'paid',
-                        created_at: new Date(),
-                        items: updatedCustomerOrders.flatMap(o => o.items || []),
-                        grouped_orders: updatedCustomerOrders,
-                        is_grouped: true,
-                        order_type: 'combined',
-                        order_number: `ALL-${Date.now()}`,
-                        payment_method: 'combined',
-                        subtotal: updatedCustomerOrders.reduce((sum, o) => sum + (o.subtotal || 0), 0),
-                        discount_amount: updatedCustomerOrders.reduce((sum, o) => sum + (o.discount_amount || 0), 0),
-                        order_count: updatedCustomerOrders.length,
-                        has_pending_payment: false,
-                        is_pay_later: false
-                    };
-
+                // Build from persisted checkout responses, never the stale React order list.
+                if (savedOrders.length > 0) {
+                    const combinedOrder = settledOrderGroup(savedOrders);
+                    if (method === 'cash' && !failedOrders.length) {
+                        combinedOrder.amount_received = Number(amount);
+                        combinedOrder.change = Math.max(0, Number(amount) - ordersToProcess.reduce((sum, order) => sum + order.total, 0));
+                    }
                     viewOrderDetails(combinedOrder);
-
-                    setTimeout(() => {
-                        printReceipt(combinedOrder);
-                    }, 500);
+                    printReceipt(combinedOrder);
                 }
 
                 // Clear orders to process
@@ -740,10 +746,12 @@ const TotalOrders = () => {
             order_type: order.order_type || 'pos_order',
             order_number: order.order_number || 'N/A',
             payment_method: order.payment_method || 'cash',
+            amount_paid: order.amount_paid,
             subtotal: order.subtotal || 0,
             tax: order.tax || 0,
             discount_amount: order.discount_amount || 0,
             order_count: order.order_count || 1,
+            linked_order_count: order.linked_order_count || 0,
             date: order.date || null,
             payment_methods: order.payment_methods || '',
             space_id: order.space_id || null,
@@ -1036,7 +1044,7 @@ const TotalOrders = () => {
                 <div className="flex flex-col">
                     <span className="text-foreground font-black text-sm">{row.customer_name}</span>
                     <span className="text-[10px] text-muted-foreground">
-                        {formatDateShort(row.date || row.created_at)} • {row.order_count || 1} order(s)
+                        {formatDateShort(row.date || row.created_at)} • {row.order_count || 1} transaction(s){row.linked_order_count > 0 && ` + ${row.linked_order_count} linked POS order(s)`}
                     </span>
                 </div>
             )
@@ -1070,7 +1078,7 @@ const TotalOrders = () => {
             header: "Items",
             cell: (row) => (
                 <span className="text-sm text-muted-foreground">
-                    {row.order_count || 0} order(s)
+                    {(row.order_count || 0) + (row.linked_order_count || 0)} order(s)
                 </span>
             )
         },
@@ -1172,6 +1180,7 @@ const TotalOrders = () => {
                             </button>
                         )}
                         <button
+                            aria-label="View order details"
                             onClick={() => viewOrderDetails(row)}
                             className="p-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
                         >
@@ -1229,7 +1238,7 @@ const TotalOrders = () => {
                 </Card>
                 <Card className="bg-emerald-500/5 border-emerald-500/10">
                     <CardContent className="p-4">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Revenue</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Amount collected</p>
                         <p className="text-xl font-[1000] text-emerald-600 dark:text-emerald-400 italic mt-1">
                             ₱{(stats.revenue || 0).toFixed(2)}
                         </p>
@@ -1298,7 +1307,7 @@ const TotalOrders = () => {
                                 <div>
                                     <p className="text-sm font-black text-foreground">{row.customer_name}</p>
                                     <p className="text-[10px] text-muted-foreground">
-                                        {formatDateShort(row.date || row.created_at)} • {row.order_count || 1} order(s)
+                                        {formatDateShort(row.date || row.created_at)} • {row.order_count || 1} transaction(s){row.linked_order_count > 0 && ` + ${row.linked_order_count} linked POS order(s)`}
                                     </p>
                                 </div>
                                 <span className={cn(
@@ -1309,7 +1318,7 @@ const TotalOrders = () => {
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">{row.order_count || 0} order(s)</span>
+                                <span className="text-muted-foreground">{(row.order_count || 0) + (row.linked_order_count || 0)} order(s)</span>
                                 <span className="text-emerald-600 dark:text-emerald-400 font-black">
                                     ₱{(row.total || 0).toFixed(2)}
                                 </span>
@@ -1346,7 +1355,8 @@ const TotalOrders = () => {
                                         </button>
                                     )}
                                     <button
-                                        onClick={() => viewOrderDetails(row)}
+                                        aria-label="View order details"
+                            onClick={() => viewOrderDetails(row)}
                                         className="p-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
                                     >
                                         <Eye size={14} className="text-primary" />
@@ -1458,7 +1468,7 @@ const TotalOrders = () => {
                     {/* Summary of orders to process */}
                     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
                         <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-wider">
-                            Orders to Process: {ordersToProcess.length}
+                            Orders to Process: {ordersToProcess.length + ordersToProcess.reduce((sum, order) => sum + (order.booking?.billing_orders?.length || 0), 0)}
                         </p>
                         <p className="text-2xl font-[1000] text-foreground italic">
                             Total: ₱{totalAllOrders.toFixed(2)}
@@ -1484,50 +1494,25 @@ const TotalOrders = () => {
                         ))}
                     </div>
 
+                    {ordersToProcess.length > 1 && ordersToProcess.filter(order => order.booking).map(order => <div key={order.id} className="rounded-xl border border-border p-4"><p className="font-bold">{order.order_number}</p><BookingBillBreakdown booking={order.booking} showItems /></div>)}
                     {/* Use the PaymentPanel component */}
                     <PaymentPanel
-                        booking={{
-                            _id: ordersToProcess[0]?.id || 'combined',
-                            ticket_number: 'ALL-ORDERS',
-                            space_id: { name: 'Combined Orders', rate_hour: 0 },
-                            total_amount: totalAllOrders,
-                            voucher_discount: 0,
-                            voucher_applied: null
-                        }}
+                        booking={ordersToProcess.find(order => order.booking)?.booking || { total_amount: totalAllOrders }}
+                        hideBreakdown={ordersToProcess.length !== 1 || !ordersToProcess[0]?.booking}
+                        allowVoucher={ordersToProcess.length === 1 && Boolean(ordersToProcess[0]?.booking)}
                         liveTotalAmount={totalAllOrders}
-                        onComplete={async ({ method, amount_received, voucher_code, total_amount }) => {
+                        onComplete={async ({ method, amount_received }) => {
                             // Process all orders with the selected payment method
-                            await handleProcessAllOrdersPayment(method, total_amount || totalAllOrders);
+                            await handleProcessAllOrdersPayment(method, method === 'cash' ? amount_received : totalAllOrders);
                         }}
                         isSubmitting={isSubmitting}
-                        onApplyVoucher={async (bookingData) => {
-                            // Apply voucher to the first booking (or all)
-                            if (ordersToProcess.length > 0) {
-                                const firstBooking = ordersToProcess.find(o => o.type === 'booking');
-                                if (firstBooking) {
-                                    try {
-                                        const res = await apiPost(`/space/bookings/${firstBooking.id}/apply-voucher`, {
-                                            voucherCode: bookingData.voucher_applied
-                                        });
-                                        if (res.success) {
-                                            // Update total
-                                            const newTotal = totalAllOrders - res.data.discount_amount;
-                                            setTotalAllOrders(newTotal);
-                                            setPaymentAmount(newTotal.toString());
-                                            showToast({
-                                                icon: 'success',
-                                                title: 'Voucher applied!',
-                                                text: `Saved ₱${res.data.discount_amount.toFixed(2)}`
-                                            });
-                                            return { success: true, data: res.data };
-                                        }
-                                    } catch (e) {
-                                        showToast({ icon: 'error', title: e.message || 'Failed to apply voucher' });
-                                        return { success: false };
-                                    }
-                                }
-                            }
-                            return { success: false };
+                        onApplyVoucher={(bookingData) => {
+                            const updated = ordersToProcess.map(order => order.id === String(bookingData._id)
+                                ? { ...order, booking: bookingData, total: bookingData.amount_due ?? bookingData.total_amount } : order);
+                            setOrdersToProcess(updated);
+                            const due = updated.reduce((sum, order) => sum + order.total, 0);
+                            setTotalAllOrders(due);
+                            setPaymentAmount(String(due));
                         }}
                         onOpenOnlinePayment={async () => {
                             // Generate online payment link for all orders
@@ -1585,7 +1570,7 @@ const TotalOrders = () => {
                                 </h3>
                                 <p className="text-xs text-muted-foreground">
                                     {selectedOrder.date ? `Date: ${selectedOrder.date}` : formatDate(selectedOrder.created_at)}
-                                    {selectedOrder.order_count && ` • ${selectedOrder.order_count} order(s)`}
+                                    {selectedOrder.order_count && ` • ${selectedOrder.order_count} transaction(s) + ${selectedOrder.linked_order_count || 0} product order(s)`}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1667,7 +1652,7 @@ const TotalOrders = () => {
                             <div>
                                 <p className="text-[8px] text-muted-foreground font-black uppercase tracking-widest">Payment Method</p>
                                 <p className="text-foreground font-bold capitalize">
-                                    {selectedOrder.is_grouped ? 'Multiple' : getPaymentMethodDisplay(selectedOrder.payment_method || 'cash')}
+                                    {getPaymentMethodDisplay(selectedOrder.payment_method || 'cash')}
                                     {selectedOrder.is_pay_later && ' (Pay Later)'}
                                 </p>
                             </div>
@@ -1702,6 +1687,15 @@ const TotalOrders = () => {
                                                 <p className="text-xs text-muted-foreground">
                                                     {o.order_number || o.ticket_number || 'N/A'}
                                                 </p>
+                                                {o.linked_orders?.length > 0 && <div className="mt-2 text-xs space-y-1">
+                                                    {o.linked_orders.map(linked => <div key={linked._id}>
+                                                        {linked.order_number} · {linked.status} · ₱{Number(linked.total || 0).toFixed(2)}
+                                                        <div className="text-muted-foreground">{linked.items?.map(item => `${item.quantity} × ${item.name}`).join(', ')}</div>
+                                                    </div>)}
+                                                    <p>{o.promo_snapshot?.room_portion != null && `Room portion already in package: ₱${Number(o.promo_snapshot.room_portion).toFixed(2)}. `}Room / package charge: ₱{Number(o.room_charge || 0).toFixed(2)} · Products ordered: ₱{Number(o.consumable_total || 0).toFixed(2)}</p>
+                                                    <p>Allowance: ₱{Number(o.consumable_allowance || 0).toFixed(2)} · Covered: ₱{Number(o.consumable_covered || 0).toFixed(2)} · Excess: ₱{Number(o.consumable_excess || 0).toFixed(2)}</p>
+                                                    <p className="text-muted-foreground">Final bill = room / package charge + excess + other charges − voucher discount. Included products are already covered by the package.</p>
+                                                </div>}
                                                 <p className="text-[8px] text-muted-foreground capitalize">
                                                     {o.status} • {o.payment_method || 'N/A'}
                                                 </p>

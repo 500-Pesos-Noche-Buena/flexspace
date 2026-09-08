@@ -128,7 +128,7 @@ export const BookingTicketModal = ({
                             />
                             <PaymentPanel
                                 booking={booking}
-                                liveTotalAmount={liveAmount || booking?.total_amount || 0}
+                                liveTotalAmount={booking?.amount_due ?? liveAmount ?? booking?.total_amount ?? 0}
                                 onComplete={onPaymentComplete}
                                 isSubmitting={isSubmitting}
                                 onApplyVoucher={onApplyVoucher}

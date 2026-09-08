@@ -68,7 +68,7 @@ class TotalOrdersController {
 
             // Build queries
             let bookingQuery = { space_id: { $in: spaceIds } };
-            let orderQuery = { space_id: { $in: spaceIds } };
+            let orderQuery = { space_id: { $in: spaceIds }, booking_id: null, settlement_type: { $ne: 'booking' } };
 
             if (status) {
                 const statusArray = status.split(',').map(s => s.trim());
@@ -92,10 +92,16 @@ class TotalOrdersController {
                 ];
             }
 
+            const matchingLinked = await Order.find({
+                ...orderQuery, booking_id: { $ne: null }, settlement_type: 'booking'
+            }).select('booking_id').lean();
+            const linkedBookingIds = matchingLinked.map(o => o.booking_id);
+            if (search) bookingQuery.$or.push({ _id: { $in: linkedBookingIds } });
+
             if (type === 'booking') {
                 orderQuery = { _id: null };
             } else if (type === 'pos') {
-                bookingQuery = { _id: null };
+                bookingQuery._id = { $in: linkedBookingIds };
             } else if (type === 'pay_later') {
                 orderQuery.is_pay_later = true;
                 bookingQuery = { _id: null };
@@ -105,8 +111,9 @@ class TotalOrdersController {
             let bookings = [];
             let posOrders = [];
 
-            if (type !== 'pos' && type !== 'pay_later') {
+            if (type !== 'pay_later') {
                 bookings = await Booking.find(bookingQuery)
+                    .populate('settlement_payment_id', 'amount_received change')
                     .populate('space_id', 'name')
                     .populate('user_id', 'name email')
                     .sort({ created_at: -1 })
@@ -121,6 +128,11 @@ class TotalOrdersController {
                     .lean();
             }
 
+            const linkedOrders = bookings.length ? await Order.find({
+                booking_id: { $in: bookings.map(b => b._id) }, space_id: { $in: spaceIds }
+            }).sort({ createdAt: 1 }).lean() : [];
+            const linkedFor = booking => linkedOrders.filter(o => String(o.booking_id) === String(booking._id));
+
             // Format all items with safe date handling
             const formattedBookings = bookings.map(booking => ({
                 _id: booking._id,
@@ -130,6 +142,16 @@ class TotalOrdersController {
                 customer_name: booking.user_id?.name || booking.guest_name || 'Guest',
                 customer_email: booking.user_id?.email || null,
                 items: [],
+                linked_orders: linkedFor(booking),
+                room_charge: booking.room_charge || 0,
+                promo_snapshot: booking.promo_snapshot,
+                consumable_allowance: booking.consumable_allowance || 0,
+                consumable_total: booking.consumable_total || 0,
+                consumable_covered: booking.consumable_covered || 0,
+                consumable_excess: booking.consumable_excess || 0,
+                amount_received: booking.settlement_payment_id?.amount_received,
+                change: booking.settlement_payment_id?.change,
+                amount_paid: Number(booking.amount_paid ?? (booking.payment_status === 'paid' ? booking.total_amount : 0)),
                 subtotal: booking.total_amount || 0,
                 tax: 0,
                 discount_amount: booking.voucher_discount || 0,
@@ -161,6 +183,7 @@ class TotalOrdersController {
                 customer_name: order.customer_name || 'Guest',
                 customer_email: null,
                 items: order.items || [],
+                amount_paid: order.payment_status === 'paid' ? Number(order.total || 0) : Number(order.pay_later_total_accumulated || 0),
                 subtotal: order.subtotal || 0,
                 tax: order.tax || 0,
                 discount_amount: order.discount_amount || 0,
@@ -168,8 +191,8 @@ class TotalOrdersController {
                 payment_method: order.payment_method || 'cash',
                 status: order.status,
                 payment_status: order.payment_status || 'unpaid',
-                created_at: order.created_at || new Date(),
-                updated_at: order.updated_at || new Date(),
+                created_at: order.createdAt || order.created_at || new Date(),
+                updated_at: order.updatedAt || order.updated_at || new Date(),
                 space_id: order.space_id,
                 user_id: order.user_id,
                 is_pay_later: order.is_pay_later || false,
@@ -311,6 +334,10 @@ let groupedArray = Object.values(groupedOrders).map(group => {
         customer_name: group.customer_name,
         date: group.date,
         order_count: group.order_count,
+        linked_order_count: group.orders.reduce((sum, o) => sum + (o.linked_orders?.length || 0), 0),
+        amount_paid: group.orders.reduce((sum, o) => sum + (!['cancelled', 'rejected'].includes(o.status) ? Number(o.amount_paid || 0) : 0), 0),
+        amount_received: group.orders.reduce((sum, o) => sum + Number(o.amount_received ?? o.amount_paid ?? 0), 0),
+        change: group.orders.reduce((sum, o) => sum + Number(o.change || 0), 0),
         total: group.total,
         payment_methods: Array.from(group.payment_methods).join(', '),
         statuses: Array.from(group.statuses),
@@ -367,9 +394,9 @@ let groupedArray = Object.values(groupedOrders).map(group => {
             const paginatedOrders = groupedArray.slice(skip, skip + parseInt(limit));
 
             // Calculate stats
-            const totalRevenue = groupedArray.reduce((sum, g) => sum + (g.total || 0), 0);
+            const totalRevenue = groupedArray.reduce((sum, g) => sum + (g.amount_paid || 0), 0);
             const bookingCount = allOrders.filter(o => o.order_type === 'booking').length;
-            const posCount = allOrders.filter(o => o.order_type === 'pos_order').length;
+            const posCount = allOrders.filter(o => o.order_type === 'pos_order').length + linkedOrders.length;
             const payLaterCount = allOrders.filter(o => o.is_pay_later).length;
 
             return res.status(HTTP_STATUS.OK).json({
@@ -378,7 +405,7 @@ let groupedArray = Object.values(groupedOrders).map(group => {
                     orders: paginatedOrders,
                     total: total,
                     stats: {
-                        total: total,
+                        total: bookingCount + posCount,
                         bookings: bookingCount,
                         pos_orders: posCount,
                         pay_later: payLaterCount,
@@ -398,15 +425,7 @@ let groupedArray = Object.values(groupedOrders).map(group => {
 
         } catch (error) {
             console.error('Get total orders error:', error);
-            return res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: {
-                    orders: [],
-                    total: 0,
-                    stats: { total: 0, bookings: 0, pos_orders: 0, pay_later: 0, revenue: 0 },
-                    pagination: { page: 1, limit: 20, total: 0, pages: 0 }
-                }
-            });
+            next(error);
         }
     };
 
@@ -458,6 +477,7 @@ let groupedArray = Object.values(groupedOrders).map(group => {
                     }).lean();
                     
                     const posOrders = await Order.find({
+                        booking_id: null, settlement_type: { $ne: 'booking' },
                         space_id: { $in: spaceIds },
                         customer_name: { $regex: customerName, $options: 'i' }
                     }).lean();
@@ -568,6 +588,7 @@ let groupedArray = Object.values(groupedOrders).map(group => {
             ]);
 
             const orderRevenue = await Order.aggregate([
+                    { $match: { booking_id: null, settlement_type: { $ne: 'booking' } } },
                 { $match: { space_id: { $in: spaceIds }, status: 'completed' } },
                 { $group: { _id: null, total: { $sum: '$total' } } }
             ]);
@@ -588,6 +609,7 @@ let groupedArray = Object.values(groupedOrders).map(group => {
             ]);
 
             const todayOrderRevenue = await Order.aggregate([
+                    { $match: { booking_id: null, settlement_type: { $ne: 'booking' } } },
                 { $match: { space_id: { $in: spaceIds }, status: 'completed', created_at: { $gte: today } } },
                 { $group: { _id: null, total: { $sum: '$total' } } }
             ]);
@@ -598,6 +620,7 @@ let groupedArray = Object.values(groupedOrders).map(group => {
             ]);
 
             const monthlyOrderRevenue = await Order.aggregate([
+                    { $match: { booking_id: null, settlement_type: { $ne: 'booking' } } },
                 { $match: { space_id: { $in: spaceIds }, status: 'completed', created_at: { $gte: startOfMonth } } },
                 { $group: { _id: null, total: { $sum: '$total' } } }
             ]);
