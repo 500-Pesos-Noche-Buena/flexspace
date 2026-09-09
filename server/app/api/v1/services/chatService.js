@@ -128,7 +128,7 @@ class ChatService {
                     ? ` | 🚪 Rooms: ${space.available_rooms}`
                     : "";
 
-                spaceContext += `- ${space.name} (ID: ${space._id}): **₱${space.rate_hour}/hour**, seats available: ${availableSeats}/${space.capacity || 10}, amenities: ${amenities}${locationInfo}${hoursInfo}${roomsInfo}\n`;
+                spaceContext += `- ${space.name} (**₱${space.rate_hour}/hour**, seats available: ${availableSeats}/${space.capacity || 10}, amenities: ${amenities}${locationInfo}${hoursInfo}${roomsInfo}\n`;
             });
         }
 
