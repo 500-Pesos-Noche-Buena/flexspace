@@ -17,6 +17,8 @@
   "license": "ISC",
   "description": "Geolocation-based co-working space finder for Iloilo City",
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.5.1",
     "concurrently": "^9.2.1"
   }
 }

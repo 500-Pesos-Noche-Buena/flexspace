@@ -13,7 +13,7 @@ const TopSpaces = ({ spaces = [] }) => {
                     <div className="text-center mb-8">
                         <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Popular Workspaces</h2>
                         <p className="text-slate-500 text-sm max-w-2xl mx-auto">
-                            Discover the most loved coworking spaces in Iloilo City, trusted by hundreds of remote workers and students.
+                            Browse participating coworking spaces and compare the details published in each listing.
                         </p>
                     </div>
                     <div className="text-center py-12">
@@ -33,9 +33,8 @@ const TopSpaces = ({ spaces = [] }) => {
                 <div className="text-center mb-12">
                     <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Popular Workspaces in Iloilo City</h2>
                     <p className="text-slate-500 text-sm max-w-2xl mx-auto">
-                        Discover the most loved coworking spaces, study hubs, and professional workspaces 
-                        trusted by hundreds of remote workers, freelancers, and students across Iloilo City.
-                        Each space is verified for quality, speed, and comfort.
+                        Browse coworking spaces, study hubs, and professional workspaces listed in Iloilo City.
+                        Compare their published location, rate, capacity, amenities, and customer feedback.
                     </p>
                 </div>
 
@@ -93,7 +92,7 @@ const TopSpaces = ({ spaces = [] }) => {
                                     <div className="flex items-center gap-1">
                                         <div className="flex items-center gap-0.5">
                                             <Star size={12} className="fill-amber-400 text-amber-400" />
-                                            <span className="text-[10px] font-bold text-slate-700">{s.rating || 5.0}</span>
+                                            <span className="text-[10px] font-bold text-slate-700">{s.review_count > 0 ? s.rating : 'New'}</span>
                                         </div>
                                         <span className="text-[8px] text-slate-300">•</span>
                                         <span className="text-[8px] font-black text-emerald-600 uppercase bg-emerald-50 px-1.5 py-0.5 rounded-full">Verified</span>
@@ -128,9 +127,8 @@ const TopSpaces = ({ spaces = [] }) => {
                 {/* Bottom CTA - More SEO text */}
                 <div className="text-center mt-12 pt-6">
                     <p className="text-[10px] text-slate-400 max-w-2xl mx-auto">
-                        Looking for the perfect workspace in Iloilo City? From Molo to Jaro, 
-                        Mandurriao to City Proper, FlexSpace connects you with the best coworking spots 
-                        featuring high-speed internet, comfortable seating, and professional environments.
+                        Looking for a workspace in Iloilo City? Compare available listings across local districts,
+                        then open a space profile to review its current amenities, pricing, and booking options.
                     </p>
                     <button 
                         onClick={() => window.location.href = '/spaces'}

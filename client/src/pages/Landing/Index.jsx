@@ -5,7 +5,6 @@ import Features from './Features';
 import HowItWorks from './HowItWorks';
 import Contact from './Contact';
 import CustomerReviews from './CustomerReviews';
-import AdSense from '@/components/ads/AdSense'; // Import AdSense component
 import { apiGet } from '@/utils/Api';
 
 const LandingPage = () => {
@@ -108,15 +107,15 @@ const LandingPage = () => {
                                     <span className="absolute -top-1 -right-3 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                                 )}
                             </span>
-                            {' '}Ilonggo professionals using the most reliable workspace map.
+                            {' '}people exploring workspaces through FlexSpace.
                         </p>
 
                         {/* SEO TEXT FOR GOOGLE ADSENSE */}
                         <div className="mt-6 max-w-2xl mx-auto">
                             <p className="text-xs text-slate-400 leading-relaxed">
-                                FlexSpace is Iloilo City's premier coworking space aggregator, connecting remote workers,
-                                freelancers, and students with the best study hubs and professional workspaces across
-                                Molo, Jaro, City Proper, and nearby districts. Find your perfect workspace today!
+                                FlexSpace helps remote workers, freelancers, and students compare participating study
+                                hubs and professional workspaces across Iloilo City. Review each listing’s location,
+                                published rate, amenities, capacity, and availability before choosing a workspace.
                             </p>
                         </div>
                     </div>
@@ -132,25 +131,16 @@ const LandingPage = () => {
                 </div>
             </div>
 
-            {/* ========== AD #1 - AFTER HERO SECTION ========== */}
-            <div className="max-w-7xl mx-auto px-4 py-4">
-                <div className="bg-slate-50 rounded-2xl p-4 text-center">
-                    <p className="text-[8px] text-slate-400 uppercase tracking-widest mb-2">Advertisement</p>
-                    <AdSense slot="9802964286" />
-                </div>
-            </div>
-
-            {/* ADDITIONAL SEO CONTENT SECTION - Helps AdSense */}
+            {/* Helpful context for visitors comparing local workspaces. */}
             <div className="max-w-7xl mx-auto px-6 py-8">
                 <div className="grid md:grid-cols-2 gap-8">
                     <div className="bg-slate-50 p-6 rounded-3xl">
                         <h2 className="text-xl font-black mb-3 text-slate-900">Why Ilonggos Choose FlexSpace</h2>
                         <p className="text-slate-600 text-sm leading-relaxed">
-                            With over {loading || statsLoading ? '2,000' : formatNumber(stats.totalUsers)}+ active users and 
-                            {loading || statsLoading ? ' 50' : ` ${stats.totalSpaces}`}+ premium spaces, FlexSpace has become 
-                            the go-to platform for finding quality coworking spaces in Iloilo City. Our real-time 
-                            availability, transparent pricing, and verified reviews ensure you find the perfect 
-                            workspace for your needs.
+                            FlexSpace brings participating workspace listings into one place so visitors can compare
+                            location, published prices, capacity, and available amenities. Current platform totals are
+                            shown from live data when the service is available, and individual listing details can be
+                            reviewed before making a booking.
                         </p>
                     </div>
                     <div className="bg-slate-50 p-6 rounded-3xl">
@@ -161,14 +151,6 @@ const LandingPage = () => {
                             comfortable seating, free coffee, and 24/7 access options across Iloilo City districts.
                         </p>
                     </div>
-                </div>
-            </div>
-
-            {/* ========== AD #2 - BEFORE FEATURES ========== */}
-            <div className="max-w-7xl mx-auto px-4 py-4">
-                <div className="bg-slate-50 rounded-2xl p-4 text-center">
-                    <p className="text-[8px] text-slate-400 uppercase tracking-widest mb-2">Advertisement</p>
-                    <AdSense slot="9802964286" />
                 </div>
             </div>
 
@@ -184,29 +166,11 @@ const LandingPage = () => {
                         </div>
                     </div>
                 ) : (
-                    <>
-                        <TopSpaces spaces={popularSpaces} />
-                        
-                        {/* ========== AD #3 - AFTER TOP SPACES ========== */}
-                        <div className="max-w-7xl mx-auto px-4 py-4">
-                            <div className="bg-slate-50 rounded-2xl p-4 text-center">
-                                <p className="text-[8px] text-slate-400 uppercase tracking-widest mb-2">Advertisement</p>
-                                <AdSense slot="9802964286" />
-                            </div>
-                        </div>
-                    </>
+                    <TopSpaces spaces={popularSpaces} />
                 )}
 
                 {/* Customer Reviews Section */}
                 <CustomerReviews />
-
-                {/* ========== AD #4 - AFTER REVIEWS ========== */}
-                <div className="max-w-7xl mx-auto px-4 py-4">
-                    <div className="bg-slate-50 rounded-2xl p-4 text-center">
-                        <p className="text-[8px] text-slate-400 uppercase tracking-widest mb-2">Advertisement</p>
-                        <AdSense slot="9802964286" />
-                    </div>
-                </div>
 
                 {/* How It Works */}
                 <HowItWorks />

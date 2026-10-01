@@ -243,6 +243,7 @@ const MainLayout = () => {
                             </div>
                             <div className="flex flex-col gap-3">
                                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Legal</p>
+                                <Link to="/workspace-guide" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Workspace Guide</Link>
                                 <Link to="/privacy" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Privacy Policy</Link>
                                 <Link to="/terms" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Terms of Service</Link>
                             </div>

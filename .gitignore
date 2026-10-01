@@ -29,3 +29,10 @@ yarn-debug.log*
 # Automated project check output
 /test-result/
 /test-results/
+
+# Playwright
+node_modules/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

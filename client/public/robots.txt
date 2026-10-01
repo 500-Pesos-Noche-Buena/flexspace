@@ -1,3 +1,43 @@
 User-agent: *
 Allow: /
+Allow: /ads.txt
+Disallow: /admin/
+Disallow: /space/
+Disallow: /user/
+Disallow: /dashboard
+Disallow: /account
+Disallow: /login
+Disallow: /register
+Disallow: /registration-status
+Disallow: /payment/
+Disallow: /review/
+
+User-agent: Mediapartners-Google
+Allow: /ads.txt
+Allow: /
+Disallow: /admin/
+Disallow: /space/
+Disallow: /user/
+Disallow: /dashboard
+Disallow: /account
+Disallow: /login
+Disallow: /register
+Disallow: /registration-status
+Disallow: /payment/
+Disallow: /review/
+
+User-agent: Google-Display-Ads-Bot
+Allow: /ads.txt
+Allow: /
+Disallow: /admin/
+Disallow: /space/
+Disallow: /user/
+Disallow: /dashboard
+Disallow: /account
+Disallow: /login
+Disallow: /register
+Disallow: /registration-status
+Disallow: /payment/
+Disallow: /review/
+
 Sitemap: https://flexspace-iloilo.vercel.app/sitemap.xml

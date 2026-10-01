@@ -1,0 +1,1304 @@
+.
+├── client
+│   ├── components.json
+│   ├── coverage
+│   │   ├── base.css
+│   │   ├── block-navigation.js
+│   │   ├── coverage-summary.json
+│   │   ├── favicon.png
+│   │   ├── index.html
+│   │   ├── prettify.css
+│   │   ├── prettify.js
+│   │   ├── sort-arrow-sprite.png
+│   │   ├── sorter.js
+│   │   ├── src
+│   │   │   ├── App.jsx.html
+│   │   │   ├── components
+│   │   │   │   ├── ads
+│   │   │   │   │   ├── AdSense.jsx.html
+│   │   │   │   │   └── index.html
+│   │   │   │   ├── AmenitiesSelector.jsx.html
+│   │   │   │   ├── auth
+│   │   │   │   │   ├── ForgotPasswordModal.jsx.html
+│   │   │   │   │   └── index.html
+│   │   │   │   ├── BookingBillBreakdown.jsx.html
+│   │   │   │   ├── BookingOrderSelector.jsx.html
+│   │   │   │   ├── DevConsoleDetector.jsx.html
+│   │   │   │   ├── EditableList.jsx.html
+│   │   │   │   ├── FormValidation.jsx.html
+│   │   │   │   ├── index.html
+│   │   │   │   ├── modal
+│   │   │   │   │   ├── AdminPaymentSettingsModal.jsx.html
+│   │   │   │   │   ├── AdminVoucherModal.jsx.html
+│   │   │   │   │   ├── ApplicationReviewModal.jsx.html
+│   │   │   │   │   ├── BookingDetailsModal.jsx.html
+│   │   │   │   │   ├── BookingModalComponents.jsx.html
+│   │   │   │   │   ├── BookingPaymentModal.jsx.html
+│   │   │   │   │   ├── BookingTicketModal.jsx.html
+│   │   │   │   │   ├── BranchModal.jsx.html
+│   │   │   │   │   ├── ChangePasswordModal.jsx.html
+│   │   │   │   │   ├── DeleteConfirmModal.jsx.html
+│   │   │   │   │   ├── DistrictModal.jsx.html
+│   │   │   │   │   ├── DocumentPreviewModal.jsx.html
+│   │   │   │   │   ├── EditReplyModal.jsx.html
+│   │   │   │   │   ├── EditUserModal.jsx.html
+│   │   │   │   │   ├── FeedbackModal.jsx.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── index.js.html
+│   │   │   │   │   ├── OrderDetailsModal.jsx.html
+│   │   │   │   │   ├── PaymentQRModal.jsx.html
+│   │   │   │   │   ├── ProductModal.jsx.html
+│   │   │   │   │   ├── QRScannerModal.jsx.html
+│   │   │   │   │   ├── ReviewQRModal.jsx.html
+│   │   │   │   │   ├── SpaceDetailsModal.jsx.html
+│   │   │   │   │   ├── StatsModal.jsx.html
+│   │   │   │   │   ├── UserBookingModal.jsx.html
+│   │   │   │   │   ├── UserLightboxModal.jsx.html
+│   │   │   │   │   ├── ViewSpaceModal.jsx.html
+│   │   │   │   │   ├── VoucherModal.jsx.html
+│   │   │   │   │   ├── VoucherRedeemModal.jsx.html
+│   │   │   │   │   └── WalkinModal.jsx.html
+│   │   │   │   ├── QueueStatCard.jsx.html
+│   │   │   │   ├── RoomGuestCount.jsx.html
+│   │   │   │   ├── RoomPackageChoice.jsx.html
+│   │   │   │   ├── StatCard.jsx.html
+│   │   │   │   └── ui
+│   │   │   │       ├── accordion.jsx.html
+│   │   │   │       ├── alert.jsx.html
+│   │   │   │       ├── AnalyticsTracker.jsx.html
+│   │   │   │       ├── badge.jsx.html
+│   │   │   │       ├── button.jsx.html
+│   │   │   │       ├── card.jsx.html
+│   │   │   │       ├── ChatOrder.jsx.html
+│   │   │   │       ├── ChatSupport.jsx.html
+│   │   │   │       ├── CookieConsent.jsx.html
+│   │   │   │       ├── DataTable.jsx.html
+│   │   │   │       ├── index.html
+│   │   │   │       ├── LoadingSpinner.jsx.html
+│   │   │   │       ├── Modal.jsx.html
+│   │   │   │       ├── NotificationPermission.jsx.html
+│   │   │   │       ├── OrderNotificationListener.jsx.html
+│   │   │   │       ├── ProgressBar.jsx.html
+│   │   │   │       ├── progress.jsx.html
+│   │   │   │       ├── select.jsx.html
+│   │   │   │       ├── separator.jsx.html
+│   │   │   │       ├── SweetAlert2.jsx.html
+│   │   │   │       ├── table.jsx.html
+│   │   │   │       ├── tabs.jsx.html
+│   │   │   │       ├── TokenExpiryChecker.jsx.html
+│   │   │   │       └── UserManual.jsx.html
+│   │   │   ├── context
+│   │   │   │   ├── AuthContext.jsx.html
+│   │   │   │   └── index.html
+│   │   │   ├── error
+│   │   │   │   ├── 404.jsx.html
+│   │   │   │   └── index.html
+│   │   │   ├── hooks
+│   │   │   │   ├── index.html
+│   │   │   │   ├── useCookieConsent.js.html
+│   │   │   │   ├── usePendingFees.js.html
+│   │   │   │   ├── useRealTimeSync.js.html
+│   │   │   │   ├── useSocket.js.html
+│   │   │   │   └── useTheme.js.html
+│   │   │   ├── index.html
+│   │   │   ├── layouts
+│   │   │   │   ├── AppLayout.jsx.html
+│   │   │   │   ├── AuthLayout.jsx.html
+│   │   │   │   ├── DashboardLayout.jsx.html
+│   │   │   │   ├── index.html
+│   │   │   │   └── MainLayout.jsx.html
+│   │   │   ├── lib
+│   │   │   │   ├── index.html
+│   │   │   │   └── utils.js.html
+│   │   │   ├── main.jsx.html
+│   │   │   ├── pages
+│   │   │   │   ├── Admin
+│   │   │   │   │   ├── Dashboard
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Earnings
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Insights
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Locations
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Logs
+│   │   │   │   │   │   ├── ErrorLogs.jsx.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Queue
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Space
+│   │   │   │   │   │   ├── Application.jsx.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── User
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   └── Voucher
+│   │   │   │   │       ├── index.html
+│   │   │   │   │       └── Index.jsx.html
+│   │   │   │   ├── Auth
+│   │   │   │   │   ├── GoogleCallback.jsx.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── Login.jsx.html
+│   │   │   │   │   ├── Pending.jsx.html
+│   │   │   │   │   └── Register.jsx.html
+│   │   │   │   ├── Landing
+│   │   │   │   │   ├── BlogDetail.jsx.html
+│   │   │   │   │   ├── Blogs.jsx.html
+│   │   │   │   │   ├── Contact.jsx.html
+│   │   │   │   │   ├── CustomerReviews.jsx.html
+│   │   │   │   │   ├── ExplorerView.jsx.html
+│   │   │   │   │   ├── FAQ.jsx.html
+│   │   │   │   │   ├── Features.jsx.html
+│   │   │   │   │   ├── HowItWorks.jsx.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── Index.jsx.html
+│   │   │   │   │   ├── MapExplorer.jsx.html
+│   │   │   │   │   ├── PrivacyPolicy.jsx.html
+│   │   │   │   │   ├── SpaceDetails.jsx.html
+│   │   │   │   │   ├── Spaces.jsx.html
+│   │   │   │   │   ├── TermsOfService.jsx.html
+│   │   │   │   │   └── TopSpaces.jsx.html
+│   │   │   │   ├── Payment
+│   │   │   │   │   ├── Failed.jsx.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   └── Success.jsx.html
+│   │   │   │   ├── Profile
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   └── Index.jsx.html
+│   │   │   │   ├── Public
+│   │   │   │   │   ├── AlreadyReviewedPage.jsx.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── InvalidQrPage.jsx.html
+│   │   │   │   │   ├── NotCompletedPage.jsx.html
+│   │   │   │   │   ├── ReviewPage.jsx.html
+│   │   │   │   │   └── SpaceReviewPage.jsx.html
+│   │   │   │   ├── Settings
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   └── Index.jsx.html
+│   │   │   │   ├── Space
+│   │   │   │   │   ├── Bookings
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Dashboard
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Earnings
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── MySpaces
+│   │   │   │   │   │   ├── Create.jsx.html
+│   │   │   │   │   │   ├── Edit.jsx.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── PaymentSettings
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Pos
+│   │   │   │   │   │   ├── Income.jsx.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   ├── Index.jsx.html
+│   │   │   │   │   │   ├── Inventory.jsx.html
+│   │   │   │   │   │   ├── Orders.jsx.html
+│   │   │   │   │   │   └── Products.jsx.html
+│   │   │   │   │   ├── Reviews
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Staff
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── TotalOrders
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   ├── Voucher
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── Index.jsx.html
+│   │   │   │   │   └── Walkins
+│   │   │   │   │       ├── index.html
+│   │   │   │   │       └── Index.jsx.html
+│   │   │   │   └── User
+│   │   │   │       ├── Bookings
+│   │   │   │       │   ├── index.html
+│   │   │   │       │   └── Index.jsx.html
+│   │   │   │       ├── Dashboard
+│   │   │   │       │   ├── index.html
+│   │   │   │       │   └── Index.jsx.html
+│   │   │   │       ├── Profile
+│   │   │   │       │   ├── index.html
+│   │   │   │       │   └── Index.jsx.html
+│   │   │   │       ├── Redeem
+│   │   │   │       │   ├── index.html
+│   │   │   │       │   └── Index.jsx.html
+│   │   │   │       └── Space
+│   │   │   │           ├── index.html
+│   │   │   │           └── Index.jsx.html
+│   │   │   ├── routes
+│   │   │   │   ├── AppRoutes.jsx.html
+│   │   │   │   ├── index.html
+│   │   │   │   └── ProtectedRoute.jsx.html
+│   │   │   ├── services
+│   │   │   │   ├── index.html
+│   │   │   │   └── orderNotificationService.js.html
+│   │   │   └── utils
+│   │   │       ├── Api.jsx.html
+│   │   │       ├── bookingEstimate.js.html
+│   │   │       ├── cn.js.html
+│   │   │       ├── formatNumber.js.html
+│   │   │       ├── imageHelper.js.html
+│   │   │       ├── index.html
+│   │   │       ├── orderReceipt.js.html
+│   │   │       ├── roomPricing.js.html
+│   │   │       └── spaceHelpers.js.html
+│   │   └── test-results.json
+│   ├── eslint.config.js
+│   ├── eslint.correctness.config.js
+│   ├── index.html
+│   ├── jsconfig.json
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── public
+│   │   ├── ads.txt
+│   │   ├── android-chrome-192x192.png
+│   │   ├── android-chrome-512x512.png
+│   │   ├── apple-touch-icon.png
+│   │   ├── favicon-16x16.png
+│   │   ├── favicon-32x32.png
+│   │   ├── favicon.ico
+│   │   ├── favicon.svg
+│   │   ├── googlea712e8f5a5f839bf.html
+│   │   ├── icons.svg
+│   │   ├── iloilo-boundary.json
+│   │   ├── logo.png
+│   │   ├── robots.txt
+│   │   ├── sitemap.xml
+│   │   └── vite.svg
+│   ├── README.md
+│   ├── src
+│   │   ├── App.jsx
+│   │   ├── assets
+│   │   │   └── react.svg
+│   │   ├── components
+│   │   │   ├── ads
+│   │   │   │   └── AdSense.jsx
+│   │   │   ├── AmenitiesSelector.jsx
+│   │   │   ├── auth
+│   │   │   │   └── ForgotPasswordModal.jsx
+│   │   │   ├── BookingBillBreakdown.jsx
+│   │   │   ├── BookingOrderSelector.jsx
+│   │   │   ├── DevConsoleDetector.jsx
+│   │   │   ├── EditableList.jsx
+│   │   │   ├── FormValidation.jsx
+│   │   │   ├── modal
+│   │   │   │   ├── AdminPaymentSettingsModal.jsx
+│   │   │   │   ├── AdminVoucherModal.jsx
+│   │   │   │   ├── ApplicationReviewModal.jsx
+│   │   │   │   ├── BookingDetailsModal.jsx
+│   │   │   │   ├── BookingModalComponents.jsx
+│   │   │   │   ├── BookingPaymentModal.jsx
+│   │   │   │   ├── BookingTicketModal.jsx
+│   │   │   │   ├── BranchModal.jsx
+│   │   │   │   ├── ChangePasswordModal.jsx
+│   │   │   │   ├── DeleteConfirmModal.jsx
+│   │   │   │   ├── DistrictModal.jsx
+│   │   │   │   ├── DocumentPreviewModal.jsx
+│   │   │   │   ├── EditReplyModal.jsx
+│   │   │   │   ├── EditUserModal.jsx
+│   │   │   │   ├── FeedbackModal.jsx
+│   │   │   │   ├── index.js
+│   │   │   │   ├── OrderDetailsModal.jsx
+│   │   │   │   ├── PaymentQRModal.jsx
+│   │   │   │   ├── ProductModal.jsx
+│   │   │   │   ├── QRScannerModal.jsx
+│   │   │   │   ├── ReviewQRModal.jsx
+│   │   │   │   ├── SpaceDetailsModal.jsx
+│   │   │   │   ├── StatsModal.jsx
+│   │   │   │   ├── UserBookingModal.jsx
+│   │   │   │   ├── UserLightboxModal.jsx
+│   │   │   │   ├── ViewSpaceModal.jsx
+│   │   │   │   ├── VoucherModal.jsx
+│   │   │   │   ├── VoucherRedeemModal.jsx
+│   │   │   │   └── WalkinModal.jsx
+│   │   │   ├── QueueStatCard.jsx
+│   │   │   ├── RoomGuestCount.jsx
+│   │   │   ├── RoomPackageChoice.jsx
+│   │   │   ├── StatCard.jsx
+│   │   │   └── ui
+│   │   │       ├── accordion.jsx
+│   │   │       ├── alert.jsx
+│   │   │       ├── AnalyticsTracker.jsx
+│   │   │       ├── badge.jsx
+│   │   │       ├── button.jsx
+│   │   │       ├── card.jsx
+│   │   │       ├── ChatOrder.jsx
+│   │   │       ├── ChatSupport.jsx
+│   │   │       ├── CookieConsent.jsx
+│   │   │       ├── DataTable.jsx
+│   │   │       ├── LoadingSpinner.jsx
+│   │   │       ├── Modal.jsx
+│   │   │       ├── NotificationPermission.jsx
+│   │   │       ├── OrderNotificationListener.jsx
+│   │   │       ├── ProgressBar.jsx
+│   │   │       ├── progress.jsx
+│   │   │       ├── select.jsx
+│   │   │       ├── separator.jsx
+│   │   │       ├── SweetAlert2.jsx
+│   │   │       ├── table.jsx
+│   │   │       ├── tabs.jsx
+│   │   │       ├── TokenExpiryChecker.jsx
+│   │   │       └── UserManual.jsx
+│   │   ├── context
+│   │   │   └── AuthContext.jsx
+│   │   ├── error
+│   │   │   └── 404.jsx
+│   │   ├── hooks
+│   │   │   ├── useCookieConsent.js
+│   │   │   ├── usePendingFees.js
+│   │   │   ├── useRealTimeSync.js
+│   │   │   ├── useSocket.js
+│   │   │   └── useTheme.js
+│   │   ├── index.css
+│   │   ├── layouts
+│   │   │   ├── AppLayout.jsx
+│   │   │   ├── AuthLayout.jsx
+│   │   │   ├── DashboardLayout.jsx
+│   │   │   └── MainLayout.jsx
+│   │   ├── lib
+│   │   │   └── utils.js
+│   │   ├── main.jsx
+│   │   ├── pages
+│   │   │   ├── Admin
+│   │   │   │   ├── Dashboard
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Earnings
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Insights
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Locations
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Logs
+│   │   │   │   │   ├── ErrorLogs.jsx
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Queue
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Space
+│   │   │   │   │   ├── Application.jsx
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── User
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   └── Voucher
+│   │   │   │       └── Index.jsx
+│   │   │   ├── Auth
+│   │   │   │   ├── GoogleCallback.jsx
+│   │   │   │   ├── Login.jsx
+│   │   │   │   ├── Pending.jsx
+│   │   │   │   └── Register.jsx
+│   │   │   ├── Landing
+│   │   │   │   ├── BlogDetail.jsx
+│   │   │   │   ├── Blogs.jsx
+│   │   │   │   ├── Contact.jsx
+│   │   │   │   ├── CustomerReviews.jsx
+│   │   │   │   ├── ExplorerView.jsx
+│   │   │   │   ├── FAQ.jsx
+│   │   │   │   ├── Features.jsx
+│   │   │   │   ├── HowItWorks.jsx
+│   │   │   │   ├── Index.jsx
+│   │   │   │   ├── MapExplorer.jsx
+│   │   │   │   ├── PrivacyPolicy.jsx
+│   │   │   │   ├── SpaceDetails.jsx
+│   │   │   │   ├── Spaces.jsx
+│   │   │   │   ├── TermsOfService.jsx
+│   │   │   │   └── TopSpaces.jsx
+│   │   │   ├── Payment
+│   │   │   │   ├── Failed.jsx
+│   │   │   │   └── Success.jsx
+│   │   │   ├── Profile
+│   │   │   │   └── Index.jsx
+│   │   │   ├── Public
+│   │   │   │   ├── AlreadyReviewedPage.jsx
+│   │   │   │   ├── InvalidQrPage.jsx
+│   │   │   │   ├── NotCompletedPage.jsx
+│   │   │   │   ├── ReviewPage.jsx
+│   │   │   │   └── SpaceReviewPage.jsx
+│   │   │   ├── Settings
+│   │   │   │   └── Index.jsx
+│   │   │   ├── Space
+│   │   │   │   ├── Bookings
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Dashboard
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Earnings
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── MySpaces
+│   │   │   │   │   ├── Create.jsx
+│   │   │   │   │   ├── Edit.jsx
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── PaymentSettings
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Pos
+│   │   │   │   │   ├── Income.jsx
+│   │   │   │   │   ├── Index.jsx
+│   │   │   │   │   ├── Inventory.jsx
+│   │   │   │   │   ├── Orders.jsx
+│   │   │   │   │   └── Products.jsx
+│   │   │   │   ├── Reviews
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Staff
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── TotalOrders
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   ├── Voucher
+│   │   │   │   │   └── Index.jsx
+│   │   │   │   └── Walkins
+│   │   │   │       └── Index.jsx
+│   │   │   └── User
+│   │   │       ├── Bookings
+│   │   │       │   └── Index.jsx
+│   │   │       ├── Dashboard
+│   │   │       │   └── Index.jsx
+│   │   │       ├── Profile
+│   │   │       │   └── Index.jsx
+│   │   │       ├── Redeem
+│   │   │       │   └── Index.jsx
+│   │   │       └── Space
+│   │   │           └── Index.jsx
+│   │   ├── routes
+│   │   │   ├── AppRoutes.jsx
+│   │   │   └── ProtectedRoute.jsx
+│   │   ├── services
+│   │   │   └── orderNotificationService.js
+│   │   └── utils
+│   │       ├── Api.jsx
+│   │       ├── bookingEstimate.js
+│   │       ├── cn.js
+│   │       ├── formatNumber.js
+│   │       ├── imageHelper.js
+│   │       ├── orderReceipt.js
+│   │       ├── roomPricing.js
+│   │       └── spaceHelpers.js
+│   ├── tests
+│   │   ├── api.test.js
+│   │   ├── authContext.test.jsx
+│   │   ├── auth.test.jsx
+│   │   ├── bookingSelection.test.jsx
+│   │   ├── forms.test.jsx
+│   │   ├── notificationService.test.js
+│   │   ├── notifications.test.jsx
+│   │   ├── pages.test.jsx
+│   │   ├── pricing.test.js
+│   │   ├── reports.test.jsx
+│   │   ├── routes.test.jsx
+│   │   └── setup.js
+│   ├── vercel.json
+│   ├── vite.config.js
+│   └── vitest.config.js
+├── docs
+│   ├── backend-testing.md
+│   ├── project-testing.md
+│   └── room-consumable-flow.md
+├── features
+├── future.txt
+├── package.json
+├── package-lock.json
+├── README.md
+├── scripts
+│   ├── coverageTarget.js
+│   └── testSummary.js
+├── server
+│   ├── app
+│   │   ├── api
+│   │   │   ├── v1
+│   │   │   │   ├── constants
+│   │   │   │   │   └── chatConstants.js
+│   │   │   │   ├── controllers
+│   │   │   │   │   ├── admin
+│   │   │   │   │   │   ├── dashboardController.js
+│   │   │   │   │   │   ├── earningController.js
+│   │   │   │   │   │   ├── errorLogController.js
+│   │   │   │   │   │   ├── insightsController.js
+│   │   │   │   │   │   ├── location
+│   │   │   │   │   │   │   ├── districtController.js
+│   │   │   │   │   │   │   └── locationController.js
+│   │   │   │   │   │   ├── logsController.js
+│   │   │   │   │   │   ├── paymentController.js
+│   │   │   │   │   │   ├── queueController.js
+│   │   │   │   │   │   ├── settingsController.js
+│   │   │   │   │   │   ├── spaceController.js
+│   │   │   │   │   │   ├── userController.js
+│   │   │   │   │   │   └── voucherController.js
+│   │   │   │   │   ├── authController.js
+│   │   │   │   │   ├── baseController.js
+│   │   │   │   │   ├── blogController.js
+│   │   │   │   │   ├── chatController.js
+│   │   │   │   │   ├── emailController.js
+│   │   │   │   │   ├── landingController.js
+│   │   │   │   │   ├── passwordController.js
+│   │   │   │   │   ├── profileController.js
+│   │   │   │   │   ├── reviewController.js
+│   │   │   │   │   ├── space
+│   │   │   │   │   │   ├── bookingController.js
+│   │   │   │   │   │   ├── dashboardController.js
+│   │   │   │   │   │   ├── districtController.js
+│   │   │   │   │   │   ├── earningController.js
+│   │   │   │   │   │   ├── paybridgeController.js
+│   │   │   │   │   │   ├── paymentController.js
+│   │   │   │   │   │   ├── posController.js
+│   │   │   │   │   │   ├── reviewController.js
+│   │   │   │   │   │   ├── roomController.js
+│   │   │   │   │   │   ├── spaceController.js
+│   │   │   │   │   │   ├── staffController.js
+│   │   │   │   │   │   ├── totalOrdersController.js
+│   │   │   │   │   │   ├── voucherController.js
+│   │   │   │   │   │   └── walkinController.js
+│   │   │   │   │   └── user
+│   │   │   │   │       ├── bookingController.js
+│   │   │   │   │       ├── dashboardController.js
+│   │   │   │   │       ├── orderController.js
+│   │   │   │   │       ├── redeemController.js
+│   │   │   │   │       ├── reviewController.js
+│   │   │   │   │       └── spaceController.js
+│   │   │   │   ├── emails
+│   │   │   │   │   ├── BaseEmail.js
+│   │   │   │   │   ├── BookingCompletionEmail.js
+│   │   │   │   │   ├── BookingConfirmationEmail.js
+│   │   │   │   │   ├── OTPEmail.js
+│   │   │   │   │   ├── PasswordResetConfirmationEmail.js
+│   │   │   │   │   ├── PasswordResetEmail.js
+│   │   │   │   │   ├── SpaceApprovalEmail.js
+│   │   │   │   │   ├── SpaceRejectionEmail.js
+│   │   │   │   │   ├── VoucherEmail.js
+│   │   │   │   │   └── WelcomeEmail.js
+│   │   │   │   ├── middleware
+│   │   │   │   │   ├── antiDdos.js
+│   │   │   │   │   ├── authMiddleware.js
+│   │   │   │   │   ├── autoLogger.js
+│   │   │   │   │   ├── errorHandler.js
+│   │   │   │   │   ├── protectionMiddleware.js
+│   │   │   │   │   └── queueMiddleware.js
+│   │   │   │   ├── models
+│   │   │   │   │   ├── index.js
+│   │   │   │   │   └── schema
+│   │   │   │   │       ├── ActivityLog.js
+│   │   │   │   │       ├── add.js
+│   │   │   │   │       ├── Analytics.js
+│   │   │   │   │       ├── Blocklist.js
+│   │   │   │   │       ├── Blog.js
+│   │   │   │   │       ├── Booking.js
+│   │   │   │   │       ├── District.js
+│   │   │   │   │       ├── Earnings.js
+│   │   │   │   │       ├── ErrorLog.js
+│   │   │   │   │       ├── Order.js
+│   │   │   │   │       ├── Payment.js
+│   │   │   │   │       ├── Product.js
+│   │   │   │   │       ├── Review.js
+│   │   │   │   │       ├── Room.js
+│   │   │   │   │       ├── Settings.js
+│   │   │   │   │       ├── Space.js
+│   │   │   │   │       ├── SpaceRequest.js
+│   │   │   │   │       ├── User.js
+│   │   │   │   │       └── Voucher.js
+│   │   │   │   ├── queues
+│   │   │   │   │   ├── cloudinaryProcessor.js
+│   │   │   │   │   ├── emailProcessor.js
+│   │   │   │   │   └── worker.js
+│   │   │   │   ├── routes
+│   │   │   │   │   ├── adminRoutes.js
+│   │   │   │   │   ├── authRoutes.js
+│   │   │   │   │   ├── blogRoutes.js
+│   │   │   │   │   ├── landingRoutes.js
+│   │   │   │   │   ├── routes.js
+│   │   │   │   │   ├── spaceRoutes.js
+│   │   │   │   │   └── userRoutes.js
+│   │   │   │   ├── services
+│   │   │   │   │   ├── aiBlogGeneratorService.js
+│   │   │   │   │   ├── bookingBillingService.js
+│   │   │   │   │   ├── bookingOrderService.js
+│   │   │   │   │   ├── chatService.js
+│   │   │   │   │   ├── emailService.js
+│   │   │   │   │   ├── errorLogService.js
+│   │   │   │   │   ├── otpService.js
+│   │   │   │   │   ├── paybridgeService.js
+│   │   │   │   │   ├── rewardService.js
+│   │   │   │   │   ├── roomPricingService.js
+│   │   │   │   │   ├── roomPromoService.js
+│   │   │   │   │   └── userService.js
+│   │   │   │   └── utils
+│   │   │   │       ├── ApiError.js
+│   │   │   │       ├── cloudinary.js
+│   │   │   │       ├── constants.js
+│   │   │   │       ├── hash.js
+│   │   │   │       ├── jwt.js
+│   │   │   │       ├── languageUtils.js
+│   │   │   │       ├── logger.js
+│   │   │   │       ├── logsActivity.js
+│   │   │   │       └── upload.js
+│   │   │   └── v2
+│   │   └── config
+│   │       ├── config.js
+│   │       ├── db.js
+│   │       ├── mongodb.js
+│   │       ├── passport.js
+│   │       └── queue.js
+│   ├── app.js
+│   ├── coverage
+│   │   ├── backend-coverage.json
+│   │   ├── base.css
+│   │   ├── block-navigation.js
+│   │   ├── coverage-final.json
+│   │   ├── coverage-summary.json
+│   │   ├── favicon.png
+│   │   ├── index.html
+│   │   ├── prettify.css
+│   │   ├── prettify.js
+│   │   ├── routes.json
+│   │   ├── server
+│   │   │   ├── app
+│   │   │   │   ├── api
+│   │   │   │   │   └── v1
+│   │   │   │   │       ├── constants
+│   │   │   │   │       │   ├── chatConstants.js.html
+│   │   │   │   │       │   └── index.html
+│   │   │   │   │       ├── controllers
+│   │   │   │   │       │   ├── admin
+│   │   │   │   │       │   │   ├── dashboardController.js.html
+│   │   │   │   │       │   │   ├── earningController.js.html
+│   │   │   │   │       │   │   ├── errorLogController.js.html
+│   │   │   │   │       │   │   ├── index.html
+│   │   │   │   │       │   │   ├── insightsController.js.html
+│   │   │   │   │       │   │   ├── location
+│   │   │   │   │       │   │   │   ├── districtController.js.html
+│   │   │   │   │       │   │   │   ├── index.html
+│   │   │   │   │       │   │   │   └── locationController.js.html
+│   │   │   │   │       │   │   ├── logsController.js.html
+│   │   │   │   │       │   │   ├── paymentController.js.html
+│   │   │   │   │       │   │   ├── queueController.js.html
+│   │   │   │   │       │   │   ├── settingsController.js.html
+│   │   │   │   │       │   │   ├── spaceController.js.html
+│   │   │   │   │       │   │   ├── userController.js.html
+│   │   │   │   │       │   │   └── voucherController.js.html
+│   │   │   │   │       │   ├── authController.js.html
+│   │   │   │   │       │   ├── baseController.js.html
+│   │   │   │   │       │   ├── blogController.js.html
+│   │   │   │   │       │   ├── chatController.js.html
+│   │   │   │   │       │   ├── emailController.js.html
+│   │   │   │   │       │   ├── index.html
+│   │   │   │   │       │   ├── landingController.js.html
+│   │   │   │   │       │   ├── passwordController.js.html
+│   │   │   │   │       │   ├── profileController.js.html
+│   │   │   │   │       │   ├── reviewController.js.html
+│   │   │   │   │       │   ├── space
+│   │   │   │   │       │   │   ├── bookingController.js.html
+│   │   │   │   │       │   │   ├── dashboardController.js.html
+│   │   │   │   │       │   │   ├── districtController.js.html
+│   │   │   │   │       │   │   ├── earningController.js.html
+│   │   │   │   │       │   │   ├── index.html
+│   │   │   │   │       │   │   ├── paybridgeController.js.html
+│   │   │   │   │       │   │   ├── paymentController.js.html
+│   │   │   │   │       │   │   ├── posController.js.html
+│   │   │   │   │       │   │   ├── reviewController.js.html
+│   │   │   │   │       │   │   ├── roomController.js.html
+│   │   │   │   │       │   │   ├── spaceController.js.html
+│   │   │   │   │       │   │   ├── staffController.js.html
+│   │   │   │   │       │   │   ├── totalOrdersController.js.html
+│   │   │   │   │       │   │   ├── voucherController.js.html
+│   │   │   │   │       │   │   └── walkinController.js.html
+│   │   │   │   │       │   └── user
+│   │   │   │   │       │       ├── bookingController.js.html
+│   │   │   │   │       │       ├── dashboardController.js.html
+│   │   │   │   │       │       ├── index.html
+│   │   │   │   │       │       ├── orderController.js.html
+│   │   │   │   │       │       ├── redeemController.js.html
+│   │   │   │   │       │       ├── reviewController.js.html
+│   │   │   │   │       │       └── spaceController.js.html
+│   │   │   │   │       ├── emails
+│   │   │   │   │       │   ├── BaseEmail.js.html
+│   │   │   │   │       │   ├── BookingCompletionEmail.js.html
+│   │   │   │   │       │   ├── BookingConfirmationEmail.js.html
+│   │   │   │   │       │   ├── index.html
+│   │   │   │   │       │   ├── OTPEmail.js.html
+│   │   │   │   │       │   ├── PasswordResetConfirmationEmail.js.html
+│   │   │   │   │       │   ├── PasswordResetEmail.js.html
+│   │   │   │   │       │   ├── SpaceApprovalEmail.js.html
+│   │   │   │   │       │   ├── SpaceRejectionEmail.js.html
+│   │   │   │   │       │   ├── VoucherEmail.js.html
+│   │   │   │   │       │   └── WelcomeEmail.js.html
+│   │   │   │   │       ├── middleware
+│   │   │   │   │       │   ├── antiDdos.js.html
+│   │   │   │   │       │   ├── authMiddleware.js.html
+│   │   │   │   │       │   ├── autoLogger.js.html
+│   │   │   │   │       │   ├── errorHandler.js.html
+│   │   │   │   │       │   ├── index.html
+│   │   │   │   │       │   ├── protectionMiddleware.js.html
+│   │   │   │   │       │   └── queueMiddleware.js.html
+│   │   │   │   │       ├── models
+│   │   │   │   │       │   ├── index.html
+│   │   │   │   │       │   ├── index.js.html
+│   │   │   │   │       │   └── schema
+│   │   │   │   │       │       ├── ActivityLog.js.html
+│   │   │   │   │       │       ├── add.js.html
+│   │   │   │   │       │       ├── Analytics.js.html
+│   │   │   │   │       │       ├── Blocklist.js.html
+│   │   │   │   │       │       ├── Blog.js.html
+│   │   │   │   │       │       ├── Booking.js.html
+│   │   │   │   │       │       ├── District.js.html
+│   │   │   │   │       │       ├── Earnings.js.html
+│   │   │   │   │       │       ├── ErrorLog.js.html
+│   │   │   │   │       │       ├── index.html
+│   │   │   │   │       │       ├── Order.js.html
+│   │   │   │   │       │       ├── Payment.js.html
+│   │   │   │   │       │       ├── Product.js.html
+│   │   │   │   │       │       ├── Review.js.html
+│   │   │   │   │       │       ├── Room.js.html
+│   │   │   │   │       │       ├── Settings.js.html
+│   │   │   │   │       │       ├── Space.js.html
+│   │   │   │   │       │       ├── SpaceRequest.js.html
+│   │   │   │   │       │       ├── User.js.html
+│   │   │   │   │       │       └── Voucher.js.html
+│   │   │   │   │       ├── queues
+│   │   │   │   │       │   ├── cloudinaryProcessor.js.html
+│   │   │   │   │       │   ├── emailProcessor.js.html
+│   │   │   │   │       │   ├── index.html
+│   │   │   │   │       │   └── worker.js.html
+│   │   │   │   │       ├── routes
+│   │   │   │   │       │   ├── adminRoutes.js.html
+│   │   │   │   │       │   ├── authRoutes.js.html
+│   │   │   │   │       │   ├── blogRoutes.js.html
+│   │   │   │   │       │   ├── index.html
+│   │   │   │   │       │   ├── landingRoutes.js.html
+│   │   │   │   │       │   ├── routes.js.html
+│   │   │   │   │       │   ├── spaceRoutes.js.html
+│   │   │   │   │       │   └── userRoutes.js.html
+│   │   │   │   │       ├── services
+│   │   │   │   │       │   ├── aiBlogGeneratorService.js.html
+│   │   │   │   │       │   ├── bookingBillingService.js.html
+│   │   │   │   │       │   ├── bookingOrderService.js.html
+│   │   │   │   │       │   ├── chatService.js.html
+│   │   │   │   │       │   ├── emailService.js.html
+│   │   │   │   │       │   ├── errorLogService.js.html
+│   │   │   │   │       │   ├── index.html
+│   │   │   │   │       │   ├── otpService.js.html
+│   │   │   │   │       │   ├── paybridgeService.js.html
+│   │   │   │   │       │   ├── rewardService.js.html
+│   │   │   │   │       │   ├── roomPricingService.js.html
+│   │   │   │   │       │   ├── roomPromoService.js.html
+│   │   │   │   │       │   └── userService.js.html
+│   │   │   │   │       └── utils
+│   │   │   │   │           ├── ApiError.js.html
+│   │   │   │   │           ├── cloudinary.js.html
+│   │   │   │   │           ├── constants.js.html
+│   │   │   │   │           ├── hash.js.html
+│   │   │   │   │           ├── index.html
+│   │   │   │   │           ├── jwt.js.html
+│   │   │   │   │           ├── languageUtils.js.html
+│   │   │   │   │           ├── logger.js.html
+│   │   │   │   │           ├── logsActivity.js.html
+│   │   │   │   │           └── upload.js.html
+│   │   │   │   └── config
+│   │   │   │       ├── config.js.html
+│   │   │   │       ├── db.js.html
+│   │   │   │       ├── index.html
+│   │   │   │       ├── mongodb.js.html
+│   │   │   │       ├── passport.js.html
+│   │   │   │       └── queue.js.html
+│   │   │   ├── app.js.html
+│   │   │   ├── cron
+│   │   │   │   ├── generate-blogs.js.html
+│   │   │   │   └── index.html
+│   │   │   ├── generate-hash.js.html
+│   │   │   ├── index.html
+│   │   │   └── server.js.html
+│   │   ├── sort-arrow-sprite.png
+│   │   └── sorter.js
+│   ├── cron
+│   │   └── generate-blogs.js
+│   ├── Dockerfile
+│   ├── generate-hash.js
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── README.md
+│   ├── scripts
+│   │   └── test.js
+│   ├── server.js
+│   ├── supervisor
+│   │   └── supervisor.conf
+│   ├── temp
+│   │   ├── 1779779432088-882970298.png
+│   │   ├── 1780457815104-413811133.png
+│   │   ├── 1780458147690-851282131.png
+│   │   └── 1780458154279-971078281.png
+│   ├── test.blog
+│   ├── test.js
+│   └── tests
+│       ├── contracts
+│       │   ├── controllers.test.js
+│       │   └── databaseControllers.integration.test.js
+│       ├── controllers
+│       │   └── userController.test.js
+│       ├── frontend
+│       │   └── orderReceipt.test.js
+│       ├── middleware
+│       │   └── access.test.js
+│       ├── models
+│       │   └── validation.test.js
+│       ├── routes
+│       │   ├── authRoutes.test.js
+│       │   └── http.integration.test.js
+│       ├── services
+│       │   ├── bookingBilling.test.js
+│       │   ├── bookingFlow.integration.test.js
+│       │   ├── content.integration.test.js
+│       │   ├── emailProcessor.test.js
+│       │   ├── emailService.test.js
+│       │   ├── paybridge.test.js
+│       │   ├── rewards.integration.test.js
+│       │   ├── roomPricing.test.js
+│       │   └── supportServices.test.js
+│       ├── support
+│       │   ├── database.js
+│       │   ├── http.js
+│       │   ├── isolatedDependencies.js
+│       │   └── setup.js
+│       └── utils
+│           └── helpers.test.js
+├── structure.txt
+├── test.js
+└── test-results
+    ├── coverage-gaps.json
+    ├── runs
+    │   └── 1788844049551-367542
+    │       ├── 1-server.log
+    │       ├── 2-client.log
+    │       ├── 3-client.log
+    │       ├── 4-client.log
+    │       ├── client-coverage
+    │       │   ├── base.css
+    │       │   ├── block-navigation.js
+    │       │   ├── coverage-summary.json
+    │       │   ├── favicon.png
+    │       │   ├── index.html
+    │       │   ├── prettify.css
+    │       │   ├── prettify.js
+    │       │   ├── sort-arrow-sprite.png
+    │       │   ├── sorter.js
+    │       │   ├── src
+    │       │   │   ├── App.jsx.html
+    │       │   │   ├── components
+    │       │   │   │   ├── ads
+    │       │   │   │   │   ├── AdSense.jsx.html
+    │       │   │   │   │   └── index.html
+    │       │   │   │   ├── AmenitiesSelector.jsx.html
+    │       │   │   │   ├── auth
+    │       │   │   │   │   ├── ForgotPasswordModal.jsx.html
+    │       │   │   │   │   └── index.html
+    │       │   │   │   ├── BookingBillBreakdown.jsx.html
+    │       │   │   │   ├── BookingOrderSelector.jsx.html
+    │       │   │   │   ├── DevConsoleDetector.jsx.html
+    │       │   │   │   ├── EditableList.jsx.html
+    │       │   │   │   ├── FormValidation.jsx.html
+    │       │   │   │   ├── index.html
+    │       │   │   │   ├── modal
+    │       │   │   │   │   ├── AdminPaymentSettingsModal.jsx.html
+    │       │   │   │   │   ├── AdminVoucherModal.jsx.html
+    │       │   │   │   │   ├── ApplicationReviewModal.jsx.html
+    │       │   │   │   │   ├── BookingDetailsModal.jsx.html
+    │       │   │   │   │   ├── BookingModalComponents.jsx.html
+    │       │   │   │   │   ├── BookingPaymentModal.jsx.html
+    │       │   │   │   │   ├── BookingTicketModal.jsx.html
+    │       │   │   │   │   ├── BranchModal.jsx.html
+    │       │   │   │   │   ├── ChangePasswordModal.jsx.html
+    │       │   │   │   │   ├── DeleteConfirmModal.jsx.html
+    │       │   │   │   │   ├── DistrictModal.jsx.html
+    │       │   │   │   │   ├── DocumentPreviewModal.jsx.html
+    │       │   │   │   │   ├── EditReplyModal.jsx.html
+    │       │   │   │   │   ├── EditUserModal.jsx.html
+    │       │   │   │   │   ├── FeedbackModal.jsx.html
+    │       │   │   │   │   ├── index.html
+    │       │   │   │   │   ├── index.js.html
+    │       │   │   │   │   ├── OrderDetailsModal.jsx.html
+    │       │   │   │   │   ├── PaymentQRModal.jsx.html
+    │       │   │   │   │   ├── ProductModal.jsx.html
+    │       │   │   │   │   ├── QRScannerModal.jsx.html
+    │       │   │   │   │   ├── ReviewQRModal.jsx.html
+    │       │   │   │   │   ├── SpaceDetailsModal.jsx.html
+    │       │   │   │   │   ├── StatsModal.jsx.html
+    │       │   │   │   │   ├── UserBookingModal.jsx.html
+    │       │   │   │   │   ├── UserLightboxModal.jsx.html
+    │       │   │   │   │   ├── ViewSpaceModal.jsx.html
+    │       │   │   │   │   ├── VoucherModal.jsx.html
+    │       │   │   │   │   ├── VoucherRedeemModal.jsx.html
+    │       │   │   │   │   └── WalkinModal.jsx.html
+    │       │   │   │   ├── QueueStatCard.jsx.html
+    │       │   │   │   ├── RoomGuestCount.jsx.html
+    │       │   │   │   ├── RoomPackageChoice.jsx.html
+    │       │   │   │   ├── StatCard.jsx.html
+    │       │   │   │   └── ui
+    │       │   │   │       ├── accordion.jsx.html
+    │       │   │   │       ├── alert.jsx.html
+    │       │   │   │       ├── AnalyticsTracker.jsx.html
+    │       │   │   │       ├── badge.jsx.html
+    │       │   │   │       ├── button.jsx.html
+    │       │   │   │       ├── card.jsx.html
+    │       │   │   │       ├── ChatOrder.jsx.html
+    │       │   │   │       ├── ChatSupport.jsx.html
+    │       │   │   │       ├── CookieConsent.jsx.html
+    │       │   │   │       ├── DataTable.jsx.html
+    │       │   │   │       ├── index.html
+    │       │   │   │       ├── LoadingSpinner.jsx.html
+    │       │   │   │       ├── Modal.jsx.html
+    │       │   │   │       ├── NotificationPermission.jsx.html
+    │       │   │   │       ├── OrderNotificationListener.jsx.html
+    │       │   │   │       ├── ProgressBar.jsx.html
+    │       │   │   │       ├── progress.jsx.html
+    │       │   │   │       ├── select.jsx.html
+    │       │   │   │       ├── separator.jsx.html
+    │       │   │   │       ├── SweetAlert2.jsx.html
+    │       │   │   │       ├── table.jsx.html
+    │       │   │   │       ├── tabs.jsx.html
+    │       │   │   │       ├── TokenExpiryChecker.jsx.html
+    │       │   │   │       └── UserManual.jsx.html
+    │       │   │   ├── context
+    │       │   │   │   ├── AuthContext.jsx.html
+    │       │   │   │   └── index.html
+    │       │   │   ├── error
+    │       │   │   │   ├── 404.jsx.html
+    │       │   │   │   └── index.html
+    │       │   │   ├── hooks
+    │       │   │   │   ├── index.html
+    │       │   │   │   ├── useCookieConsent.js.html
+    │       │   │   │   ├── usePendingFees.js.html
+    │       │   │   │   ├── useRealTimeSync.js.html
+    │       │   │   │   ├── useSocket.js.html
+    │       │   │   │   └── useTheme.js.html
+    │       │   │   ├── index.html
+    │       │   │   ├── layouts
+    │       │   │   │   ├── AppLayout.jsx.html
+    │       │   │   │   ├── AuthLayout.jsx.html
+    │       │   │   │   ├── DashboardLayout.jsx.html
+    │       │   │   │   ├── index.html
+    │       │   │   │   └── MainLayout.jsx.html
+    │       │   │   ├── lib
+    │       │   │   │   ├── index.html
+    │       │   │   │   └── utils.js.html
+    │       │   │   ├── main.jsx.html
+    │       │   │   ├── pages
+    │       │   │   │   ├── Admin
+    │       │   │   │   │   ├── Dashboard
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Earnings
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Insights
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Locations
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Logs
+    │       │   │   │   │   │   ├── ErrorLogs.jsx.html
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Queue
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Space
+    │       │   │   │   │   │   ├── Application.jsx.html
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── User
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   └── Voucher
+    │       │   │   │   │       ├── index.html
+    │       │   │   │   │       └── Index.jsx.html
+    │       │   │   │   ├── Auth
+    │       │   │   │   │   ├── GoogleCallback.jsx.html
+    │       │   │   │   │   ├── index.html
+    │       │   │   │   │   ├── Login.jsx.html
+    │       │   │   │   │   ├── Pending.jsx.html
+    │       │   │   │   │   └── Register.jsx.html
+    │       │   │   │   ├── Landing
+    │       │   │   │   │   ├── BlogDetail.jsx.html
+    │       │   │   │   │   ├── Blogs.jsx.html
+    │       │   │   │   │   ├── Contact.jsx.html
+    │       │   │   │   │   ├── CustomerReviews.jsx.html
+    │       │   │   │   │   ├── ExplorerView.jsx.html
+    │       │   │   │   │   ├── FAQ.jsx.html
+    │       │   │   │   │   ├── Features.jsx.html
+    │       │   │   │   │   ├── HowItWorks.jsx.html
+    │       │   │   │   │   ├── index.html
+    │       │   │   │   │   ├── Index.jsx.html
+    │       │   │   │   │   ├── MapExplorer.jsx.html
+    │       │   │   │   │   ├── PrivacyPolicy.jsx.html
+    │       │   │   │   │   ├── SpaceDetails.jsx.html
+    │       │   │   │   │   ├── Spaces.jsx.html
+    │       │   │   │   │   ├── TermsOfService.jsx.html
+    │       │   │   │   │   └── TopSpaces.jsx.html
+    │       │   │   │   ├── Payment
+    │       │   │   │   │   ├── Failed.jsx.html
+    │       │   │   │   │   ├── index.html
+    │       │   │   │   │   └── Success.jsx.html
+    │       │   │   │   ├── Profile
+    │       │   │   │   │   ├── index.html
+    │       │   │   │   │   └── Index.jsx.html
+    │       │   │   │   ├── Public
+    │       │   │   │   │   ├── AlreadyReviewedPage.jsx.html
+    │       │   │   │   │   ├── index.html
+    │       │   │   │   │   ├── InvalidQrPage.jsx.html
+    │       │   │   │   │   ├── NotCompletedPage.jsx.html
+    │       │   │   │   │   ├── ReviewPage.jsx.html
+    │       │   │   │   │   └── SpaceReviewPage.jsx.html
+    │       │   │   │   ├── Settings
+    │       │   │   │   │   ├── index.html
+    │       │   │   │   │   └── Index.jsx.html
+    │       │   │   │   ├── Space
+    │       │   │   │   │   ├── Bookings
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Dashboard
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Earnings
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── MySpaces
+    │       │   │   │   │   │   ├── Create.jsx.html
+    │       │   │   │   │   │   ├── Edit.jsx.html
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── PaymentSettings
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Pos
+    │       │   │   │   │   │   ├── Income.jsx.html
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   ├── Index.jsx.html
+    │       │   │   │   │   │   ├── Inventory.jsx.html
+    │       │   │   │   │   │   ├── Orders.jsx.html
+    │       │   │   │   │   │   └── Products.jsx.html
+    │       │   │   │   │   ├── Reviews
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Staff
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── TotalOrders
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   ├── Voucher
+    │       │   │   │   │   │   ├── index.html
+    │       │   │   │   │   │   └── Index.jsx.html
+    │       │   │   │   │   └── Walkins
+    │       │   │   │   │       ├── index.html
+    │       │   │   │   │       └── Index.jsx.html
+    │       │   │   │   └── User
+    │       │   │   │       ├── Bookings
+    │       │   │   │       │   ├── index.html
+    │       │   │   │       │   └── Index.jsx.html
+    │       │   │   │       ├── Dashboard
+    │       │   │   │       │   ├── index.html
+    │       │   │   │       │   └── Index.jsx.html
+    │       │   │   │       ├── Profile
+    │       │   │   │       │   ├── index.html
+    │       │   │   │       │   └── Index.jsx.html
+    │       │   │   │       ├── Redeem
+    │       │   │   │       │   ├── index.html
+    │       │   │   │       │   └── Index.jsx.html
+    │       │   │   │       └── Space
+    │       │   │   │           ├── index.html
+    │       │   │   │           └── Index.jsx.html
+    │       │   │   ├── routes
+    │       │   │   │   ├── AppRoutes.jsx.html
+    │       │   │   │   ├── index.html
+    │       │   │   │   └── ProtectedRoute.jsx.html
+    │       │   │   ├── services
+    │       │   │   │   ├── index.html
+    │       │   │   │   └── orderNotificationService.js.html
+    │       │   │   └── utils
+    │       │   │       ├── Api.jsx.html
+    │       │   │       ├── bookingEstimate.js.html
+    │       │   │       ├── cn.js.html
+    │       │   │       ├── formatNumber.js.html
+    │       │   │       ├── imageHelper.js.html
+    │       │   │       ├── index.html
+    │       │   │       ├── orderReceipt.js.html
+    │       │   │       ├── roomPricing.js.html
+    │       │   │       └── spaceHelpers.js.html
+    │       │   └── test-results.json
+    │       └── server-coverage
+    │           ├── backend-coverage.json
+    │           ├── base.css
+    │           ├── block-navigation.js
+    │           ├── coverage-final.json
+    │           ├── coverage-summary.json
+    │           ├── favicon.png
+    │           ├── index.html
+    │           ├── prettify.css
+    │           ├── prettify.js
+    │           ├── server
+    │           │   ├── app
+    │           │   │   ├── api
+    │           │   │   │   └── v1
+    │           │   │   │       ├── constants
+    │           │   │   │       │   ├── chatConstants.js.html
+    │           │   │   │       │   └── index.html
+    │           │   │   │       ├── controllers
+    │           │   │   │       │   ├── admin
+    │           │   │   │       │   │   ├── dashboardController.js.html
+    │           │   │   │       │   │   ├── earningController.js.html
+    │           │   │   │       │   │   ├── errorLogController.js.html
+    │           │   │   │       │   │   ├── index.html
+    │           │   │   │       │   │   ├── insightsController.js.html
+    │           │   │   │       │   │   ├── location
+    │           │   │   │       │   │   │   ├── districtController.js.html
+    │           │   │   │       │   │   │   ├── index.html
+    │           │   │   │       │   │   │   └── locationController.js.html
+    │           │   │   │       │   │   ├── logsController.js.html
+    │           │   │   │       │   │   ├── paymentController.js.html
+    │           │   │   │       │   │   ├── queueController.js.html
+    │           │   │   │       │   │   ├── settingsController.js.html
+    │           │   │   │       │   │   ├── spaceController.js.html
+    │           │   │   │       │   │   ├── userController.js.html
+    │           │   │   │       │   │   └── voucherController.js.html
+    │           │   │   │       │   ├── authController.js.html
+    │           │   │   │       │   ├── baseController.js.html
+    │           │   │   │       │   ├── blogController.js.html
+    │           │   │   │       │   ├── chatController.js.html
+    │           │   │   │       │   ├── emailController.js.html
+    │           │   │   │       │   ├── index.html
+    │           │   │   │       │   ├── landingController.js.html
+    │           │   │   │       │   ├── passwordController.js.html
+    │           │   │   │       │   ├── profileController.js.html
+    │           │   │   │       │   ├── reviewController.js.html
+    │           │   │   │       │   ├── space
+    │           │   │   │       │   │   ├── bookingController.js.html
+    │           │   │   │       │   │   ├── dashboardController.js.html
+    │           │   │   │       │   │   ├── districtController.js.html
+    │           │   │   │       │   │   ├── earningController.js.html
+    │           │   │   │       │   │   ├── index.html
+    │           │   │   │       │   │   ├── paybridgeController.js.html
+    │           │   │   │       │   │   ├── paymentController.js.html
+    │           │   │   │       │   │   ├── posController.js.html
+    │           │   │   │       │   │   ├── reviewController.js.html
+    │           │   │   │       │   │   ├── roomController.js.html
+    │           │   │   │       │   │   ├── spaceController.js.html
+    │           │   │   │       │   │   ├── staffController.js.html
+    │           │   │   │       │   │   ├── totalOrdersController.js.html
+    │           │   │   │       │   │   ├── voucherController.js.html
+    │           │   │   │       │   │   └── walkinController.js.html
+    │           │   │   │       │   └── user
+    │           │   │   │       │       ├── bookingController.js.html
+    │           │   │   │       │       ├── dashboardController.js.html
+    │           │   │   │       │       ├── index.html
+    │           │   │   │       │       ├── orderController.js.html
+    │           │   │   │       │       ├── redeemController.js.html
+    │           │   │   │       │       ├── reviewController.js.html
+    │           │   │   │       │       └── spaceController.js.html
+    │           │   │   │       ├── emails
+    │           │   │   │       │   ├── BaseEmail.js.html
+    │           │   │   │       │   ├── BookingCompletionEmail.js.html
+    │           │   │   │       │   ├── BookingConfirmationEmail.js.html
+    │           │   │   │       │   ├── index.html
+    │           │   │   │       │   ├── OTPEmail.js.html
+    │           │   │   │       │   ├── PasswordResetConfirmationEmail.js.html
+    │           │   │   │       │   ├── PasswordResetEmail.js.html
+    │           │   │   │       │   ├── SpaceApprovalEmail.js.html
+    │           │   │   │       │   ├── SpaceRejectionEmail.js.html
+    │           │   │   │       │   ├── VoucherEmail.js.html
+    │           │   │   │       │   └── WelcomeEmail.js.html
+    │           │   │   │       ├── middleware
+    │           │   │   │       │   ├── antiDdos.js.html
+    │           │   │   │       │   ├── authMiddleware.js.html
+    │           │   │   │       │   ├── autoLogger.js.html
+    │           │   │   │       │   ├── errorHandler.js.html
+    │           │   │   │       │   ├── index.html
+    │           │   │   │       │   ├── protectionMiddleware.js.html
+    │           │   │   │       │   └── queueMiddleware.js.html
+    │           │   │   │       ├── models
+    │           │   │   │       │   ├── index.html
+    │           │   │   │       │   ├── index.js.html
+    │           │   │   │       │   └── schema
+    │           │   │   │       │       ├── ActivityLog.js.html
+    │           │   │   │       │       ├── add.js.html
+    │           │   │   │       │       ├── Analytics.js.html
+    │           │   │   │       │       ├── Blocklist.js.html
+    │           │   │   │       │       ├── Blog.js.html
+    │           │   │   │       │       ├── Booking.js.html
+    │           │   │   │       │       ├── District.js.html
+    │           │   │   │       │       ├── Earnings.js.html
+    │           │   │   │       │       ├── ErrorLog.js.html
+    │           │   │   │       │       ├── index.html
+    │           │   │   │       │       ├── Order.js.html
+    │           │   │   │       │       ├── Payment.js.html
+    │           │   │   │       │       ├── Product.js.html
+    │           │   │   │       │       ├── Review.js.html
+    │           │   │   │       │       ├── Room.js.html
+    │           │   │   │       │       ├── Settings.js.html
+    │           │   │   │       │       ├── Space.js.html
+    │           │   │   │       │       ├── SpaceRequest.js.html
+    │           │   │   │       │       ├── User.js.html
+    │           │   │   │       │       └── Voucher.js.html
+    │           │   │   │       ├── queues
+    │           │   │   │       │   ├── cloudinaryProcessor.js.html
+    │           │   │   │       │   ├── emailProcessor.js.html
+    │           │   │   │       │   ├── index.html
+    │           │   │   │       │   └── worker.js.html
+    │           │   │   │       ├── routes
+    │           │   │   │       │   ├── adminRoutes.js.html
+    │           │   │   │       │   ├── authRoutes.js.html
+    │           │   │   │       │   ├── blogRoutes.js.html
+    │           │   │   │       │   ├── index.html
+    │           │   │   │       │   ├── landingRoutes.js.html
+    │           │   │   │       │   ├── routes.js.html
+    │           │   │   │       │   ├── spaceRoutes.js.html
+    │           │   │   │       │   └── userRoutes.js.html
+    │           │   │   │       ├── services
+    │           │   │   │       │   ├── aiBlogGeneratorService.js.html
+    │           │   │   │       │   ├── bookingBillingService.js.html
+    │           │   │   │       │   ├── bookingOrderService.js.html
+    │           │   │   │       │   ├── chatService.js.html
+    │           │   │   │       │   ├── emailService.js.html
+    │           │   │   │       │   ├── errorLogService.js.html
+    │           │   │   │       │   ├── index.html
+    │           │   │   │       │   ├── otpService.js.html
+    │           │   │   │       │   ├── paybridgeService.js.html
+    │           │   │   │       │   ├── rewardService.js.html
+    │           │   │   │       │   ├── roomPricingService.js.html
+    │           │   │   │       │   ├── roomPromoService.js.html
+    │           │   │   │       │   └── userService.js.html
+    │           │   │   │       └── utils
+    │           │   │   │           ├── ApiError.js.html
+    │           │   │   │           ├── cloudinary.js.html
+    │           │   │   │           ├── constants.js.html
+    │           │   │   │           ├── hash.js.html
+    │           │   │   │           ├── index.html
+    │           │   │   │           ├── jwt.js.html
+    │           │   │   │           ├── languageUtils.js.html
+    │           │   │   │           ├── logger.js.html
+    │           │   │   │           ├── logsActivity.js.html
+    │           │   │   │           └── upload.js.html
+    │           │   │   └── config
+    │           │   │       ├── config.js.html
+    │           │   │       ├── db.js.html
+    │           │   │       ├── index.html
+    │           │   │       ├── mongodb.js.html
+    │           │   │       ├── passport.js.html
+    │           │   │       └── queue.js.html
+    │           │   ├── app.js.html
+    │           │   ├── cron
+    │           │   │   ├── generate-blogs.js.html
+    │           │   │   └── index.html
+    │           │   ├── generate-hash.js.html
+    │           │   ├── index.html
+    │           │   └── server.js.html
+    │           ├── sort-arrow-sprite.png
+    │           └── sorter.js
+    ├── source-inventory.json
+    └── summary.json
+
+235 directories, 1067 files

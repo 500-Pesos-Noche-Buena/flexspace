@@ -1,47 +1,47 @@
 import React from 'react';
-import { Wifi, Building2, Users, Zap, Clock, Shield, ThumbsUp, Monitor, Coffee } from 'lucide-react';
+import { Wifi, Building2, Users, Zap, Clock, Shield, Monitor } from 'lucide-react';
 
 const Features = () => {
     const items = [
         {
             icon: <Wifi className="w-6 h-6 md:w-8 md:h-8" />,
-            title: 'Enterprise WiFi',
-            desc: 'Verified fiber connections with 100+ Mbps speed in every single hub.',
+            title: 'Connectivity Details',
+            desc: 'Compare the internet and connectivity information published for each workspace.',
             color: 'bg-indigo-50 text-indigo-600',
             details: 'Perfect for video calls and large file transfers'
         },
         {
             icon: <Monitor className="w-6 h-6 md:w-8 md:h-8" />,
             title: 'Comfortable Workstations',
-            desc: 'Ergonomic chairs and spacious desks for all-day productivity.',
+            desc: 'Check each listing for the seating and desk setup offered by the space.',
             color: 'bg-teal-50 text-teal-600',
             details: 'Designed for maximum comfort'
         },
         {
             icon: <Building2 className="w-6 h-6 md:w-8 md:h-8" />,
             title: 'Quiet Zones',
-            desc: 'Dedicated areas for high-focus deep work and studying.',
+            desc: 'Find listings that offer areas intended for focused work or studying.',
             color: 'bg-emerald-50 text-emerald-600',
             details: 'No phone calls, no distractions'
         },
         {
             icon: <Users className="w-6 h-6 md:w-8 md:h-8" />,
             title: 'Community Events',
-            desc: 'Networking events, workshops, and meetups regularly.',
+            desc: 'Review a space’s listing or contact its operator for scheduled community activities.',
             color: 'bg-violet-50 text-violet-600',
             details: 'Connect with fellow professionals'
         },
         {
             icon: <Zap className="w-6 h-6 md:w-8 md:h-8" />,
             title: 'Power Outlets',
-            desc: 'Convenient charging stations at every desk.',
+            desc: 'Look for power availability in the amenities shown on each listing.',
             color: 'bg-yellow-50 text-yellow-600',
             details: 'Never run out of battery'
         },
         {
             icon: <Clock className="w-6 h-6 md:w-8 md:h-8" />,
             title: 'Flexible Hours',
-            desc: 'Extended operating hours to match your work schedule.',
+            desc: 'Compare the operating hours published by participating spaces.',
             color: 'bg-rose-50 text-rose-600',
             details: 'Work when it suits you'
         }
@@ -56,8 +56,8 @@ const Features = () => {
                         Why Professionals Choose FlexSpace
                     </h2>
                     <p className="text-slate-500 text-sm md:text-base max-w-2xl mx-auto">
-                        Iloilo City's most trusted coworking platform connecting professionals with premium workspaces.
-                        From high-speed internet to comfortable seating, we've got you covered.
+                        Compare participating coworking spaces using the details that matter for your session.
+                        Amenities differ by location, so review the individual listing before booking.
                     </p>
                 </div>
 
@@ -96,12 +96,8 @@ const Features = () => {
                             <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Verified Spaces</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <ThumbsUp size={16} className="text-emerald-500" />
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">100% Satisfaction</span>
-                        </div>
-                        <div className="flex items-center gap-2">
                             <Wifi size={16} className="text-emerald-500" />
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Fiber Internet</span>
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Listed Amenities</span>
                         </div>
                     </div>
                 </div>

@@ -23,6 +23,7 @@ import FAQ from '@/pages/Landing/FAQ';
 import SpaceDetails from '@/pages/Landing/SpaceDetails';
 import Blogs from '@/pages/Landing/Blogs';
 import BlogDetail from '@/pages/Landing/BlogDetail';
+import WorkspaceGuide from '@/pages/Landing/WorkspaceGuide';
 
 // Admin & Space Owner Pages
 import AdminDashboard from '@/pages/Admin/Dashboard/Index';
@@ -96,6 +97,7 @@ export const AppRoutes = () => {
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/blogs" element={<Blogs />} />
                 <Route path="/blog/:slug" element={<BlogDetail />} />
+                <Route path="/workspace-guide" element={<WorkspaceGuide />} />
                 
                 {/* Regular User Dashboard Area */}
                 <Route path="dashboard" element={<UserDashboard />} />
