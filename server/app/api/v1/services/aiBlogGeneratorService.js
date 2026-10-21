@@ -309,7 +309,7 @@ Use short paragraphs and proper spacing.`;
                         ...blog,
                         status: 'published',
                         published_at: new Date(),
-                        author: 'FlexSpace AI'
+                        author: 'FlexSpace Editorial Team'
                     });
                     results.push(newBlog);
                     console.log(`${blogType} blog generated in ${lang} (${period})`);

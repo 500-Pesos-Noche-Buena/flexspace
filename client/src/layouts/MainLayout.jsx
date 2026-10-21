@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, User, LogOut, Globe, ReceiptText, BookOpen } from "lucide-react";
+import { Menu, X, LayoutDashboard, User, LogOut, Globe, ReceiptText, BookOpen, Mail, Sparkles } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import ChatSupport from '@/components/ui/ChatSupport';
 import CookieConsent from '@/components/ui/CookieConsent';
@@ -143,8 +143,10 @@ const MainLayout = () => {
                             {!isAuthenticated ? (
                                 <>
                                     <div className="hidden md:flex items-center gap-6 mr-2">
+                                        <Link to="/about" onClick={closeOverlays} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors">About</Link>
                                         <Link to="/blogs" onClick={closeOverlays} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors">Blog</Link>
                                         <Link to="/spaces" onClick={closeOverlays} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors">Explore</Link>
+                                        <Link to="/contact" onClick={closeOverlays} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors">Contact</Link>
                                         <Link to="/login" onClick={closeOverlays} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors">Sign in</Link>
                                     </div>
 
@@ -193,13 +195,22 @@ const MainLayout = () => {
                     <div className="md:hidden absolute top-20 left-0 right-0 bg-white border-b border-slate-100 p-6 shadow-xl animate-in slide-in-from-top duration-300">
                         <nav className="flex flex-col gap-4">
                             <button 
+                                onClick={() => handleNavigate('/about')} 
+                                className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-900"
+                            >
+                                About FlexSpace <Sparkles size={14} className="text-indigo-600" />
+                            </button>
+                            <button 
                                 onClick={() => handleNavigate('/blogs')} 
                                 className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-900"
                             >
-                                Explore Blogs <BookOpen size={14} className="text-indigo-600" />
+                                Guides & Blogs <BookOpen size={14} className="text-indigo-600" />
                             </button>
                             <button onClick={() => handleNavigate('/spaces')} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">
                                 Explore Hubs <Globe size={14} className="text-indigo-600" />
+                            </button>
+                            <button onClick={() => handleNavigate('/contact')} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">
+                                Contact Us <Mail size={14} className="text-indigo-600" />
                             </button>
                             <button onClick={() => handleNavigate('/login')} className="p-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-center">
                                 Existing Member? Sign In
@@ -234,15 +245,16 @@ const MainLayout = () => {
                             </p>
                         </div>
 
-                        {/* Navigation Links - REMOVED non-existent pages */}
+                        {/* Navigation Links */}
                         <div className="flex flex-wrap gap-x-12 gap-y-6">
                             <div className="flex flex-col gap-3">
-                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Explore</p>
+                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Company</p>
+                                <Link to="/about" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">About Us</Link>
                                 <Link to="/spaces" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Find Workspace</Link>
-                                {/* REMOVED: /how-it-works - doesn't exist */}
+                                <Link to="/blogs" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Guides & Articles</Link>
                             </div>
                             <div className="flex flex-col gap-3">
-                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Legal</p>
+                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Resources & Legal</p>
                                 <Link to="/workspace-guide" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Workspace Guide</Link>
                                 <Link to="/privacy" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Privacy Policy</Link>
                                 <Link to="/terms" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Terms of Service</Link>
@@ -251,7 +263,6 @@ const MainLayout = () => {
                                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-1">Support</p>
                                 <Link to="/contact" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Contact Us</Link>
                                 <Link to="/faq" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">FAQs</Link>
-                                {/* REMOVED: /help - doesn't exist */}
                             </div>
                         </div>
                     </div>

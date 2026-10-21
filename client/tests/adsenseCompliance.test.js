@@ -25,7 +25,7 @@ describe('AdSense review safeguards', () => {
 
     it('lists substantial public and policy pages in the sitemap', () => {
         const sitemap = read('public/sitemap.xml');
-        for (const route of ['workspace-guide', 'blogs', 'faq', 'privacy', 'terms']) {
+        for (const route of ['about', 'contact', 'workspace-guide', 'blogs', 'faq', 'privacy', 'terms']) {
             expect(sitemap).toContain(`/${route}`);
         }
     });

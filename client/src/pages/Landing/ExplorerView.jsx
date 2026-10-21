@@ -62,7 +62,8 @@ const ExplorerView = () => {
         if (isInitial) setLoading(true);
         try {
             const res = await apiGet('/landing/explorer');
-            const spacesRaw = res?.data?.spaces || res?.spaces || [];
+            const spacesRaw = (res?.data?.spaces || res?.spaces || [])
+                .filter(s => !/test|demo|sample/i.test(s.name || ''));
             const districtsRaw = res?.data?.districts || res?.districts || [];
 
             const normalized = spacesRaw.map((s, i) => ({

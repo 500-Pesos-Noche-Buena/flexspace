@@ -4,7 +4,7 @@ import { apiGet } from '@/utils/Api';
 import {
     Calendar, Eye, Heart, TrendingUp, Award, MapPin,
     Search, X, ChevronLeft, ChevronRight, Globe,
-    Sparkles, Clock, User, Tag, Share2, Bookmark, ChevronDown, Star, Mail
+    Sparkles, Clock, User, Tag, Share2, Bookmark, ChevronDown, Star, Mail, BookOpen
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { showToast } from '@/components/ui/SweetAlert2';
@@ -156,8 +156,8 @@ const Blogs = () => {
                 <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24">
                     <div className="text-center max-w-3xl mx-auto">
                         <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 mb-6">
-                            <Sparkles size={14} className="text-yellow-300" />
-                            <span className="text-xs font-bold uppercase tracking-wider">AI-Powered Insights</span>
+                            <BookOpen size={14} className="text-yellow-300" />
+                            <span className="text-xs font-bold uppercase tracking-wider">Verified Workspace Guides</span>
                         </div>
 
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-4 tracking-tighter">
@@ -165,7 +165,7 @@ const Blogs = () => {
                         </h1>
 
                         <p className="text-indigo-100 text-lg md:text-xl mb-8 leading-relaxed">
-                            Weekly AI-generated updates on coworking trends, top spaces, and community highlights
+                            Curated guides, district spotlights, and workspace tips for students and remote workers in Iloilo City
                         </p>
 
                         {/* Language Selector */}
@@ -278,7 +278,7 @@ const Blogs = () => {
 
                                 <div className="flex items-center gap-4 text-sm">
                                     <span className="flex items-center gap-1">
-                                        <User size={14} /> {featuredBlog.author || 'FlexSpace AI'}
+                                        <User size={14} /> {featuredBlog.author && !/ai$/i.test(featuredBlog.author) ? featuredBlog.author : 'FlexSpace Editorial Team'}
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <Eye size={14} /> {featuredBlog.views || 0} views

@@ -33,7 +33,8 @@ const LandingPage = () => {
                     apiGet('/landing/stats')
                 ]);
 
-                const spaces = spacesRes.data?.spaces || spacesRes.spaces || [];
+                const rawSpaces = spacesRes.data?.spaces || spacesRes.spaces || [];
+                const spaces = rawSpaces.filter(s => !/test|demo|sample/i.test(s.name || ''));
                 setPopularSpaces(spaces);
 
                 if (statsRes.data) {

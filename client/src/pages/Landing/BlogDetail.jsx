@@ -113,7 +113,7 @@ const BlogDetail = () => {
 
                     <div className="flex items-center justify-center gap-4 text-sm text-white/80">
                         <span className="flex items-center gap-1">
-                            <User size={14} /> {blog.author}
+                            <User size={14} /> {blog.author && !/ai$/i.test(blog.author) ? blog.author : 'FlexSpace Editorial Team'}
                         </span>
                         <span className="flex items-center gap-1">
                             <Calendar size={14} /> {formatDate(blog.published_at)}

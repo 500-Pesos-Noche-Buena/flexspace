@@ -8,8 +8,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://flexspace-iloilo.vercel.app/about</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://flexspace-iloilo.vercel.app/contact</loc>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://flexspace-iloilo.vercel.app/workspace-guide</loc>
