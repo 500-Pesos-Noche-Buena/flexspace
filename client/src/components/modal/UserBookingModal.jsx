@@ -8,6 +8,7 @@ import {
     AlertCircle, Check, Loader2 
 } from 'lucide-react';
 import { getBookableName, getRatePerHour, getBookableCapacity } from '@/utils/spaceHelpers';
+import { getImageUrl } from '@/utils/imageHelper';
 
 export const UserBookingModal = ({ 
     isOpen, 
@@ -89,33 +90,52 @@ export const UserBookingModal = ({
                             <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">
                                 Select a Room
                             </label>
-                            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
                                 {rooms.map((room) => {
                                     const availability = roomAvailability[room._id];
                                     const isAvailable = availability?.is_available !== false;
+                                    const roomImg = room.image || (Array.isArray(room.images) && room.images.length > 0 ? room.images[0] : null);
                                     return (
                                         <button
                                             key={room._id}
                                             onClick={() => isAvailable && setSelectedRoom(room)}
                                             disabled={!isAvailable}
                                             className={`p-3 rounded-xl border-2 text-left transition-all ${selectedRoom?._id === room._id
-                                                ? 'border-indigo-500 bg-indigo-50'
+                                                ? 'border-indigo-500 bg-indigo-50 shadow-xs'
                                                 : !isAvailable
                                                     ? 'border-red-200 bg-red-50 opacity-60 cursor-not-allowed'
-                                                    : 'border-slate-100 hover:border-slate-200'
+                                                    : 'border-slate-100 hover:border-slate-200 bg-white'
                                             }`}
                                         >
-                                            <p className="font-bold text-sm text-slate-900 wrap-break-word">
-                                                {room.name && room.name.length > 35 
-                                                    ? room.name.substring(0, 32) + '...' 
-                                                    : room.name}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <Users size={10} className="text-slate-400" />
-                                                <span className="text-[10px] text-slate-500">Up to {room.capacity}</span>
+                                            <div className="flex gap-2.5 items-start">
+                                                {roomImg ? (
+                                                    <img
+                                                        src={getImageUrl(roomImg, 'room')}
+                                                        alt={room.name}
+                                                        className="w-14 h-14 rounded-lg object-cover shrink-0 border border-slate-200/60"
+                                                        onError={(e) => { e.target.src = '/placeholders/room.jpg'; }}
+                                                    />
+                                                ) : (
+                                                    <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400">
+                                                        <DoorOpen size={20} />
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-bold text-sm text-slate-900 truncate" title={room.name}>
+                                                        {room.name}
+                                                    </p>
+                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                        <Users size={11} className="text-slate-400 shrink-0" />
+                                                        <span className="text-[10px] text-slate-500">Up to {room.capacity}</span>
+                                                    </div>
+                                                    <p className="text-xs font-bold text-indigo-600 mt-1">{roomRateLabel(room)}</p>
+                                                </div>
                                             </div>
-                                            <p className="text-xs font-bold text-indigo-600 mt-1">{roomRateLabel(room)}</p>
-                                                    {room.has_consumable_promo && <span className="block text-xs text-emerald-600">{room.promo_name}: {room.promo_duration_hours} hours · {roomPackageLabel(room)} including room; food credit is after the room deduction</span>}
+                                            {room.has_consumable_promo && (
+                                                <span className="block text-xs text-emerald-600 mt-2 pt-1.5 border-t border-slate-100 leading-tight">
+                                                    {room.promo_name}: {room.promo_duration_hours} hours · {roomPackageLabel(room)} including room; food credit is after the room deduction
+                                                </span>
+                                            )}
                                         </button>
                                     );
                                 })}
@@ -135,16 +155,28 @@ export const UserBookingModal = ({
                                 ? 'bg-red-50 border border-red-200'
                                 : 'bg-linear-to-r from-indigo-50 to-purple-50'
                     }`}>
-                        <h3 className="font-[1000] uppercase text-sm text-slate-900 wrap-break-word">
-                            {getBookableName(selectedBookableType, selectedRoom, space).length > 50
-                                ? getBookableName(selectedBookableType, selectedRoom, space).substring(0, 47) + '...'
-                                : getBookableName(selectedBookableType, selectedRoom, space)}
-                        </h3>
-                        <div className="flex items-center gap-3 mt-1">
-                            <p className="text-[10px] text-slate-500">₱{selectedBookableType === "room" ? roomHourlyRate(selectedRoom, bookingData.guest_count || 1) : getRatePerHour(selectedBookableType, selectedRoom, space)}/hour</p>
-                            <div className="flex items-center gap-1">
-                                <Users size={10} className="text-slate-400" />
-                                <p className="text-[10px] text-slate-500">Capacity: {getBookableCapacity(selectedBookableType, selectedRoom, space)}</p>
+                        <div className="flex items-center gap-3">
+                            {selectedBookableType === 'room' && selectedRoom && (selectedRoom.image || (Array.isArray(selectedRoom.images) && selectedRoom.images.length > 0)) && (
+                                <img
+                                    src={getImageUrl(selectedRoom.image || selectedRoom.images[0], 'room')}
+                                    alt={selectedRoom.name}
+                                    className="w-12 h-12 rounded-xl object-cover shrink-0 border border-white shadow-xs"
+                                    onError={(e) => { e.target.src = '/placeholders/room.jpg'; }}
+                                />
+                            )}
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-[1000] uppercase text-sm text-slate-900 wrap-break-word">
+                                    {getBookableName(selectedBookableType, selectedRoom, space).length > 50
+                                        ? getBookableName(selectedBookableType, selectedRoom, space).substring(0, 47) + '...'
+                                        : getBookableName(selectedBookableType, selectedRoom, space)}
+                                </h3>
+                                <div className="flex items-center gap-3 mt-1">
+                                    <p className="text-[10px] text-slate-500">₱{selectedBookableType === "room" ? roomHourlyRate(selectedRoom, bookingData.guest_count || 1) : getRatePerHour(selectedBookableType, selectedRoom, space)}/hour</p>
+                                    <div className="flex items-center gap-1">
+                                        <Users size={10} className="text-slate-400" />
+                                        <p className="text-[10px] text-slate-500">Capacity: {getBookableCapacity(selectedBookableType, selectedRoom, space)}</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

@@ -1,0 +1,10 @@
+sleeping 140s to clear any temp ban from prior test...
+TEST D - same email, rotating 'cf-connecting-ip: 10.0.0.N' (15 reqs):
+ 403 403 403 403 403 403 403 403 403 403 403 403 403 403 403
+sleeping 140s...
+TEST E - same email, rotating 'cf-connecting-ip: 203.0.113.N' (15 reqs):
+ 403 403 403 403 403 403 403 403 403 403 403 403 403 403 403
+sleeping 140s...
+TEST F - CONTROL: same email, no client-ip header (15 reqs):
+ 403 403 403 403 403 403 403 403 403 403 429 429 429 429 429
+DONE

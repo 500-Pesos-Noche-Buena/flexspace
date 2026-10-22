@@ -64,9 +64,21 @@ class AuthRoutes {
         this.router.get('/profile/payment-details', auth, profileController.getPaymentDetails);
 
         // Password reset routes
-        this.router.post('/forgot-password', passwordController.forgotPassword);
-        this.router.post('/verify-otp', passwordController.verifyOTP);
-        this.router.post('/reset-password', passwordController.resetPassword);
+        this.router.post('/forgot-password',
+            antiDdos.strictLimiter,
+            antiDdos.gatekeeper,
+            passwordController.forgotPassword
+        );
+        this.router.post('/verify-otp',
+            antiDdos.strictLimiter,
+            antiDdos.gatekeeper,
+            passwordController.verifyOTP
+        );
+        this.router.post('/reset-password',
+            antiDdos.strictLimiter,
+            antiDdos.gatekeeper,
+            passwordController.resetPassword
+        );
     };
 
     getRouter() {

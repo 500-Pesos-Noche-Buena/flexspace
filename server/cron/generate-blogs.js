@@ -1,9 +1,13 @@
 const http = require('http');
 
-const BLOG_API_KEY = process.env.BLOG_API_KEY || 'flexspace-secret-key';
+const BLOG_API_KEY = process.env.BLOG_API_KEY;
 const PORT = process.env.PORT || 5000;
 
 async function generateBlogs() {
+    if (!BLOG_API_KEY) {
+        console.warn(`[${new Date().toISOString()}] ⚠️ BLOG_API_KEY not set. Blog generation skipped.`);
+        return;
+    }
     console.log(`[${new Date().toISOString()}] 🔄 Running weekly blog generation...`);
 
     const options = {

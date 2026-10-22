@@ -128,7 +128,13 @@ class POSController {
                 }
             }
 
-            const updatedProduct = await Product.findByIdAndUpdate(id, req.body, { new: true });
+            const updates = { ...req.body };
+            delete updates._id;
+            delete updates.space_id;
+            delete updates.created_at;
+            delete updates.updated_at;
+
+            const updatedProduct = await Product.findByIdAndUpdate(id, updates, { new: true });
             return res.status(HTTP_STATUS.OK).json({ success: true, data: updatedProduct });
         } catch (error) {
             console.error('Update product error:', error);
@@ -216,13 +222,56 @@ class POSController {
                 }
             }
 
+            if (!items || !Array.isArray(items) || items.length === 0) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Order must contain at least one item');
+            }
+
+            const productIds = items.map(i => i.product_id).filter(Boolean);
+            const dbProducts = await Product.find({ _id: { $in: productIds }, space_id: targetSpaceId });
+
+            const pricedItems = [];
+            let computedSubtotal = 0;
+            for (const item of items) {
+                const product = dbProducts.find(p => p._id.toString() === item.product_id?.toString());
+                if (!product || !product.is_available) {
+                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Product is not available in this space');
+                }
+                const qty = parseInt(item.quantity, 10);
+                if (isNaN(qty) || qty <= 0) {
+                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Invalid quantity');
+                }
+                if (product.stock < qty) {
+                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Insufficient stock for ${product.name}`);
+                }
+                const price = Number(product.price) || 0;
+                computedSubtotal += price * qty;
+                pricedItems.push({
+                    product_id: product._id,
+                    name: product.name,
+                    quantity: qty,
+                    price: price
+                });
+            }
+
+            const discountType = req.body.discount_type || null;
+            const discountVal = parseFloat(req.body.discount_value) || 0;
+            let computedDiscount = 0;
+            if (discountType === 'percentage') {
+                computedDiscount = (computedSubtotal * Math.min(100, Math.max(0, discountVal))) / 100;
+            } else if (discountType === 'fixed') {
+                computedDiscount = Math.min(computedSubtotal, Math.max(0, discountVal));
+            }
+            computedDiscount = Math.round((computedDiscount + Number.EPSILON) * 100) / 100;
+            const computedTax = parseFloat(req.body.tax) || 0;
+            const computedTotal = Math.max(0, Math.round((computedSubtotal - computedDiscount + computedTax + Number.EPSILON) * 100) / 100);
+
             const timestamp = Date.now();
             const random = Math.floor(Math.random() * 10000);
             const orderNumber = `ORD-${timestamp}-${random}`;
 
             let change = 0;
             if (payment_method === 'cash' && amount_received) {
-                change = Math.max(0, amount_received - total);
+                change = Math.max(0, amount_received - computedTotal);
             }
 
             let initialStatus = 'pending';
@@ -302,23 +351,23 @@ class POSController {
                 processed_by:
                     userId,
 
-                items,
+                items: pricedItems,
 
-                subtotal,
+                subtotal: computedSubtotal,
 
                 tax:
-                    req.body.tax || 0,
+                    computedTax,
 
                 discount_type:
-                    req.body.discount_type || null,
+                    discountType,
 
                 discount_value:
-                    req.body.discount_value || 0,
+                    discountVal,
 
                 discount_amount:
-                    req.body.discount_amount || 0,
+                    computedDiscount,
 
-                total,
+                total: computedTotal,
 
                 payment_method:
                     payment_method,
@@ -354,7 +403,7 @@ class POSController {
             console.log(`✅ Order created: ${orderNumber} with status: ${initialStatus}, is_pay_later: ${isPayLater}`);
 
             // Update product stock
-            for (const item of items) {
+            for (const item of pricedItems) {
                 await Product.findByIdAndUpdate(item.product_id, { $inc: { stock: -item.quantity } });
             }
 
@@ -365,10 +414,10 @@ class POSController {
                         order_id: order._id,
                         payment_type: 'pos_order',
                         method: payment_method,
-                        amount_total: total,
-                        amount_original: subtotal,
-                        discount_applied: req.body.discount_amount || 0,
-                        amount_received: amount_received || total,
+                        amount_total: computedTotal,
+                        amount_original: computedSubtotal,
+                        discount_applied: computedDiscount,
+                        amount_received: amount_received || computedTotal,
                         change: change,
                         reference_number: `POS-${orderNumber}`,
                         status: 'completed',
@@ -740,6 +789,24 @@ class POSController {
 
             if (order.booking_id || order.settlement_type === 'booking') throw new ApiError(400, 'Settle this order through its booking.');
 
+            const space = await Space.findById(order.space_id);
+            if (!space) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space for this order not found');
+            }
+            if (req.user?.role !== 'admin') {
+                if (req.user?.role === 'staff') {
+                    const staffRecord = await User.findById(userId).select('space_id parent_id');
+                    if (!staffRecord?.space_id || staffRecord.space_id.toString() !== order.space_id.toString()) {
+                        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Unauthorized access to this space order');
+                    }
+                } else {
+                    const { ownerId } = await this.getOwnerId(req);
+                    if (space.user_id.toString() !== ownerId.toString()) {
+                        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Unauthorized access to this space order');
+                    }
+                }
+            }
+
             console.log(`🔧 Fixing order ${order.order_number}`);
 
             const results = { payment: null, earnings: null };
@@ -779,7 +846,7 @@ class POSController {
                 const month = new Date(order.created_at || new Date()).toISOString().slice(0, 7);
 
                 results.earnings = await Earnings.create({
-                    owner_id: userId,
+                    owner_id: space.user_id,
                     space_id: order.space_id,
                     order_number: order.order_number,
                     total_amount: totalAmount,

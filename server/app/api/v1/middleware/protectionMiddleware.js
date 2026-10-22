@@ -6,9 +6,9 @@ class ProtectionMiddleware {
     async handle(req, res, next) {
         const appFingerprint = req.headers['x-app-fingerprint'];
 
-        const expectedSecret = config?.app?.internalSecret || 'iloilo_work_2026_secure';
+        const expectedSecret = config?.app?.internalSecret;
 
-        if (!appFingerprint || appFingerprint !== expectedSecret) {
+        if (!expectedSecret || !appFingerprint || appFingerprint !== expectedSecret) {
             return next(new ApiError(
                 HTTP_STATUS.FORBIDDEN, 
                 "Access Denied: Direct API access is prohibited.", 

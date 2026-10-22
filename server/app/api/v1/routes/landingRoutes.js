@@ -1,7 +1,6 @@
 const express = require('express');
 const landingController = require('@/api/v1/controllers/landingController');
 const roomController = require('@/api/v1/controllers/space/roomController');
-const protect = require('@/api/v1/middleware/protectionMiddleware');
 
 class LandingRoutes {
     constructor() {
@@ -25,19 +24,19 @@ class LandingRoutes {
             landingController.getSpaceAvailability(req, res, next)
         );
 
-        this.router.get('/explorer', protect, (req, res, next) =>
+        this.router.get('/explorer', (req, res, next) =>
             landingController.getExplorerData(req, res, next)
         );
 
-        this.router.get('/space/:id', protect, (req, res, next) =>
+        this.router.get('/space/:id', (req, res, next) =>
             landingController.getSpaceDetails(req, res, next)
         );
 
-        this.router.get('/stats', protect, (req, res, next) =>
+        this.router.get('/stats', (req, res, next) =>
             landingController.getPublicStats(req, res, next)
         );
 
-        this.router.get('/reviews', protect, (req, res, next) =>
+        this.router.get('/reviews', (req, res, next) =>
             landingController.getCustomerReviews(req, res, next)
         );
 

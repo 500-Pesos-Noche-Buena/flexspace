@@ -17,6 +17,21 @@ import { Button } from '@/components/ui/button';
 import { getSpaceImage, getImageUrl } from '@/utils/imageHelper';
 import { UserBookingModal, UserLightboxModal } from '@/components/modal';
 
+const ROOM_TYPE_LABELS = {
+    private_office: 'Private Office',
+    meeting_room: 'Meeting Room',
+    conference_room: 'Conference Room',
+    event_space: 'Event Space',
+    study_room: 'Study Room',
+    pod: 'Pod / Booth',
+    shared_desk: 'Shared Desk',
+};
+
+const formatRoomType = (type) => {
+    if (!type) return 'Room';
+    return ROOM_TYPE_LABELS[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
+
 const getPHDateString = () => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 };
@@ -76,6 +91,7 @@ const SpaceDetails = () => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [showFullSchedule, setShowFullSchedule] = useState(false);
+    const [selectedFilter, setSelectedFilter] = useState('all');
 
     // Space availability for open area (capacity)
     const [spaceAvailability, setSpaceAvailability] = useState({
@@ -247,24 +263,129 @@ const SpaceDetails = () => {
         }
     };
 
-    const getImages = () => {
-        const images = [];
-        if (space?.images && space.images.length > 0) {
-            images.push(...space.images);
+    // Build combined list of space and room images with metadata
+    const allGalleryImages = React.useMemo(() => {
+        const list = [];
+
+        // 1. Space images
+        if (space?.images && Array.isArray(space.images) && space.images.length > 0) {
+            space.images.forEach((url, idx) => {
+                if (url) {
+                    list.push({
+                        url,
+                        type: 'space',
+                        title: space.name,
+                        subtitle: `${space.area || space.district_id?.name || 'Coworking Space'} · Space Overview`,
+                        filterKey: 'space',
+                        badge: 'Space Overview',
+                        id: `space-${idx}`
+                    });
+                }
+            });
         } else if (space?.image) {
-            images.push(space.image);
+            list.push({
+                url: space.image,
+                type: 'space',
+                title: space.name,
+                subtitle: `${space.area || space.district_id?.name || 'Coworking Space'} · Space Overview`,
+                filterKey: 'space',
+                badge: 'Space Overview',
+                id: `space-primary`
+            });
         }
-        return images;
-    };
+
+        // 2. Room images
+        if (Array.isArray(rooms) && rooms.length > 0) {
+            rooms.forEach(room => {
+                const roomImgs = Array.isArray(room.images) && room.images.length > 0
+                    ? room.images
+                    : (room.image ? [room.image] : []);
+
+                roomImgs.forEach((url, idx) => {
+                    if (url) {
+                        list.push({
+                            url,
+                            type: 'room',
+                            title: room.name,
+                            subtitle: `${formatRoomType(room.type)} · Up to ${room.capacity} pax · ₱${room.rate_hour}/hr`,
+                            roomName: room.name,
+                            roomId: room._id,
+                            roomType: room.type,
+                            room: room,
+                            filterKey: `room-${room._id}`,
+                            badge: room.name,
+                            id: `room-${room._id}-${idx}`
+                        });
+                    }
+                });
+            });
+        }
+
+        return list;
+    }, [space, rooms]);
+
+    // Generate filter tabs
+    const filterTabs = React.useMemo(() => {
+        const tabs = [];
+        const totalCount = allGalleryImages.length;
+        if (totalCount === 0) return [];
+
+        tabs.push({
+            id: 'all',
+            label: 'All Photos',
+            count: totalCount,
+            icon: 'all'
+        });
+
+        const spaceCount = allGalleryImages.filter(img => img.type === 'space').length;
+        if (spaceCount > 0) {
+            tabs.push({
+                id: 'space',
+                label: 'Space Overview',
+                count: spaceCount,
+                icon: 'space'
+            });
+        }
+
+        if (Array.isArray(rooms)) {
+            rooms.forEach(room => {
+                const count = allGalleryImages.filter(img => img.roomId === room._id).length;
+                if (count > 0) {
+                    tabs.push({
+                        id: `room-${room._id}`,
+                        label: room.name,
+                        count,
+                        icon: 'room',
+                        room
+                    });
+                }
+            });
+        }
+
+        return tabs;
+    }, [allGalleryImages, rooms]);
+
+    // Active displayed images based on active filter
+    const displayImages = React.useMemo(() => {
+        if (selectedFilter === 'all') return allGalleryImages;
+        return allGalleryImages.filter(img => img.filterKey === selectedFilter);
+    }, [allGalleryImages, selectedFilter]);
+
+    // Auto-adjust current index when displayImages changes
+    useEffect(() => {
+        if (currentImageIndex >= displayImages.length && displayImages.length > 0) {
+            setCurrentImageIndex(0);
+        }
+    }, [displayImages.length, currentImageIndex]);
 
     const nextImage = () => {
-        const images = getImages();
-        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+        if (displayImages.length === 0) return;
+        setCurrentImageIndex((prev) => (prev + 1) % displayImages.length);
     };
 
     const prevImage = () => {
-        const images = getImages();
-        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+        if (displayImages.length === 0) return;
+        setCurrentImageIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
     };
 
     const openLightbox = (index) => {
@@ -273,13 +394,50 @@ const SpaceDetails = () => {
     };
 
     const nextLightbox = () => {
-        const images = getImages();
-        setLightboxIndex((prev) => (prev + 1) % images.length);
+        if (displayImages.length === 0) return;
+        setLightboxIndex((prev) => (prev + 1) % displayImages.length);
     };
 
     const prevLightbox = () => {
-        const images = getImages();
-        setLightboxIndex((prev) => (prev - 1 + images.length) % images.length);
+        if (displayImages.length === 0) return;
+        setLightboxIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
+    };
+
+    const handleViewRoomPhotos = (room, e) => {
+        if (e) e.stopPropagation();
+        const roomFilterKey = `room-${room._id}`;
+        const hasPhotos = allGalleryImages.some(img => img.roomId === room._id);
+        if (hasPhotos) {
+            setSelectedFilter(roomFilterKey);
+            setCurrentImageIndex(0);
+            const galleryElem = document.getElementById('space-image-gallery');
+            if (galleryElem) {
+                galleryElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        } else {
+            showToast({
+                icon: 'info',
+                title: 'No Photos Available',
+                text: `${room.name} does not have photos uploaded yet.`
+            });
+        }
+    };
+
+    const handleOpenRoomLightbox = (room, e) => {
+        if (e) e.stopPropagation();
+        const roomPhotos = allGalleryImages.filter(img => img.roomId === room._id);
+        if (roomPhotos.length > 0) {
+            setSelectedFilter(`room-${room._id}`);
+            setCurrentImageIndex(0);
+            setLightboxIndex(0);
+            setLightboxOpen(true);
+        } else {
+            showToast({
+                icon: 'info',
+                title: 'No Photos Available',
+                text: `${room.name} does not have photos uploaded yet.`
+            });
+        }
     };
 
     const formatTimeToAMPM = (time) => {
@@ -547,7 +705,7 @@ const SpaceDetails = () => {
 
     if (!space) return null;
 
-    const images = getImages();
+    const currentImg = displayImages[currentImageIndex];
     const amenities = space.amenities || [];
     const hasRooms = rooms.length > 0;
 
@@ -572,68 +730,174 @@ const SpaceDetails = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 py-8">
-                {/* Image Gallery - same as before */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-8">
-                    <div className="hidden md:flex md:flex-col gap-2 order-2 md:order-1">
-                        {images.slice(0, 5).map((img, idx) => (
+                {/* Gallery Filter Tabs */}
+                {filterTabs.length > 1 && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-3 scrollbar-none">
+                        {filterTabs.map(tab => (
                             <button
-                                key={idx}
-                                onClick={() => setCurrentImageIndex(idx)}
-                                className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${currentImageIndex === idx
-                                    ? 'border-indigo-500 ring-2 ring-indigo-200'
-                                    : 'border-transparent hover:border-indigo-300'
-                                    }`}
+                                key={tab.id}
+                                onClick={() => {
+                                    setSelectedFilter(tab.id);
+                                    setCurrentImageIndex(0);
+                                }}
+                                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer ${
+                                    selectedFilter === tab.id
+                                        ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-200'
+                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                }`}
                             >
-                                <img
-                                    src={getImageUrl(img)}
-                                    alt={`${space.name} ${idx + 1}`}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => e.target.src = '/placeholders/space.jpg'}
-                                />
+                                {tab.icon === 'all' && <Grid3x3 size={13} />}
+                                {tab.icon === 'space' && <Building2 size={13} />}
+                                {tab.icon === 'room' && (
+                                    <DoorOpen size={13} className={selectedFilter === tab.id ? 'text-white' : 'text-purple-600'} />
+                                )}
+                                <span>{tab.label}</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                                    selectedFilter === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                                }`}>
+                                    {tab.count}
+                                </span>
                             </button>
                         ))}
-                        {images.length > 5 && (
+                    </div>
+                )}
+
+                {/* Image Gallery */}
+                <div id="space-image-gallery" className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-8">
+                    {/* Desktop Thumbnails Column */}
+                    <div className="hidden md:flex md:flex-col gap-2 order-2 md:order-1">
+                        {displayImages.slice(0, 5).map((img, idx) => (
+                            <button
+                                key={img.id || idx}
+                                onClick={() => setCurrentImageIndex(idx)}
+                                className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer group ${
+                                    currentImageIndex === idx
+                                        ? 'border-indigo-500 ring-2 ring-indigo-200'
+                                        : 'border-transparent hover:border-indigo-300'
+                                }`}
+                                title={img.type === 'room' ? `Room: ${img.title}` : `Space: ${img.title}`}
+                            >
+                                <img
+                                    src={getImageUrl(img.url)}
+                                    alt={img.title}
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                    onError={(e) => { e.target.src = img.type === 'room' ? '/placeholders/room.jpg' : '/placeholders/space.jpg'; }}
+                                />
+                                <span className={`absolute top-1 left-1 p-0.5 rounded text-white text-[8px] font-bold shadow-xs ${
+                                    img.type === 'room' ? 'bg-purple-600/90' : 'bg-indigo-600/90'
+                                }`}>
+                                    {img.type === 'room' ? <DoorOpen size={10} /> : <Building2 size={10} />}
+                                </span>
+                            </button>
+                        ))}
+                        {displayImages.length > 5 && (
                             <button
                                 onClick={() => openLightbox(0)}
-                                className="aspect-square rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors"
+                                className="aspect-square rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors cursor-pointer"
                             >
-                                +{images.length - 5}
+                                +{displayImages.length - 5}
                             </button>
                         )}
                     </div>
 
+                    {/* Hero Main Image Viewer */}
                     <div className="md:col-span-4 order-1 md:order-2">
-                        <div className="relative aspect-video bg-slate-100 rounded-2xl overflow-hidden cursor-pointer group"
-                            onClick={() => openLightbox(currentImageIndex)}>
-                            {images[currentImageIndex] ? (
+                        <div
+                            className="relative aspect-video bg-slate-100 rounded-2xl overflow-hidden cursor-pointer group shadow-xs"
+                            onClick={() => openLightbox(currentImageIndex)}
+                        >
+                            {currentImg ? (
                                 <>
                                     <img
-                                        src={getImageUrl(images[currentImageIndex])}
-                                        alt={space.name}
+                                        src={getImageUrl(currentImg.url)}
+                                        alt={currentImg.title || space.name}
                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                        onError={(e) => e.target.src = '/placeholders/space.jpg'}
+                                        onError={(e) => { e.target.src = currentImg.type === 'room' ? '/placeholders/room.jpg' : '/placeholders/space.jpg'; }}
                                     />
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                        <div className="bg-white/90 rounded-full p-2">
-                                            <Maximize2 size={20} className="text-slate-700" />
+
+                                    {/* Overlay Badge identifying Room / Space */}
+                                    <div className="absolute top-3.5 left-3.5 z-10 bg-slate-900/85 backdrop-blur-md text-white px-3.5 py-2 rounded-xl border border-white/15 shadow-lg flex items-center gap-2.5">
+                                        {currentImg.type === 'room' ? (
+                                            <>
+                                                <div className="w-7 h-7 rounded-lg bg-purple-500/25 text-purple-300 flex items-center justify-center shrink-0">
+                                                    <DoorOpen size={16} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-[8px] font-black uppercase tracking-wider text-purple-300 bg-purple-500/20 px-1.5 py-0.5 rounded">
+                                                            Room Photo
+                                                        </span>
+                                                        {currentImg.roomType && (
+                                                            <span className="text-[9px] text-slate-300 font-medium">
+                                                                {formatRoomType(currentImg.roomType)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs sm:text-sm font-black text-white mt-0.5 truncate max-w-[200px] sm:max-w-[340px]">
+                                                        {currentImg.title}
+                                                    </p>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="w-7 h-7 rounded-lg bg-indigo-500/25 text-indigo-300 flex items-center justify-center shrink-0">
+                                                    <Building2 size={16} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="text-[8px] font-black uppercase tracking-wider text-indigo-300 bg-indigo-500/20 px-1.5 py-0.5 rounded">
+                                                        Space Overview
+                                                    </span>
+                                                    <p className="text-xs sm:text-sm font-black text-white mt-0.5 truncate max-w-[200px] sm:max-w-[340px]">
+                                                        {space.name}
+                                                    </p>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Quick action button for room */}
+                                    {currentImg.type === 'room' && currentImg.room && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedRoom(currentImg.room);
+                                                setSelectedBookableType('room');
+                                                handleBookNow();
+                                            }}
+                                            className="absolute bottom-3.5 left-3.5 z-10 bg-purple-600/90 hover:bg-purple-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 backdrop-blur-xs cursor-pointer"
+                                        >
+                                            <DoorOpen size={13} />
+                                            <span>Book {currentImg.title}</span>
+                                        </button>
+                                    )}
+
+                                    {/* Hover zoom icon */}
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
+                                        <div className="bg-white/90 rounded-full p-2.5 shadow-lg">
+                                            <Maximize2 size={20} className="text-slate-800" />
                                         </div>
                                     </div>
-                                    {images.length > 1 && (
+
+                                    {/* Previous / Next buttons */}
+                                    {displayImages.length > 1 && (
                                         <>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                                                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
+                                                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                title="Previous Image"
                                             >
                                                 <ChevronLeft size={20} />
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                title="Next Image"
                                             >
                                                 <ChevronRight size={20} />
                                             </button>
-                                            <div className="absolute bottom-4 right-4 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
-                                                {currentImageIndex + 1} / {images.length}
+                                            <div className="absolute bottom-4 right-4 bg-black/70 text-white text-xs px-2.5 py-1 rounded-full font-bold shadow-md">
+                                                {currentImageIndex + 1} / {displayImages.length}
                                             </div>
                                         </>
                                     )}
@@ -645,23 +909,30 @@ const SpaceDetails = () => {
                             )}
                         </div>
 
-                        {images.length > 1 && (
-                            <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-2">
-                                {images.map((img, idx) => (
+                        {/* Mobile thumbnails scroll strip */}
+                        {displayImages.length > 1 && (
+                            <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-2 scrollbar-none">
+                                {displayImages.map((img, idx) => (
                                     <button
-                                        key={idx}
+                                        key={img.id || idx}
                                         onClick={() => setCurrentImageIndex(idx)}
-                                        className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${currentImageIndex === idx
-                                            ? 'border-indigo-500'
-                                            : 'border-transparent'
-                                            }`}
+                                        className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                                            currentImageIndex === idx
+                                                ? 'border-indigo-500'
+                                                : 'border-transparent'
+                                        }`}
                                     >
                                         <img
-                                            src={getImageUrl(img)}
-                                            alt={`${space.name} ${idx + 1}`}
+                                            src={getImageUrl(img.url)}
+                                            alt={img.title}
                                             className="w-full h-full object-cover"
-                                            onError={(e) => e.target.src = '/placeholders/space.jpg'}
+                                            onError={(e) => { e.target.src = img.type === 'room' ? '/placeholders/room.jpg' : '/placeholders/space.jpg'; }}
                                         />
+                                        <span className={`absolute top-0.5 left-0.5 p-0.5 rounded text-white text-[7px] ${
+                                            img.type === 'room' ? 'bg-purple-600' : 'bg-indigo-600'
+                                        }`}>
+                                            {img.type === 'room' ? <DoorOpen size={8} /> : <Building2 size={8} />}
+                                        </span>
                                     </button>
                                 ))}
                             </div>
@@ -714,55 +985,128 @@ const SpaceDetails = () => {
                                     {rooms.map((room) => {
                                         const availability = roomAvailability[room._id];
                                         const isAvailable = availability?.is_available !== false;
+                                        const roomImgs = Array.isArray(room.images) && room.images.length > 0
+                                            ? room.images
+                                            : (room.image ? [room.image] : []);
+                                        const primaryImg = roomImgs[0];
 
                                         return (
                                             <div
                                                 key={room._id}
-                                                className={`border rounded-xl p-3 transition-all ${isAvailable
-                                                    ? 'border-slate-100 hover:shadow-md cursor-pointer hover:border-indigo-200'
-                                                    : 'border-red-200 bg-red-50/50 opacity-60 cursor-not-allowed'
-                                                    }`}
-                                                onClick={() => {
-                                                    if (isAvailable) {
-                                                        setSelectedRoom(room);
-                                                        setSelectedBookableType('room');
-                                                        handleBookNow();
-                                                    } else {
-                                                        showToast({
-                                                            icon: 'info',
-                                                            title: 'Room Not Available',
-                                                            text: 'This room is already booked for the selected date.'
-                                                        });
-                                                    }
-                                                }}
+                                                className={`border rounded-2xl p-4 transition-all relative ${
+                                                    isAvailable
+                                                        ? 'border-slate-200/80 hover:shadow-md hover:border-indigo-300 bg-white'
+                                                        : 'border-red-200 bg-red-50/40 opacity-70 cursor-not-allowed'
+                                                }`}
                                             >
-                                                <div className="flex gap-3">
-                                                    {room.image && (
-                                                        <img
-                                                            src={getImageUrl(room.image)}
-                                                            alt={room.name}
-                                                            className="w-16 h-16 rounded-lg object-cover"
-                                                            onError={(e) => e.target.src = '/placeholders/room.jpg'}
-                                                        />
-                                                    )}
-                                                    <div className="flex-1">
-                                                        <div className="flex justify-between items-start">
-                                                            <h4 className="font-bold text-sm text-slate-900">{room.name}</h4>
-                                                            {!isAvailable && (
-                                                                <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                                                <div className="flex gap-4 items-start">
+                                                    {/* Room Image with Photo Badge */}
+                                                    <div
+                                                        onClick={(e) => {
+                                                            if (roomImgs.length > 0) {
+                                                                handleOpenRoomLightbox(room, e);
+                                                            }
+                                                        }}
+                                                        className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden shrink-0 border border-slate-200/80 bg-slate-100 ${
+                                                            roomImgs.length > 0 ? 'cursor-pointer group/img' : ''
+                                                        }`}
+                                                        title={roomImgs.length > 0 ? `Click to view ${roomImgs.length} room photos` : room.name}
+                                                    >
+                                                        {primaryImg ? (
+                                                            <>
+                                                                <img
+                                                                    src={getImageUrl(primaryImg, 'room')}
+                                                                    alt={room.name}
+                                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover/img:scale-105"
+                                                                    onError={(e) => { e.target.src = '/placeholders/room.jpg'; }}
+                                                                />
+                                                                {roomImgs.length > 1 && (
+                                                                    <span className="absolute bottom-1 right-1 bg-black/75 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
+                                                                        <ImageIcon size={10} />
+                                                                        <span>{roomImgs.length}</span>
+                                                                    </span>
+                                                                )}
+                                                                <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+                                                                    <div className="bg-white/90 p-1.5 rounded-full text-slate-800 shadow-xs">
+                                                                        <Maximize2 size={12} />
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50">
+                                                                <DoorOpen size={24} />
+                                                                <span className="text-[9px] mt-1 font-bold">No photo</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Room Details */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div>
+                                                                <span className="text-[9px] font-black uppercase tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md inline-block mb-1">
+                                                                    {formatRoomType(room.type)}
+                                                                </span>
+                                                                <h4 className="font-black text-base text-slate-900 leading-snug truncate" title={room.name}>
+                                                                    {room.name}
+                                                                </h4>
+                                                            </div>
+                                                            {!isAvailable ? (
+                                                                <span className="text-[9px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full shrink-0">
                                                                     Booked
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full shrink-0">
+                                                                    Available
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <Users size={12} className="text-slate-400" />
-                                                            <span className="text-xs text-slate-500">Up to {room.capacity}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <span className="text-xs font-bold text-indigo-600">₱{room.rate_hour}/hr</span>
+
+                                                        <div className="flex items-center gap-3 mt-1.5">
+                                                            <div className="flex items-center gap-1 text-slate-500 text-xs">
+                                                                <Users size={12} className="text-slate-400" />
+                                                                <span>Up to {room.capacity} pax</span>
+                                                            </div>
+                                                            <span className="text-sm font-black text-indigo-600">₱{room.rate_hour}/hr</span>
                                                             {room.is_airconditioned && (
-                                                                <span className="text-[8px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">AC</span>
+                                                                <span className="text-[9px] bg-cyan-50 text-cyan-700 font-bold px-1.5 py-0.5 rounded">
+                                                                    AC
+                                                                </span>
                                                             )}
+                                                        </div>
+
+                                                        {room.description && (
+                                                            <p className="text-xs text-slate-500 mt-1.5 line-clamp-2">
+                                                                {room.description}
+                                                            </p>
+                                                        )}
+
+                                                        {/* Action buttons */}
+                                                        <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-slate-100">
+                                                            {roomImgs.length > 0 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => handleViewRoomPhotos(room, e)}
+                                                                    className="px-2.5 py-1 text-xs font-bold text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                                                                >
+                                                                    <ImageIcon size={12} />
+                                                                    <span>View Photos ({roomImgs.length})</span>
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isAvailable}
+                                                                onClick={() => {
+                                                                    if (isAvailable) {
+                                                                        setSelectedRoom(room);
+                                                                        setSelectedBookableType('room');
+                                                                        handleBookNow();
+                                                                    }
+                                                                }}
+                                                                className="ml-auto px-3.5 py-1 text-xs font-black uppercase tracking-wider bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg transition-all cursor-pointer"
+                                                            >
+                                                                Book Room
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -924,7 +1268,7 @@ const SpaceDetails = () => {
             <UserLightboxModal
                 isOpen={lightboxOpen}
                 onClose={() => setLightboxOpen(false)}
-                images={images}
+                images={displayImages}
                 currentIndex={lightboxIndex}
                 onPrev={prevLightbox}
                 onNext={nextLightbox}

@@ -740,6 +740,16 @@ const POS = () => {
         return `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${path}`;
     };
 
+    const escapeHtml = (str) => {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     const printReceipt = (order) => {
         const receiptWindow = window.open('', '_blank');
 
@@ -785,8 +795,8 @@ const POS = () => {
                     <div>${new Date().toLocaleTimeString('en-PH')}</div>
                 </div>
                 <div style="margin-bottom: 10px;">
-                    <strong>Order #:</strong> ${orderNumber}<br>
-                    <strong>Customer:</strong> ${order.customer_name || 'Walk-in Customer'}
+                    <strong>Order #:</strong> ${escapeHtml(orderNumber)}<br>
+                    <strong>Customer:</strong> ${escapeHtml(order.customer_name || 'Walk-in Customer')}
                 </div>
                 
                 ${isPayLater ? `
@@ -801,7 +811,7 @@ const POS = () => {
                     <tbody>
                         ${order.items.map(item => `
                             <tr>
-                                <td>${item.name}</td>
+                                <td>${escapeHtml(item.name || 'Item')}</td>
                                 <td>${item.quantity}</td>
                                 <td>₱${item.price.toFixed(2)}</td>
                                 <td>₱${(item.price * item.quantity).toFixed(2)}</td>

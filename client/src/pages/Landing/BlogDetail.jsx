@@ -4,6 +4,7 @@ import { apiGet } from '@/utils/Api';
 import { ArrowLeft, Calendar, Eye, Heart, User, Clock, Share2, Bookmark, ChevronLeft, ChevronRight } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Button } from '@/components/ui/button';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const BlogDetail = () => {
     const { slug } = useParams();
@@ -157,7 +158,7 @@ const BlogDetail = () => {
 
                         [&_a]:text-indigo-600 [&_a]:font-semibold [&_a]:underline [&_a]:underline-offset-2
                     "
-                    dangerouslySetInnerHTML={{ __html: blog.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(blog.content) }}
                 />
 
                 {/* Tags */}

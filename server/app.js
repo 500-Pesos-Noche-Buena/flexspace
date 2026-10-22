@@ -12,6 +12,23 @@ const os = require('os');
 const antiDdos = require('@/api/v1/middleware/antiDdos');
 const { captureRequest } = require('@/api/v1/utils/logsActivity');
 const autoLogger = require('@/api/v1/middleware/autoLogger');
+const { auth, requireRole } = require('@/api/v1/middleware/auth');
+
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
+// Security headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    if (process.env.NODE_ENV === 'production') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
+    next();
+});
 
 // ============ QUEUE INITIALIZATION ==========
 let workersStarted = false;
@@ -90,38 +107,16 @@ initQueues();
 // 1. Morgan - Logging (FIRST)
 app.use(morgan('dev'));
 
-// 2. CORS - Configured properly for Vercel + Render
+// 2. CORS - Configured with explicit origin allowlist
 const allowedOrigins = [
-    // Local development
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:5000',
-    /^http:\/\/localhost(:\d+)?$/,
-    
-    // Vercel production URLs
     'https://flexspace-iloilo.vercel.app',
-    /^https:\/\/.*\.vercel\.app$/,
-    
-    // Render backend (for API calls from itself)
-    'https://flexspace-z079.onrender.com',
-    /^https:\/\/.*\.onrender\.com$/,
-    
-    // Any 192.168.x.x — local WiFi
-    /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
-    // Any 10.x.x.x
-    /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
+    'https://flexspace-z079.onrender.com'
 ];
-
-// Log allowed origins in production
-if (process.env.NODE_ENV === 'production') {
-    console.log('🔒 CORS Allowed Origins:');
-    allowedOrigins.forEach(origin => {
-        if (typeof origin === 'string') {
-            console.log(`  - ${origin}`);
-        } else {
-            console.log(`  - ${origin.toString()}`);
-        }
-    });
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
 // CORS middleware - this handles OPTIONS preflight automatically
@@ -133,21 +128,17 @@ app.use(
                 return callback(null, true);
             }
 
-            // Check if origin is allowed
-            const isAllowed = allowedOrigins.some(pattern => {
-                if (typeof pattern === 'string') {
-                    return pattern === origin;
-                }
-                // Regex pattern
-                return pattern.test(origin);
-            });
-
-            if (isAllowed) {
-                callback(null, true);
-            } else {
-                console.log(`❌ CORS blocked: ${origin}`);
-                callback(new Error(`CORS blocked: ${origin}`));
+            if (allowedOrigins.includes(origin)) {
+                return callback(null, true);
             }
+
+            // Local development loopback fallback
+            if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+                return callback(null, true);
+            }
+
+            console.log(`❌ CORS blocked: ${origin}`);
+            callback(new Error(`CORS blocked: ${origin}`));
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -164,9 +155,14 @@ app.use(
     })
 );
 
-// 3. Body parsers - SINGLE instance with proper limits
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// 3. Body parsers - strictly bounded with rawBody verification for webhooks
+app.use(express.json({
+    limit: '2mb',
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // 4. Anti-DDoS (only in production)
 const ENABLE_DDOS = process.env.NODE_ENV === 'production';
@@ -203,42 +199,18 @@ app.get('/api/v1/maintenance/status', async (req, res) => {
     }
 });
 
-// Anti-DDoS status
-app.get('/api/v1/health/antiddos-status', (req, res) => {
+// Anti-DDoS status (admin protected)
+app.get('/api/v1/health/antiddos-status', auth, requireRole(['admin']), (req, res) => {
     res.json(antiDdos.getStatus());
 });
 
-// Health check
+// Health check - sanitized to prevent internal metric leakage
 app.get('/health', (req, res) => {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-US', {
-        timeZone: 'Asia/Manila',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-    });
-    const dateString = now.toLocaleDateString('en-US', {
-        timeZone: 'Asia/Manila',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-    });
-    
     res.status(200).json({
         success: true,
         status: 'online',
         message: 'FlexSpace API - System Online',
-        timestamp: `${dateString} | ${timeString}`,
-        uptime: process.uptime(),
-        memory: process.memoryUsage().rss / 1024 / 1024,
-        workersStarted,
-        emailQueueReady,
-        cloudinaryQueueReady,
-        queues: {
-            email: emailQueueReady ? 'ready' : 'offline',
-            cloudinary: cloudinaryQueueReady ? 'ready' : 'offline'
-        }
+        timestamp: new Date().toISOString()
     });
 });
 

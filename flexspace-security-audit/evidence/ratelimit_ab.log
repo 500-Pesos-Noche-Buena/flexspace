@@ -1,0 +1,10 @@
+waiting 130s for any active rate-limit temp ban to expire...
+TEST A - baseline, no X-Forwarded-For, 12 requests:
+ 403 403 403 403 403 403 403 403 403 403 429 429
+sleeping 130s...
+TEST B - same email, rotating X-Forwarded-For (10.0.0.1..12), 12 requests:
+ 429 429 429 429 429 429 429 429 429 429 429 429
+sleeping 130s...
+TEST C - same email, single X-Forwarded-For 10.0.0.99 (constant), 12 requests:
+ 429 429 429 429 429 429 429 429 429 429 429 429
+DONE

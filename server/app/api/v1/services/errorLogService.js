@@ -94,14 +94,19 @@ class ErrorLogService {
      * Sanitize request data
      */
     sanitizeRequestData(data) {
-        if (!data || typeof data !== 'object' || Array.isArray(data)) return data || null;
+        if (!data || typeof data !== 'object') return data || null;
+        if (Array.isArray(data)) {
+            return data.map(item => this.sanitizeRequestData(item));
+        }
 
-        const sensitiveFields = ['password', 'token', 'secret', 'key', 'authorization', 'api_key'];
+        const sensitiveFields = ['password', 'token', 'secret', 'key', 'authorization', 'api_key', 'otp', 'credit', 'card', 'cvv'];
         const sanitized = { ...data };
 
-        for (const field of sensitiveFields) {
-            if (Object.prototype.hasOwnProperty.call(sanitized, field)) {
+        for (const [field, value] of Object.entries(sanitized)) {
+            if (sensitiveFields.some(sf => field.toLowerCase().includes(sf))) {
                 sanitized[field] = '***REDACTED***';
+            } else if (value && typeof value === 'object') {
+                sanitized[field] = this.sanitizeRequestData(value);
             }
         }
 

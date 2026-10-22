@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/utils/cn';
+import { getImageUrl } from '@/utils/imageHelper';
 
 // Fix Leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -219,6 +220,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
     const [roomErrors, setRoomErrors] = useState({});
     const [roomTouched, setRoomTouched] = useState({});
     const [loadingRooms, setLoadingRooms] = useState(false);
+    const [isSavingRoom, setIsSavingRoom] = useState(false);
+    const [uploadingRoomImages, setUploadingRoomImages] = useState(false);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -361,20 +364,49 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
         }));
     };
 
+    const getRoomImagePreviewSrc = (img) => {
+        if (!img) return '/placeholders/room.jpg';
+        if (typeof img === 'string') return getImageUrl(img, 'room');
+        if (img instanceof File || img instanceof Blob) {
+            try {
+                return URL.createObjectURL(img);
+            } catch (e) {
+                return '/placeholders/room.jpg';
+            }
+        }
+        return '/placeholders/room.jpg';
+    };
+
     const handleRoomImageUpload = async (e) => {
-        const files = Array.from(e.target.files);
+        const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
 
-        if (roomImages.length + files.length > 5) {
-            showToast({ icon: 'warning', title: 'Maximum 5 images per room' });
+        const maxRemaining = 5 - roomImages.length;
+        if (maxRemaining <= 0) {
+            showToast({ icon: 'warning', title: 'Maximum 5 images allowed per room' });
             return;
         }
 
-        const compressed = await Promise.all(
-            files.map(file => compressImage(file, 800, 800, 0.8))
-        );
-        setRoomImages(prev => [...prev, ...compressed]);
-        e.target.value = '';
+        const filesToUpload = files.slice(0, maxRemaining);
+        setUploadingRoomImages(true);
+
+        try {
+            const compressed = await Promise.all(
+                filesToUpload.map(file => compressImage(file, 1000, 1000, 0.8))
+            );
+            setRoomImages(prev => [...prev, ...compressed]);
+            showToast({
+                icon: 'success',
+                title: `${compressed.length} image(s) added`,
+                duration: 1500
+            });
+        } catch (error) {
+            console.error('Room image processing failed:', error);
+            showToast({ icon: 'error', title: 'Failed to process room image' });
+        } finally {
+            setUploadingRoomImages(false);
+            if (e.target) e.target.value = '';
+        }
     };
 
     const removeRoomImage = (index) => {
@@ -400,39 +432,75 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             return;
         }
 
-        try {
-            const roomData = {
-                ...roomForm,
-                hourly_rates: (roomForm.hourly_rates || []).map(r => ({ min_pax: Number(r.min_pax), max_pax: Number(r.max_pax), rate_hour: Number(r.rate_hour) })),
-                consumable_packages: (roomForm.consumable_packages || []).map(p => ({ ...p, price: Number(p.price), room_portion: p.room_portion === '' || p.room_portion == null ? null : Number(p.room_portion) })),
-                promo_room_portion: roomForm.promo_room_portion === '' || roomForm.promo_room_portion == null ? null : Number(roomForm.promo_room_portion),
-                has_consumable_promo: !!roomForm.has_consumable_promo,
-                consumable_allowance: Number(roomForm.consumable_allowance || 0),
-                promo_duration_hours: roomForm.promo_duration_hours ? Number(roomForm.promo_duration_hours) : null,
-                promo_price: roomForm.promo_price === '' || roomForm.promo_price == null ? null : Number(roomForm.promo_price),
-                rate_hour: parseFloat(roomForm.rate_hour),
-                capacity: parseInt(roomForm.capacity),
-                floor_number: parseInt(roomForm.floor_number)
-            };
+        const spaceIdToUse = spaceId || initialData?._id;
+        if (!spaceIdToUse) {
+            showToast({ icon: 'error', title: 'Please save the space first before adding rooms' });
+            return;
+        }
 
-            const spaceIdToUse = spaceId || initialData?._id;
-            if (!spaceIdToUse) {
-                showToast({ icon: 'error', title: 'Please save the space first before adding rooms' });
-                return;
-            }
+        setIsSavingRoom(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('name', roomForm.name.trim());
+            formData.append('type', roomForm.type);
+            formData.append('capacity', parseInt(roomForm.capacity));
+            formData.append('rate_hour', parseFloat(roomForm.rate_hour));
+            formData.append('floor_number', parseInt(roomForm.floor_number || 1));
+            formData.append('description', roomForm.description || '');
+            formData.append('is_airconditioned', !!roomForm.is_airconditioned);
+            formData.append('has_window', !!roomForm.has_window);
+            formData.append('is_available', roomForm.is_available !== false);
+            formData.append('has_consumable_promo', !!roomForm.has_consumable_promo);
+            formData.append('consumable_allowance', Number(roomForm.consumable_allowance || 0));
+
+            if (roomForm.promo_name) formData.append('promo_name', roomForm.promo_name);
+            if (roomForm.promo_duration_hours) formData.append('promo_duration_hours', Number(roomForm.promo_duration_hours));
+            if (roomForm.promo_price !== '' && roomForm.promo_price != null) formData.append('promo_price', Number(roomForm.promo_price));
+            if (roomForm.promo_room_portion !== '' && roomForm.promo_room_portion != null) formData.append('promo_room_portion', Number(roomForm.promo_room_portion));
+
+            formData.append('amenities', JSON.stringify(roomForm.amenities || []));
+            formData.append('hourly_rates', JSON.stringify((roomForm.hourly_rates || []).map(r => ({
+                min_pax: Number(r.min_pax),
+                max_pax: Number(r.max_pax),
+                rate_hour: Number(r.rate_hour)
+            }))));
+            formData.append('consumable_packages', JSON.stringify((roomForm.consumable_packages || []).map(p => ({
+                ...p,
+                price: Number(p.price),
+                room_portion: p.room_portion === '' || p.room_portion == null ? null : Number(p.room_portion)
+            }))));
+
+            // Separate existing images (string URLs) from new uploads (File instances)
+            const existingImages = roomImages.filter(img => typeof img === 'string');
+            const newImageFiles = roomImages.filter(img => img instanceof File);
+
+            formData.append('existing_images', JSON.stringify(existingImages));
+
+            newImageFiles.forEach(file => {
+                formData.append('images', file);
+            });
 
             const url = editingRoom
                 ? `/space/rooms/${editingRoom._id}`
                 : `/space/spaces/${spaceIdToUse}/rooms`;
 
+            showToast({
+                icon: 'info',
+                title: editingRoom ? 'Updating room...' : 'Adding room...',
+                text: newImageFiles.length > 0 ? 'Uploading images...' : 'Saving room details...',
+                duration: 2000
+            });
+
             const res = editingRoom
-                ? await apiPut(url, roomData)  
-                : await apiPost(url, roomData); 
+                ? await apiPut(url, formData)
+                : await apiPost(url, formData);
 
             if (res.success) {
                 showToast({
                     icon: 'success',
                     title: editingRoom ? 'Room updated!' : 'Room added!',
+                    text: newImageFiles.length > 0 ? `${newImageFiles.length} image(s) uploaded successfully` : undefined,
                     duration: 2000
                 });
                 setShowRoomModal(false);
@@ -452,9 +520,14 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                 setEditingRoom(null);
                 // ✅ REFRESH ROOMS FROM DATABASE
                 await fetchRooms(spaceIdToUse);
+            } else {
+                showToast({ icon: 'error', title: res.message || 'Failed to save room' });
             }
         } catch (err) {
+            console.error('Failed to save room:', err);
             showToast({ icon: 'error', title: err.message || 'Failed to save room' });
+        } finally {
+            setIsSavingRoom(false);
         }
     };
 
@@ -481,7 +554,10 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             floor_number: room.floor_number || 1,
             is_available: room.is_available !== undefined ? room.is_available : true
         });
-        setRoomImages([]);
+        const existing = Array.isArray(room.images) && room.images.length > 0
+            ? room.images
+            : (room.image ? [room.image] : []);
+        setRoomImages(existing);
         setRoomErrors({});
         setRoomTouched({});
         setShowRoomModal(true);
@@ -1064,86 +1140,104 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {rooms.map(room => (
-                                    <div key={room._id} className="bg-muted/50 rounded-xl p-4 border border-border hover:border-purple-500/30 transition-all">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <DoorOpen size={14} className="text-purple-600 dark:text-purple-400 shrink-0" />
-                                                    <h4 className="text-sm font-black text-foreground truncate">{room.name}</h4>
+                                {rooms.map(room => {
+                                    const primaryImg = room.image || (Array.isArray(room.images) && room.images[0]);
+                                    return (
+                                        <div key={room._id} className="bg-muted/50 rounded-xl p-4 border border-border hover:border-purple-500/30 transition-all flex gap-3.5">
+                                            {primaryImg ? (
+                                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 border border-border bg-background shadow-xs">
+                                                    <img
+                                                        src={getImageUrl(primaryImg, 'room')}
+                                                        alt={room.name}
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => { e.target.src = '/placeholders/room.jpg'; }}
+                                                    />
                                                 </div>
-                                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                                    <span className="text-[9px] bg-purple-500/20 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-black uppercase">
-                                                        {getRoomTypeLabel(room.type)}
-                                                    </span>
-                                                    <span className="text-[9px] bg-blue-500/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold">
-                                                        <UsersIcon size={10} className="inline mr-0.5" />
-                                                        {room.capacity} pax
-                                                    </span>
-                                                    <span className="text-[9px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
-                                                        ₱{room.rate_hour}/hr
-                                                    </span>
-                                                    {room.is_airconditioned && (
-                                                        <span className="text-[9px] bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 rounded-full">
-                                                            <Wind size={10} className="inline mr-0.5" />
-                                                            AC
-                                                        </span>
-                                                    )}
-                                                    {room.has_window && (
-                                                        <span className="text-[9px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
-                                                            <Sun size={10} className="inline mr-0.5" />
-                                                            Window
-                                                        </span>
-                                                    )}
-                                                    {room.is_available ? (
-                                                        <span className="text-[8px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-black">
-                                                            Available
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[8px] bg-rose-500/20 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-full font-black">
-                                                            Unavailable
-                                                        </span>
-                                                    )}
+                                            ) : (
+                                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                                    <DoorOpen size={24} />
                                                 </div>
-                                                {room.description && (
-                                                    <p className="text-[8px] text-muted-foreground mt-2 line-clamp-2">
-                                                        {room.description}
-                                                    </p>
-                                                )}
-                                                {room.amenities && room.amenities.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-2">
-                                                        {room.amenities.slice(0, 3).map((amenity, idx) => (
-                                                            <span key={idx} className="text-[7px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
-                                                                {amenity}
+                                            )}
+                                            <div className="flex-1 min-w-0 flex items-start justify-between">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="text-sm font-black text-foreground truncate">{room.name}</h4>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                        <span className="text-[9px] bg-purple-500/20 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-black uppercase">
+                                                            {getRoomTypeLabel(room.type)}
+                                                        </span>
+                                                        <span className="text-[9px] bg-blue-500/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold">
+                                                            <UsersIcon size={10} className="inline mr-0.5" />
+                                                            {room.capacity} pax
+                                                        </span>
+                                                        <span className="text-[9px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                                                            ₱{room.rate_hour}/hr
+                                                        </span>
+                                                        {room.is_airconditioned && (
+                                                            <span className="text-[9px] bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 rounded-full">
+                                                                <Wind size={10} className="inline mr-0.5" />
+                                                                AC
                                                             </span>
-                                                        ))}
-                                                        {room.amenities.length > 3 && (
-                                                            <span className="text-[7px] text-muted-foreground">
-                                                                +{room.amenities.length - 3} more
+                                                        )}
+                                                        {room.has_window && (
+                                                            <span className="text-[9px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                                                                <Sun size={10} className="inline mr-0.5" />
+                                                                Window
+                                                            </span>
+                                                        )}
+                                                        {room.is_available ? (
+                                                            <span className="text-[8px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-black">
+                                                                Available
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[8px] bg-rose-500/20 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-full font-black">
+                                                                Unavailable
                                                             </span>
                                                         )}
                                                     </div>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-1 ml-2 shrink-0">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleEditRoom(room)}
-                                                    className="p-1.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-500 hover:text-white transition-all"
-                                                >
-                                                    <Edit size={12} />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteRoom(room._id)}
-                                                    className="p-1.5 bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
-                                                >
-                                                    <Trash2 size={12} />
-                                                </button>
+                                                    {room.description && (
+                                                        <p className="text-[8px] text-muted-foreground mt-2 line-clamp-2">
+                                                            {room.description}
+                                                        </p>
+                                                    )}
+                                                    {room.amenities && room.amenities.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-2">
+                                                            {room.amenities.slice(0, 3).map((amenity, idx) => (
+                                                                <span key={idx} className="text-[7px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+                                                                    {amenity}
+                                                                </span>
+                                                            ))}
+                                                            {room.amenities.length > 3 && (
+                                                                <span className="text-[7px] text-muted-foreground">
+                                                                    +{room.amenities.length - 3} more
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-1 ml-2 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleEditRoom(room)}
+                                                        className="p-1.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-500 hover:text-white transition-all"
+                                                        title="Edit Room"
+                                                    >
+                                                        <Edit size={12} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteRoom(room._id)}
+                                                        className="p-1.5 bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
+                                                        title="Delete Room"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -1743,33 +1837,66 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
 
                             {/* Room Images */}
                             <div>
-                                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block mb-2">
-                                    Room Images (Optional)
-                                </label>
-                                <label className="cursor-pointer">
-                                    <div className="border-2 border-dashed border-border rounded-xl p-4 hover:border-purple-500/30 transition-all text-center">
-                                        <ImageIcon size={24} className="text-muted-foreground mx-auto mb-2" />
-                                        <p className="text-[8px] font-black text-muted-foreground uppercase">Click to upload images</p>
-                                    </div>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={handleRoomImageUpload}
-                                        className="hidden"
-                                    />
-                                </label>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
+                                        Room Images ({roomImages.length}/5)
+                                    </label>
+                                    {roomImages.length > 0 && (
+                                        <span className="text-[9px] text-muted-foreground font-medium">
+                                            First image is primary
+                                        </span>
+                                    )}
+                                </div>
+
+                                {roomImages.length < 5 && (
+                                    <label className="cursor-pointer block">
+                                        <div className="border-2 border-dashed border-border rounded-xl p-4 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-center">
+                                            {uploadingRoomImages ? (
+                                                <div className="flex items-center justify-center gap-2 py-1 text-purple-600">
+                                                    <Loader2 size={20} className="animate-spin" />
+                                                    <span className="text-xs font-bold">Compressing images...</span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <ImageIcon size={24} className="text-muted-foreground mx-auto mb-1.5" />
+                                                    <p className="text-[10px] font-bold text-foreground">Click to upload room images</p>
+                                                    <p className="text-[8px] text-muted-foreground uppercase mt-0.5">JPG, PNG, WEBP (Max 5 images)</p>
+                                                </>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            disabled={uploadingRoomImages}
+                                            onChange={handleRoomImageUpload}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                )}
+
                                 {roomImages.length > 0 && (
-                                    <div className="flex gap-2 mt-2 flex-wrap">
+                                    <div className="flex gap-2.5 mt-3 flex-wrap">
                                         {roomImages.map((img, idx) => (
-                                            <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
-                                                <img src={URL.createObjectURL(img)} className="w-full h-full object-cover" alt={`Room ${idx + 1}`} />
+                                            <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden border border-border group bg-muted/40 shadow-xs">
+                                                <img
+                                                    src={getRoomImagePreviewSrc(img)}
+                                                    className="w-full h-full object-cover"
+                                                    alt={`Room ${idx + 1}`}
+                                                    onError={(e) => { e.target.src = '/placeholders/room.jpg'; }}
+                                                />
+                                                {idx === 0 && (
+                                                    <span className="absolute bottom-1 left-1 bg-purple-600/90 text-white text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs">
+                                                        Primary
+                                                    </span>
+                                                )}
                                                 <button
                                                     type="button"
                                                     onClick={() => removeRoomImage(idx)}
-                                                    className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500/80 text-white flex items-center justify-center text-[8px]"
+                                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center transition-transform hover:scale-110 shadow-xs"
+                                                    title="Remove image"
                                                 >
-                                                    <X size={8} />
+                                                    <X size={10} />
                                                 </button>
                                             </div>
                                         ))}
@@ -1780,20 +1907,29 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                             <div className="flex gap-3 pt-4 border-t border-border">
                                 <button
                                     type="button"
+                                    disabled={isSavingRoom}
                                     onClick={() => {
                                         setShowRoomModal(false);
                                         setEditingRoom(null);
                                     }}
-                                    className="flex-1 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl"
+                                    className="flex-1 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl disabled:opacity-50"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="button"
+                                    disabled={isSavingRoom || uploadingRoomImages}
                                     onClick={handleSaveRoom}
-                                    className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 rounded-xl text-white font-bold text-sm transition-all"
+                                    className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-xl text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
                                 >
-                                    {editingRoom ? 'Update Room' : 'Add Room'}
+                                    {isSavingRoom ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" />
+                                            <span>{editingRoom ? 'Saving Room...' : 'Adding Room...'}</span>
+                                        </>
+                                    ) : (
+                                        <span>{editingRoom ? 'Update Room' : 'Add Room'}</span>
+                                    )}
                                 </button>
                             </div>
                         </div>

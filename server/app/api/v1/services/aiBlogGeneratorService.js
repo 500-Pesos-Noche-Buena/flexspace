@@ -97,8 +97,12 @@ class AIBlogGeneratorService {
         formatted = formatted.replace(/\n{3,}/g, '\n\n');
 
         // Strip any stray emoji the model may have added despite instructions
-        formatted = formatted.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '');
-        formatted = formatted.replace(/[ \t]{2,}/g, ' ');
+        // Sanitize dangerous HTML tags, attributes, and event handlers to prevent XSS
+        formatted = formatted.replace(/<\s*(script|style|iframe|embed|object|form|input|button|svg|math)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+        formatted = formatted.replace(/<\s*(script|style|iframe|embed|object|form|input|button|meta|link|base)[^>]*>/gi, '');
+        formatted = formatted.replace(/(href|src)\s*=\s*['"]\s*(javascript|vbscript|data):[^'"]*['"]/gi, '');
+        formatted = formatted.replace(/\s+on[a-z]+\s*=\s*['"][^'"]*['"]/gi, '');
+        formatted = formatted.replace(/\s+on[a-z]+\s*=\s*[^ >]+/gi, '');
 
         // Add article wrapper
         formatted = `<article class="blog-post">\n${formatted}\n</article>`;

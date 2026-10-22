@@ -95,21 +95,31 @@ class RewardService {
         return user?.points || 0;
     };
 
-    validateVoucher = async (code, currentUserId) => {
+    validateVoucher = async (code, currentUserId, spaceId = null) => {
         try {
+            if (!code || typeof code !== 'string') throw new Error("Voucher code is required.");
             const voucher = await Voucher.findOne({ code: code.toUpperCase() });
 
             if (!voucher) throw new Error("Voucher not found.");
-            if (voucher.expiry_date < new Date()) throw new Error("Voucher has expired.");
+            if (voucher.expiry_date && voucher.expiry_date < new Date()) throw new Error("Voucher has expired.");
+
+            // Multi-tenant check: if voucher is scoped to a space and spaceId is provided
+            if (spaceId && voucher.space_id && voucher.space_id.toString() !== spaceId.toString()) {
+                throw new Error("This voucher is not valid for this space.");
+            }
 
             // For user-specific vouchers, check ownership
             if (voucher.type === 'user_specific') {
-                if (voucher.user_id.toString() !== currentUserId.toString()) {
+                if (voucher.user_id && currentUserId && voucher.user_id.toString() !== currentUserId.toString()) {
                     throw new Error("This voucher does not belong to you.");
                 }
                 // Check if user has reached their usage limit
                 if (voucher.usage_count >= voucher.max_uses_per_user) {
                     throw new Error("You have reached the usage limit for this voucher.");
+                }
+            } else {
+                if (voucher.redemption_limit && voucher.usage_count >= voucher.redemption_limit) {
+                    throw new Error("This voucher has reached its redemption limit.");
                 }
             }
 
@@ -126,16 +136,22 @@ class RewardService {
         }
     };
 
-    validateAndUseVoucher = async (code, currentUserId) => {
+    validateAndUseVoucher = async (code, currentUserId, spaceId = null) => {
         try {
+            if (!code || typeof code !== 'string') throw new Error("Voucher code is required.");
             const voucher = await Voucher.findOne({ code: code.toUpperCase() });
 
             if (!voucher) throw new Error("Voucher not found.");
-            if (voucher.expiry_date < new Date()) throw new Error("Voucher has expired.");
+            if (voucher.expiry_date && voucher.expiry_date < new Date()) throw new Error("Voucher has expired.");
+
+            // Multi-tenant check: if voucher is scoped to a space and spaceId is provided
+            if (spaceId && voucher.space_id && voucher.space_id.toString() !== spaceId.toString()) {
+                throw new Error("This voucher is not valid for this space.");
+            }
 
             // For user-specific vouchers
             if (voucher.type === 'user_specific') {
-                if (voucher.user_id.toString() !== currentUserId.toString()) {
+                if (voucher.user_id && currentUserId && voucher.user_id.toString() !== currentUserId.toString()) {
                     throw new Error("This voucher does not belong to you.");
                 }
                 if (voucher.usage_count >= voucher.max_uses_per_user) {
@@ -143,7 +159,7 @@ class RewardService {
                 }
 
                 // Increment usage count
-                voucher.usage_count += 1;
+                voucher.usage_count = (voucher.usage_count || 0) + 1;
 
                 // If max uses reached, mark as used
                 if (voucher.usage_count >= voucher.max_uses_per_user) {
@@ -161,6 +177,12 @@ class RewardService {
             }
 
             // For global/space vouchers (no user attached)
+            if (voucher.redemption_limit && (voucher.usage_count || 0) >= voucher.redemption_limit) {
+                throw new Error("This voucher has reached its redemption limit.");
+            }
+            voucher.usage_count = (voucher.usage_count || 0) + 1;
+            await voucher.save();
+
             return {
                 success: true,
                 discount_amount: voucher.discount_amount,

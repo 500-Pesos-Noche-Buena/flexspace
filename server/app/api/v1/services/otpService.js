@@ -2,9 +2,11 @@
 const crypto = require('crypto');
 
 class OTPService {
-    generateOTP() {
-        // Generate 6-digit OTP as string
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    generateOTP(length = 6) {
+        // Generate cryptographically secure OTP using CSPRNG
+        const min = Math.pow(10, length - 1);
+        const max = Math.pow(10, length);
+        const otp = crypto.randomInt(min, max).toString();
         return otp;
     }
 

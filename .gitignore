@@ -36,3 +36,8 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Large security test dumps
+flexspace-security-audit/evidence/big.json
+flexspace-security-audit/evidence/bundle.js
+

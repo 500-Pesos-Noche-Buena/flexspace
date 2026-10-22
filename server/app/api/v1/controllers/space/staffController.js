@@ -36,13 +36,24 @@ index = async (req, res, next) => {
         const limit = 10;
         const skip = (page - 1) * limit;
 
+        const { Space } = require('@/api/v1/models');
+        const ownerSpaces = await Space.find({ user_id: ownerId }).select('_id');
+        const ownerSpaceIds = ownerSpaces.map(s => s._id);
+
         const query = {
             role: 'staff',
-            parent_id: ownerId,
+            $or: [
+                { parent_id: ownerId },
+                { space_id: { $in: ownerSpaceIds } }
+            ],
             ...(search && {
-                $or: [
-                    { name: { $regex: search, $options: 'i' } },
-                    { email: { $regex: search, $options: 'i' } }
+                $and: [
+                    {
+                        $or: [
+                            { name: { $regex: search, $options: 'i' } },
+                            { email: { $regex: search, $options: 'i' } }
+                        ]
+                    }
                 ]
             })
         };
@@ -50,7 +61,7 @@ index = async (req, res, next) => {
         const [staff, total, activeCount, inactiveCount] = await Promise.all([
             User.find(query)
                 .select('name email isActive role space_id createdAt')
-                .populate('space_id', 'name')  // ← ADD THIS LINE to get space name
+                .populate('space_id', 'name')
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit),
@@ -70,34 +81,44 @@ index = async (req, res, next) => {
     }
 };
 
- // POST /api/v1/space/staff - Update this method
+ // POST /api/v1/space/staff
 store = async (req, res, next) => {
     try {
         const ownerId = this.getUserId(req);
-        const { name, email, password, space_id } = req.body;
-
-        console.log('Creating staff with data:', { name, email, space_id }); // Debug log
+        const { name, email, password, space_id } = req.body || {};
 
         // 1. Basic Validation
         if (!name || !email) {
             throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Name and Email are required.');
         }
 
-        // 2. Use Service to check if email is taken
+        // 2. Validate space ownership if space_id provided
+        if (space_id) {
+            const { Space } = require('@/api/v1/models');
+            const space = await Space.findOne({ _id: space_id, user_id: ownerId });
+            if (!space) {
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Unauthorized: You do not own this space');
+            }
+        }
+
+        // 3. Use Service to check if email is taken
         if (await userService.isEmailTaken(email)) {
             throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Email is already registered.');
         }
 
-        // 3. Create staff with space_id
+        const crypto = require('crypto');
+        const staffPassword = (typeof password === 'string' && password.trim().length >= 8)
+            ? password.trim()
+            : crypto.randomBytes(12).toString('hex') + '!1Aa';
+
+        // 4. Create staff with space_id
         const newStaff = await userService.createStaff({
             name,
             email,
-            password: password || 'FlexSpace2026',
+            password: staffPassword,
             parent_id: ownerId,
             space_id: space_id || null
         });
-
-        console.log('Staff created with space_id:', newStaff.space_id); // Debug log
 
         return res.status(HTTP_STATUS.CREATED).json({
             success: true,
@@ -120,7 +141,18 @@ store = async (req, res, next) => {
             const ownerId = this.getUserId(req);
             const { id } = req.params;
 
-            const user = await User.findOne({ _id: id, parent_id: ownerId });
+            const { Space } = require('@/api/v1/models');
+            const ownerSpaces = await Space.find({ user_id: ownerId }).select('_id');
+            const ownerSpaceIds = ownerSpaces.map(s => s._id);
+
+            const user = await User.findOne({
+                _id: id,
+                role: 'staff',
+                $or: [
+                    { parent_id: ownerId },
+                    { space_id: { $in: ownerSpaceIds } }
+                ]
+            });
             if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found.');
 
             user.isActive = !user.isActive;
@@ -141,14 +173,34 @@ store = async (req, res, next) => {
         try {
             const ownerId = this.getUserId(req);
             const { id } = req.params;
-            const { name, email, space_id } = req.body;
+            const { name, email, space_id } = req.body || {};
 
-            const user = await User.findOne({ _id: id, parent_id: ownerId, role: 'staff' });
+            const { Space } = require('@/api/v1/models');
+            const ownerSpaces = await Space.find({ user_id: ownerId }).select('_id');
+            const ownerSpaceIds = ownerSpaces.map(s => s._id);
+
+            const user = await User.findOne({
+                _id: id,
+                role: 'staff',
+                $or: [
+                    { parent_id: ownerId },
+                    { space_id: { $in: ownerSpaceIds } }
+                ]
+            });
             if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff not found.');
+
+            if (space_id !== undefined) {
+                if (space_id) {
+                    const space = await Space.findOne({ _id: space_id, user_id: ownerId });
+                    if (!space) {
+                        throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Unauthorized: You do not own this space');
+                    }
+                }
+                user.space_id = space_id || null;
+            }
 
             user.name = name || user.name;
             user.email = email || user.email;
-            if (space_id !== undefined) user.space_id = space_id;
 
             await user.save();
 
@@ -173,7 +225,18 @@ store = async (req, res, next) => {
             const ownerId = this.getUserId(req);
             const { id } = req.params;
 
-            const user = await User.findOneAndDelete({ _id: id, parent_id: ownerId });
+            const { Space } = require('@/api/v1/models');
+            const ownerSpaces = await Space.find({ user_id: ownerId }).select('_id');
+            const ownerSpaceIds = ownerSpaces.map(s => s._id);
+
+            const user = await User.findOneAndDelete({
+                _id: id,
+                role: 'staff',
+                $or: [
+                    { parent_id: ownerId },
+                    { space_id: { $in: ownerSpaceIds } }
+                ]
+            });
             if (!user) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Staff member not found.');
 
             return res.status(HTTP_STATUS.OK).json({

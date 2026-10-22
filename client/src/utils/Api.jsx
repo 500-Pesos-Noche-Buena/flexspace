@@ -19,7 +19,6 @@ const getBaseUrl = () => {
 const API_BASE_URL = getBaseUrl();
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 const FULL_BASE_URL = `${API_BASE_URL}/api/${API_VERSION}`;
-const INTERNAL_SECRET = import.meta.env.VITE_INTERNAL_SECRET;
 
 const getToken = () => localStorage.getItem('authToken');
 
@@ -58,8 +57,7 @@ async function apiRequest(method, endpoint, data = null) {
     const config = {
         method: method,
         headers: {
-            'Accept': 'application/json',
-            'x-app-fingerprint': INTERNAL_SECRET
+            'Accept': 'application/json'
         },
     };
 

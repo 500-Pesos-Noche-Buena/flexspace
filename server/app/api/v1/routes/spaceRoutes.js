@@ -44,7 +44,84 @@ class SpaceRoutes {
         this.router.get('/booking/:id/can-review', (req, res, next) => BookingController.canReviewBooking(req, res, next));
         this.router.post('/booking/:id/review', (req, res, next) => BookingController.submitReviewFromQR(req, res, next));
 
-        const uploadArray = upload.array('images', 10);
+        this.router.post('/payment-webhook', async (req, res, next) => {
+            try {
+                const crypto = require('crypto');
+                const raw = req.rawBody || Buffer.from(JSON.stringify(req.body));
+                const sig = req.get('x-paymongo-signature') || req.get('x-paybridge-signature') || req.get('stripe-signature');
+                const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET || process.env.PAYMONGO_WEBHOOK_SECRET || process.env.PAYBRIDGE_WEBHOOK_SECRET;
+
+                if (!sig || !webhookSecret) {
+                    return res.status(401).json({ success: false, message: 'Invalid or missing signature' });
+                }
+
+                let providedSig = sig;
+                if (sig.includes('te=')) {
+                    const parts = sig.split(',').reduce((acc, part) => {
+                        const [k, v] = part.split('=');
+                        if (k && v) acc[k.trim()] = v.trim();
+                        return acc;
+                    }, {});
+                    providedSig = parts.te || parts.li || sig;
+                }
+
+                const expected = crypto.createHmac('sha256', webhookSecret).update(raw).digest('hex');
+                const expectedBuf = Buffer.from(expected);
+                const providedBuf = Buffer.from(providedSig);
+
+                if (expectedBuf.length !== providedBuf.length || !crypto.timingSafeEqual(expectedBuf, providedBuf)) {
+                    return res.status(401).json({ success: false, message: 'Invalid signature' });
+                }
+
+                const { event, data } = req.body;
+                if (!event || !data) {
+                    return res.status(400).json({ success: false, message: 'Invalid webhook payload' });
+                }
+
+                if (event === 'payment.succeeded' || event === 'payment_intent.succeeded') {
+                    const orderNumber = data.order_number || data.metadata?.order_number;
+                    const paymentIntentId = data.payment_intent_id || data.id;
+                    const type = data.metadata?.type || 'order';
+
+                    if (orderNumber) {
+                        if (type === 'order') {
+                            const Order = require('@/api/v1/models/schema/Order');
+                            const order = await Order.findOne({ order_number: orderNumber });
+                            if (order && order.payment_status !== 'paid') {
+                                order.status = 'confirmed';
+                                order.payment_status = 'paid';
+                                order.payment_intent_id = paymentIntentId;
+                                await order.save();
+                            }
+                        } else {
+                            const Booking = require('@/api/v1/models/schema/Booking');
+                            const booking = await Booking.findOne({ ticket_number: orderNumber });
+                            if (booking && (booking.status === 'pending_payment' || booking.status === 'pending')) {
+                                booking.status = 'confirmed';
+                                booking.payment_status = 'paid';
+                                booking.payment_intent_id = paymentIntentId;
+                                await booking.save();
+                            }
+                        }
+                    }
+                }
+
+                return res.status(200).json({ success: true });
+            } catch (error) {
+                console.error('Webhook error:', error);
+                return res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        // ============ OWNER / STAFF ROLE GATE ============
+        this.router.use(auth, (req, res, next) => {
+            if (!req.user || !['space', 'staff', 'admin'].includes(req.user.role)) {
+                return next(new (require('@/api/v1/utils/ApiError'))(403, 'Space owner or staff access required.'));
+            }
+            next();
+        });
+
+        const uploadArray = upload.array('images', 5);
 
         // ============ DASHBOARD ============
         this.router.get('/dashboard', auth, (req, res, next) => DashboardController.index(req, res, next));
@@ -69,8 +146,11 @@ class SpaceRoutes {
         // ============ ROOM MANAGEMENT ============
         this.router.get('/spaces/:spaceId/rooms', auth, (req, res, next) => RoomController.getRooms(req, res, next));
         this.router.get('/spaces/:spaceId/rooms/availability', auth, (req, res, next) => RoomController.getRoomsWithAvailability(req, res, next));
-        this.router.post('/spaces/:spaceId/rooms', auth, (req, res, next) => RoomController.createRoom(req, res, next));
-        this.router.put('/rooms/:roomId', auth, (req, res, next) => RoomController.updateRoom(req, res, next));
+        this.router.post('/spaces/:spaceId/rooms', auth, uploadArray, processUploadedFiles, (req, res, next) => RoomController.createRoom(req, res, next));
+        this.router.put('/rooms/:roomId', auth, uploadArray, processUploadedFiles, (req, res, next) => RoomController.updateRoom(req, res, next));
+        this.router.post('/rooms/:roomId/update', auth, uploadArray, processUploadedFiles, (req, res, next) => RoomController.updateRoom(req, res, next));
+        this.router.post('/rooms/:roomId/add-images', auth, uploadArray, processUploadedFiles, (req, res, next) => RoomController.addImages(req, res, next));
+        this.router.post('/rooms/:roomId/remove-image', auth, (req, res, next) => RoomController.removeImage(req, res, next));
         this.router.delete('/rooms/:roomId', auth, (req, res, next) => RoomController.deleteRoom(req, res, next));
         this.router.post('/rooms/:roomId/delete', auth, (req, res, next) => RoomController.deleteRoom(req, res, next));
         this.router.get('/rooms/:roomId/check-availability', auth, (req, res, next) => RoomController.checkRoomAvailability(req, res, next));
@@ -83,52 +163,6 @@ class SpaceRoutes {
         this.router.post('/bookings/:id/checkout', auth, (req, res, next) => BookingController.checkout(req, res, next));
         this.router.post('/bookings/:id/apply-voucher', auth, (req, res, next) => BookingController.applyVoucher(req, res, next));
         this.router.post('/bookings/:id/:action', auth, (req, res, next) => BookingController.updateStatus(req, res, next));
-
-        this.router.post('/payment-webhook', async (req, res, next) => {
-            try {
-                console.log('📢 Payment webhook received:', JSON.stringify(req.body, null, 2));
-
-                const { event, data } = req.body;
-
-                if (event === 'payment.succeeded' || event === 'payment_intent.succeeded') {
-                    const orderNumber = data.order_number || data.metadata?.order_number;
-                    const paymentIntentId = data.payment_intent_id || data.id;
-                    const type = data.metadata?.type || 'order';
-
-                    console.log(`✅ Payment succeeded for: ${orderNumber} (type: ${type})`);
-
-                    if (orderNumber) {
-                        if (type === 'order') {
-                            // Update POS Order
-                            const Order = require('@/api/v1/models/schema/Order');
-                            const order = await Order.findOne({ order_number: orderNumber });
-                            if (order) {
-                                order.status = 'confirmed';
-                                order.payment_status = 'paid';
-                                order.payment_intent_id = paymentIntentId;
-                                await order.save();
-                                console.log(`✅ Order ${orderNumber} updated to confirmed`);
-                            }
-                        } else {
-                            // Update Booking
-                            const Booking = require('@/api/v1/models/schema/Booking');
-                            const booking = await Booking.findOne({ ticket_number: orderNumber });
-                            if (booking && booking.status === 'pending_payment') {
-                                booking.status = 'confirmed';
-                                booking.payment_status = 'paid';
-                                await booking.save();
-                                console.log(`✅ Booking ${orderNumber} updated to confirmed`);
-                            }
-                        }
-                    }
-                }
-
-                return res.status(200).json({ success: true });
-            } catch (error) {
-                console.error('Webhook error:', error);
-                return res.status(200).json({ success: false, error: error.message });
-            }
-        });
 
         this.router.get('/payment-methods', auth, async (req, res, next) => {
             try {

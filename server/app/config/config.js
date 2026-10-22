@@ -15,7 +15,7 @@ const config = {
 
     jwt: {
         secret: process.env.JWT_SECRET,
-        accessExpirationMinutes: 720,
+        accessExpirationMinutes: parseInt(process.env.JWT_ACCESS_EXPIRATION_MINUTES, 10) || 720,
     },
 
     bcrypt: {

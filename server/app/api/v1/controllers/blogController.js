@@ -46,11 +46,20 @@ class BlogController {
     // Trigger blog generation (protected endpoint for cron jobs)
     generateBlogs = async (req, res, next) => {
         try {
-            // Optional: Add API key check for security
+            const crypto = require('crypto');
             const apiKey = req.headers['x-api-key'];
-            const validKey = process.env.BLOG_API_KEY || 'flexspace-secret-key';
+            const validKey = process.env.BLOG_API_KEY;
             
-            if (apiKey !== validKey) {
+            if (!validKey) {
+                return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+                    success: false,
+                    message: 'Blog generation API key is not configured'
+                });
+            }
+
+            if (!apiKey || typeof apiKey !== 'string' ||
+                Buffer.byteLength(apiKey) !== Buffer.byteLength(validKey) ||
+                !crypto.timingSafeEqual(Buffer.from(apiKey), Buffer.from(validKey))) {
                 return res.status(HTTP_STATUS.UNAUTHORIZED).json({
                     success: false,
                     message: 'Invalid API key'

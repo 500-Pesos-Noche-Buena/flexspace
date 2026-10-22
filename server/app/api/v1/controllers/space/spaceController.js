@@ -57,10 +57,14 @@ class SpaceController {
             const userId = this.getUserId(req);
             if (!userId) throw new ApiError(HTTP_STATUS.UNAUTHORIZED, 'Identity missing.');
 
+            if (req.user?.role && req.user.role !== 'space' && req.user.role !== 'admin') {
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Unauthorized: Only verified space owners or admins can create listings.');
+            }
+
             const {
                 name, area, rate_hour, capacity, status,
                 lat, lng, district_id, available_rooms, amenities, description, hours_json
-            } = req.body;
+            } = req.body || {};
 
             // Get image URLs from Cloudinary (already uploaded via middleware)
             let imageUrls = [];
@@ -159,6 +163,8 @@ class SpaceController {
             delete updates.__v;
             delete updates.created_at;
             delete updates.updated_at;
+            delete updates.user_id;
+            delete updates.owner_id;
 
             // Handle amenities
             if (updates.amenities) {

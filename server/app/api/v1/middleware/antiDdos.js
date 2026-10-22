@@ -11,23 +11,18 @@ let serverLoad = { totalRequests: 0, lastReset: Date.now() };
 let isUnderAttack = false;
 let attackStartTime = null;
 
-// Clean IP Extractor Helper
+// Clean IP Extractor Helper (uses Express trust proxy 1)
 const extractIp = (req) => {
-    const rawIp = req.headers['cf-connecting-ip'] 
-        || req.headers['x-forwarded-for']?.split(',')[0].trim() 
-        || req.ip 
-        || req.socket?.remoteAddress 
-        || '127.0.0.1';
-
+    const rawIp = req.ip || req.socket?.remoteAddress || '127.0.0.1';
     return String(rawIp);
 };
 
-// Helper to check if IP is localhost/development
+// Helper to check if IP is localhost
 const isLocalhost = (ip) => {
     if (!ip) return false;
     const safeIp = Array.isArray(ip) ? String(ip[0]) : String(ip);
     const localIps = ['::1', '127.0.0.1', '::ffff:127.0.0.1', 'localhost'];
-    return localIps.includes(safeIp) || safeIp.startsWith('192.168.') || safeIp.startsWith('10.');
+    return localIps.includes(safeIp);
 };
 
 const isProduction = process.env.NODE_ENV === 'production';

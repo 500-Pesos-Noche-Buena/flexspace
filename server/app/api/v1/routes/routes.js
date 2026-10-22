@@ -6,8 +6,8 @@ const landingRoutes = require('./landingRoutes');
 const userRoutes = require('./userRoutes');
 const blogRoutes = require('./blogRoutes');
 const { Analytics } = require('@/api/v1/models');
-const emailController = require('@/api/v1/controllers/emailController');
 const chatController = require('@/api/v1/controllers/chatController');
+const antiDdos = require('@/api/v1/middleware/antiDdos');
 
 class ApiRouter {
     constructor() {
@@ -18,9 +18,13 @@ class ApiRouter {
     mountRoutes() {
         console.log('--- 🚀 Mounting API v1 Routes ---');
 
-        this.router.post('/analytics/track', async (req, res) => {
+        this.router.post('/analytics/track', antiDdos.strictLimiter, async (req, res) => {
             try {
-                const { path, deviceType, browser, os } = req.body;
+                let { path, deviceType, browser, os } = req.body || {};
+                path = typeof path === 'string' ? path.substring(0, 200) : '/';
+                deviceType = typeof deviceType === 'string' ? deviceType.substring(0, 50) : 'unknown';
+                browser = typeof browser === 'string' ? browser.substring(0, 50) : 'unknown';
+                os = typeof os === 'string' ? os.substring(0, 50) : 'unknown';
                 const period = '7d';
                 const today = new Date().toISOString().split('T')[0];
 
@@ -98,11 +102,7 @@ class ApiRouter {
         this.router.use('/user', userRoutes);
         this.router.use('/blogs', blogRoutes); 
         
-        this.router.post('/chat/support', chatController.chatSupport);
-        
-        this.router.post('/email/welcome', emailController.sendWelcome);
-        this.router.post('/email/booking-confirmation', emailController.sendBookingConfirmation);
-        this.router.post('/email/voucher', emailController.sendVoucher);
+        this.router.post('/chat/support', antiDdos.strictLimiter, chatController.chatSupport);
     }
 
     getRouter() {

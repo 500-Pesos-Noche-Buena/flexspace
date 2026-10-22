@@ -226,7 +226,41 @@ class PaymentController {
 
     confirmFeePayment = async (req, res, next) => {
         try {
-            const { owner_id, month, payment_intent_id } = req.body;
+            const { owner_id, month, payment_intent_id } = req.body || {};
+            const callerId = req.user?.sub || req.user?._id || req.user?.id;
+            const callerRole = req.user?.role;
+
+            if (!owner_id || !month || !payment_intent_id) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'owner_id, month, and payment_intent_id are required');
+            }
+
+            // Only admin or the space owner themselves can confirm fee payments
+            if (callerRole !== 'admin' && callerId?.toString() !== owner_id?.toString()) {
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Unauthorized: You can only confirm fees for your own account');
+            }
+
+            // Verify with PayBridge platform gateway
+            const Settings = require('@/api/v1/models/schema/Settings');
+            const platformKey = await Settings.findOne({ key: 'platform_paymongo_key' });
+            if (platformKey?.value) {
+                try {
+                    const response = await axios.get(`${PAYBRIDGE_API_URL}/paymongo/verify/${encodeURIComponent(payment_intent_id)}`, {
+                        headers: {
+                            'X-Encrypted-Secret': platformKey.value,
+                            'X-PayBridge-Master-Key': PAYBRIDGE_MASTER_KEY
+                        },
+                        timeout: 10000
+                    });
+                    const isPaid = response.data?.is_paid === true || response.data?.data?.attributes?.status === 'paid' || response.data?.status === 'paid';
+                    if (!isPaid) {
+                        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Fee payment could not be verified by gateway');
+                    }
+                } catch (err) {
+                    if (err instanceof ApiError) throw err;
+                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Gateway fee payment verification failed');
+                }
+            }
+
             const Earnings = require('@/api/v1/models/schema/Earnings');
 
             const result = await Earnings.updateMany(

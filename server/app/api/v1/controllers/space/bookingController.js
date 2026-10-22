@@ -370,9 +370,8 @@ class BookingController {
                 return res.redirect(`${frontendUrl}/review/already-reviewed?booking_id=${booking._id}`);
             }
 
-            // Redirect to review page
-            console.log('Redirecting to review page:', `${frontendUrl}/review/booking/${booking._id}`);
-            return res.redirect(`${frontendUrl}/review/booking/${booking._id}`);
+            // Redirect to review page with token
+            return res.redirect(`${frontendUrl}/review/booking/${booking._id}?token=${encodeURIComponent(booking.qr_code_token)}`);
 
         } catch (error) {
             console.error('QR Redirect Error:', error);
@@ -388,10 +387,19 @@ class BookingController {
     getBookingForReview = async (req, res, next) => {
         try {
             const { id } = req.params;
+            const token = req.query.token || req.headers['x-review-token'] || req.body?.token;
+            const userId = req.user?.sub || req.user?._id || req.user?.id;
 
-            const booking = await Booking.findById(id)
-                .populate('space_id', 'name address images rating review_count')
-                .populate('user_id', 'name email');
+            let booking = null;
+            if (token && typeof token === 'string') {
+                booking = await Booking.findOne({ _id: id, qr_code_token: token.trim() })
+                    .populate('space_id', 'name address images rating review_count')
+                    .populate('user_id', 'name email');
+            } else if (userId) {
+                booking = await Booking.findOne({ _id: id, user_id: userId })
+                    .populate('space_id', 'name address images rating review_count')
+                    .populate('user_id', 'name email');
+            }
 
             if (!booking) {
                 return res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -485,13 +493,21 @@ class BookingController {
                 });
             }
 
-            // Find booking
-            const booking = await Booking.findById(id).populate('space_id');
+            // Find booking (require review token or ownership)
+            const token = req.body?.token || req.query.token || req.headers['x-review-token'];
+            const userId = req.user?.sub || req.user?._id || req.user?.id;
+
+            let booking = null;
+            if (token && typeof token === 'string') {
+                booking = await Booking.findOne({ _id: id, qr_code_token: token.trim() }).populate('space_id');
+            } else if (userId) {
+                booking = await Booking.findOne({ _id: id, user_id: userId }).populate('space_id');
+            }
 
             if (!booking) {
                 return res.status(HTTP_STATUS.NOT_FOUND).json({
                     success: false,
-                    message: 'Booking not found'
+                    message: 'Booking not found or review token required'
                 });
             }
 
@@ -526,7 +542,7 @@ class BookingController {
                 comment: comment.trim(),
                 reviewer_type: booking.user_id ? 'registered' : 'guest',
                 is_verified_booking: true,
-                status: 'approved', // Guest reviews auto-approved or set to 'pending' for admin review
+                status: 'approved',
                 ip_address: req.ip || req.connection?.remoteAddress,
                 user_agent: req.headers['user-agent']
             });
@@ -558,13 +574,20 @@ class BookingController {
     canReviewBooking = async (req, res, next) => {
         try {
             const { id } = req.params;
+            const token = req.query.token || req.headers['x-review-token'] || req.body?.token;
+            const userId = req.user?.sub || req.user?._id || req.user?.id;
 
-            const booking = await Booking.findById(id);
+            let booking = null;
+            if (token && typeof token === 'string') {
+                booking = await Booking.findOne({ _id: id, qr_code_token: token.trim() });
+            } else if (userId) {
+                booking = await Booking.findOne({ _id: id, user_id: userId });
+            }
 
             if (!booking) {
                 return res.status(HTTP_STATUS.OK).json({
                     success: true,
-                    data: { can_review: false, reason: 'Booking not found' }
+                    data: { can_review: false, reason: 'Booking not found or review token required' }
                 });
             }
 

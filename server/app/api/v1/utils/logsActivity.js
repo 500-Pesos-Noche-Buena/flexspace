@@ -45,6 +45,21 @@ const logsActivity = (schema, options = {}) => {
         return doc._id;
     };
 
+    const sanitizeLogData = (data) => {
+        if (!data || typeof data !== 'object') return data;
+        const sanitized = Array.isArray(data) ? [...data] : { ...data };
+        const sensitiveKeys = ['password', 'token', 'otp', 'secret', 'key', 'authorization', 'encrypted'];
+        
+        for (const k of Object.keys(sanitized)) {
+            if (sensitiveKeys.some(sk => k.toLowerCase().includes(sk))) {
+                sanitized[k] = '***REDACTED***';
+            } else if (typeof sanitized[k] === 'object' && sanitized[k] !== null) {
+                sanitized[k] = sanitizeLogData(sanitized[k]);
+            }
+        }
+        return sanitized;
+    };
+
     const getUserTypeLabel = (doc) => {
         if (modelName !== 'User') return modelName;
         
@@ -89,7 +104,7 @@ const logsActivity = (schema, options = {}) => {
                         action: 'CREATE',
                         model: modelName,
                         role: doc.role,
-                        data: doc.toObject(),
+                        data: sanitizeLogData(doc.toObject()),
                         url: requestInfo.url,
                         method: requestInfo.method
                     }
@@ -151,7 +166,7 @@ const logsActivity = (schema, options = {}) => {
                     role: doc.role,
                     documentId: doc._id,
                     documentName: docIdentifier,
-                    changes: update,
+                    changes: sanitizeLogData(update),
                     url: requestInfo.url,
                     method: requestInfo.method
                 }
@@ -187,7 +202,7 @@ const logsActivity = (schema, options = {}) => {
                     action: 'DELETE',
                     model: modelName,
                     role: doc.role,
-                    deletedData: doc.toObject(),
+                    deletedData: sanitizeLogData(doc.toObject()),
                     url: requestInfo.url,
                     method: requestInfo.method
                 }

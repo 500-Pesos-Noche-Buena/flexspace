@@ -160,13 +160,7 @@ class LandingController {
         try {
             const { reviewId } = req.params;
 
-            let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-            if (clientIp === '::1' || clientIp === '::ffff:127.0.0.1') {
-                clientIp = '127.0.0.1';
-            }
-            if (clientIp && clientIp.includes(',')) {
-                clientIp = clientIp.split(',')[0].trim();
-            }
+            const clientIp = req.ip || req.socket?.remoteAddress || '127.0.0.1';
 
             const review = await Review.findById(reviewId);
             if (!review) {
@@ -266,13 +260,7 @@ class LandingController {
                     occupied_seats: bookingCount,
                     available_seats: availableSeats,
                     total_capacity: space.capacity || 0,
-                    is_available: availableSeats > 0,
-                    bookings: activeBookings.map(b => ({
-                        ticket: b.ticket_number,
-                        status: b.status,
-                        start: b.start_time,
-                        end: b.end_time
-                    }))
+                    is_available: availableSeats > 0
                 }
             });
         } catch (error) {
@@ -295,6 +283,8 @@ class LandingController {
 
             let targetSpace = null;
 
+            let validatedAmount = parseFloat(amount);
+
             // Method 1: Use space_id if provided
             if (space_id) {
                 targetSpace = await Space.findById(space_id).populate('user_id');
@@ -302,21 +292,32 @@ class LandingController {
             }
 
             // Method 2: Try to find from booking using order_number (ticket_number)
-            if (!targetSpace && order_number) {
+            if (order_number) {
                 const booking = await Booking.findOne({ ticket_number: order_number }).populate('space_id');
-                if (booking && booking.space_id) {
-                    targetSpace = await Space.findById(booking.space_id._id).populate('user_id');
-                    console.log('✅ Found space from booking:', targetSpace?._id, targetSpace?.name);
+                if (booking) {
+                    if (!targetSpace && booking.space_id) {
+                        targetSpace = await Space.findById(booking.space_id._id || booking.space_id).populate('user_id');
+                        console.log('✅ Found space from booking:', targetSpace?._id, targetSpace?.name);
+                    }
+                    validatedAmount = booking.total_amount;
+                } else {
+                    // Method 3: Try to find from order (POS)
+                    const order = await Order.findOne({ order_number: order_number }).populate('space_id');
+                    if (order) {
+                        if (!targetSpace && order.space_id) {
+                            targetSpace = await Space.findById(order.space_id._id || order.space_id).populate('user_id');
+                            console.log('✅ Found space from POS order:', targetSpace?._id, targetSpace?.name);
+                        }
+                        validatedAmount = order.total;
+                    }
                 }
             }
 
-            // Method 3: Try to find from order (POS)
-            if (!targetSpace) {
-                const order = await Order.findOne({ order_number: order_number }).populate('space_id');
-                if (order && order.space_id) {
-                    targetSpace = await Space.findById(order.space_id).populate('user_id');
-                    console.log('✅ Found space from POS order:', targetSpace?._id, targetSpace?.name);
-                }
+            if (!validatedAmount || isNaN(validatedAmount) || validatedAmount <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Valid payment amount is required'
+                });
             }
 
             if (!targetSpace) {
@@ -336,10 +337,10 @@ class LandingController {
             }
 
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-            const successUrl = `${frontendUrl}/payment/success?order_id=${order_number}&amount=${amount}`;
+            const successUrl = `${frontendUrl}/payment/success?order_id=${encodeURIComponent(order_number || '')}&amount=${validatedAmount}`;
 
             const response = await axios.post(`${PAYBRIDGE_API_URL}/paymongo`, {
-                amount: parseFloat(amount),
+                amount: validatedAmount,
                 success_url: successUrl,
                 payment_method: payment_method,
                 metadata: {
@@ -378,10 +379,31 @@ class LandingController {
     async verifyPayment(req, res) {
         try {
             const { paymentIntentId } = req.params;
+            if (!paymentIntentId || typeof paymentIntentId !== 'string') {
+                return res.status(200).json({ success: false, message: 'Valid payment intent ID is required', data: { is_paid: false } });
+            }
             
-            console.log('🔍 Verifying payment:', paymentIntentId);
-            
-            const space = await Space.findOne({ status: 'Open Now' }).populate('user_id');
+            let space = null;
+            if (req.query.space_id) {
+                space = await Space.findById(req.query.space_id).populate('user_id');
+            }
+            if (!space) {
+                const booking = await Booking.findOne({ payment_intent_id: paymentIntentId }).populate({
+                    path: 'space_id',
+                    populate: { path: 'user_id' }
+                });
+                if (booking?.space_id) space = booking.space_id;
+            }
+            if (!space) {
+                const order = await Order.findOne({ payment_intent_id: paymentIntentId }).populate({
+                    path: 'space_id',
+                    populate: { path: 'user_id' }
+                });
+                if (order?.space_id) space = order.space_id;
+            }
+            if (!space) {
+                space = await Space.findOne({ status: 'Open Now' }).populate('user_id');
+            }
             
             if (!space || !space.user_id || !space.user_id.encrypted_paymongo_key) {
                 return res.status(200).json({
@@ -390,14 +412,13 @@ class LandingController {
                 });
             }
             
-            const response = await axios.get(`${PAYBRIDGE_API_URL}/paymongo/verify/${paymentIntentId}`, {
+            const response = await axios.get(`${PAYBRIDGE_API_URL}/paymongo/verify/${encodeURIComponent(paymentIntentId)}`, {
                 headers: {
                     'X-Encrypted-Secret': space.user_id.encrypted_paymongo_key,
                     'X-PayBridge-Master-Key': PAYBRIDGE_MASTER_KEY
-                }
+                },
+                timeout: 15000
             });
-            
-            console.log('✅ Payment verified:', response.data);
             
             return res.status(200).json({
                 success: true,
@@ -419,10 +440,15 @@ class LandingController {
             const { orderId } = req.params;
             const { payment_intent_id } = req.body;
             
-            console.log('📝 Confirming order/booking:', orderId);
+            if (!orderId || typeof orderId !== 'string') {
+                return res.status(400).json({ success: false, message: 'Valid order ID is required' });
+            }
+            if (!payment_intent_id || typeof payment_intent_id !== 'string' || !payment_intent_id.trim()) {
+                return res.status(400).json({ success: false, message: 'Valid payment_intent_id is required' });
+            }
             
             // Check if it's a booking (FLX-xxxx or WK-xxxx)
-            const isBooking = orderId && (orderId.startsWith('FLX') || orderId.startsWith('WK'));
+            const isBooking = (orderId.startsWith('FLX') || orderId.startsWith('WK'));
             
             if (isBooking) {
                 const booking = await Booking.findOne({ ticket_number: orderId });
@@ -431,16 +457,54 @@ class LandingController {
                     return res.status(404).json({ success: false, message: 'Booking not found' });
                 }
                 
+                // Idempotency: if already paid
+                if (booking.payment_status === 'paid' && booking.status === 'completed') {
+                    return res.status(200).json({
+                        success: true,
+                        message: 'Payment already confirmed.',
+                        data: {
+                            ticket_number: booking.ticket_number,
+                            status: booking.status,
+                            payment_status: booking.payment_status,
+                            total_amount: booking.total_amount
+                        }
+                    });
+                }
+
+                // Verify with PayBridge gateway
+                const space = await Space.findById(booking.space_id).populate('user_id');
+                if (space?.user_id?.encrypted_paymongo_key) {
+                    try {
+                        const verifyRes = await axios.get(`${PAYBRIDGE_API_URL}/paymongo/verify/${encodeURIComponent(payment_intent_id)}`, {
+                            headers: {
+                                'X-Encrypted-Secret': space.user_id.encrypted_paymongo_key,
+                                'X-PayBridge-Master-Key': PAYBRIDGE_MASTER_KEY
+                            },
+                            timeout: 10000
+                        });
+                        const isPaid = verifyRes.data?.is_paid === true || verifyRes.data?.data?.attributes?.status === 'paid' || verifyRes.data?.status === 'paid';
+                        if (!isPaid) {
+                            return res.status(402).json({ success: false, message: 'Payment not verified by gateway' });
+                        }
+                    } catch (gwErr) {
+                        return res.status(402).json({ success: false, message: 'Gateway payment verification failed' });
+                    }
+                }
+                
                 booking.status = 'completed';
                 booking.payment_status = 'paid';
+                booking.payment_intent_id = payment_intent_id;
                 await booking.save();
-                
-                console.log('✅ Booking completed:', orderId);
                 
                 return res.status(200).json({
                     success: true,
                     message: 'Booking completed! Payment confirmed.',
-                    data: booking
+                    data: {
+                        ticket_number: booking.ticket_number,
+                        status: booking.status,
+                        payment_status: booking.payment_status,
+                        total_amount: booking.total_amount
+                    }
                 });
             } else {
                 const order = await Order.findOne({ order_number: orderId });
@@ -449,17 +513,52 @@ class LandingController {
                     return res.status(404).json({ success: false, message: 'Order not found' });
                 }
                 
+                if (order.payment_status === 'paid') {
+                    return res.status(200).json({
+                        success: true,
+                        message: 'Payment already confirmed.',
+                        data: {
+                            order_number: order.order_number,
+                            status: order.status,
+                            payment_status: order.payment_status,
+                            total: order.total
+                        }
+                    });
+                }
+
+                const space = await Space.findById(order.space_id).populate('user_id');
+                if (space?.user_id?.encrypted_paymongo_key) {
+                    try {
+                        const verifyRes = await axios.get(`${PAYBRIDGE_API_URL}/paymongo/verify/${encodeURIComponent(payment_intent_id)}`, {
+                            headers: {
+                                'X-Encrypted-Secret': space.user_id.encrypted_paymongo_key,
+                                'X-PayBridge-Master-Key': PAYBRIDGE_MASTER_KEY
+                            },
+                            timeout: 10000
+                        });
+                        const isPaid = verifyRes.data?.is_paid === true || verifyRes.data?.data?.attributes?.status === 'paid' || verifyRes.data?.status === 'paid';
+                        if (!isPaid) {
+                            return res.status(402).json({ success: false, message: 'Payment not verified by gateway' });
+                        }
+                    } catch (gwErr) {
+                        return res.status(402).json({ success: false, message: 'Gateway payment verification failed' });
+                    }
+                }
+                
                 order.status = 'confirmed';
                 order.payment_status = 'paid';
                 order.payment_intent_id = payment_intent_id;
                 await order.save();
                 
-                console.log('✅ Order confirmed:', orderId);
-                
                 return res.status(200).json({
                     success: true,
                     message: 'Payment confirmed. Order is now being prepared.',
-                    data: order
+                    data: {
+                        order_number: order.order_number,
+                        status: order.status,
+                        payment_status: order.payment_status,
+                        total: order.total
+                    }
                 });
             }
         } catch (error) {

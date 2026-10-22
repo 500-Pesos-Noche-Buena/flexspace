@@ -1,13 +1,7 @@
 const { ActivityLog } = require('@/api/v1/models');
 
 const extractIp = (req) => {
-    return String(
-        req.headers['cf-connecting-ip'] || 
-        req.headers['x-forwarded-for']?.split(',')[0].trim() || 
-        req.ip || 
-        req.socket?.remoteAddress || 
-        '127.0.0.1'
-    );
+    return String(req.ip || req.socket?.remoteAddress || '127.0.0.1');
 };
 
 const autoLogger = (req, res, next) => {

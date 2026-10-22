@@ -95,7 +95,6 @@ class AdminRoutes {
         this.router.post('/earnings/collect-cash', auth, (req, res, next) => earningController.collectCashFees(req, res, next));
         this.router.post('/earnings/generate-fee-payment', auth, (req, res, next) => earningController.generateFeePaymentLink(req, res, next));
         this.router.get('/earnings/verify/:paymentIntentId/:owner_id', auth, (req, res, next) => earningController.verifyFeePayment(req, res, next));
-        this.router.post('/earnings/webhook', (req, res, next) => earningController.handleFeePaymentWebhook(req, res));
         this.router.post('/earnings/mark-collected', auth, (req, res, next) => earningController.markFeesAsCollected(req, res, next));
         this.router.get('/earnings/owner/:owner_id/:month', auth, (req, res, next) => earningController.getOwnerDetails(req, res, next));
 

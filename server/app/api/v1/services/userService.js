@@ -3,7 +3,12 @@ const { comparePassword, hashPassword } = require('@/api/v1/utils/hash');
 
 class UserService {
     async verifyUserCredentials(email, password) {
-        const user = await User.findOne({ email });
+        if (!email || typeof email !== 'string' || !password || typeof password !== 'string') {
+            return null;
+        }
+
+        const cleanEmail = email.trim().toLowerCase();
+        const user = await User.findOne({ email: cleanEmail });
 
         if (user) {
             // Return explicit status if account is Google-only (no local password)
@@ -71,9 +76,11 @@ class UserService {
     }
 
     async isEmailTaken(email) {
+        if (!email || typeof email !== 'string') return false;
+        const cleanEmail = email.trim().toLowerCase();
         const [user, pending] = await Promise.all([
-            User.findOne({ email }).select('_id').lean(),
-            SpaceRequest.findOne({ email }).select('_id').lean()
+            User.findOne({ email: cleanEmail }).select('_id').lean(),
+            SpaceRequest.findOne({ email: cleanEmail }).select('_id').lean()
         ]);
         return !!(user || pending);
     }

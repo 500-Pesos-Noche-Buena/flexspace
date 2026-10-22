@@ -105,7 +105,7 @@ class AuthController {
 
             console.log(`📝 Registration attempt: ${email}, role: ${role || 'user'}`);
 
-            if (!name || !email || !password) {
+            if (!name || !email || !password || typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, "All fields are required.", true);
             }
 

@@ -128,6 +128,16 @@ const EarningsTracker = () => {
         }
     };
 
+    const escapeHtml = (str) => {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     const generateReportHTML = (data) => {
         const bookingBreakdown = data?.breakdown?.bookings || { revenue: 0, count: 0, discount: 0 };
         const posBreakdown = data?.breakdown?.pos_orders || { revenue: 0, count: 0, discount: 0 };
@@ -144,14 +154,14 @@ const EarningsTracker = () => {
             const typeLabel = isPOS ? 'POS' : (t.type || 'unknown');
             return `
             <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.reference || 'N/A'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.guest || 'Guest'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.space || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${escapeHtml(t.reference || 'N/A')}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${escapeHtml(t.guest || 'Guest')}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${escapeHtml(t.space || 'N/A')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">₱${(t.amount || 0).toLocaleString()}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${t.discount > 0 ? `-₱${t.discount.toLocaleString()}` : '—'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-transform: capitalize;">
                     <span style="background: ${isPOS ? '#fef3c7' : '#dbeafe'}; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; color: ${isPOS ? '#d97706' : '#2563eb'};">
-                        ${typeLabel}
+                        ${escapeHtml(typeLabel)}
                     </span>
                 </td>
                 <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.date ? new Date(t.date).toLocaleDateString() : 'N/A'}</td>

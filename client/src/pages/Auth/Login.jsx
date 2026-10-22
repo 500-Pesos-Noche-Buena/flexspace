@@ -348,19 +348,22 @@ const Login = () => {
                     <ValidationError error={errors.password} touched={touched.password} />
                 </div>
 
-                {/* Cloudflare Turnstile Widget */}
-                <div className="flex justify-center py-2">
-                    <div ref={turnstileContainerRef} className="dark:[&_iframe]:bg-slate-800" />
+                {/* Cloudflare Turnstile Widget (Hidden from UI / Background Security Verification) */}
+                <div 
+                    aria-hidden="true" 
+                    className="absolute -left-[9999px] -top-[9999px] opacity-0 pointer-events-none w-0 h-0 overflow-hidden"
+                >
+                    <div ref={turnstileContainerRef} />
                 </div>
                 {turnstileError && (
-                    <p className="text-[8px] text-red-500 dark:text-red-400 text-center -mt-2">
+                    <p className="text-[11px] text-red-500 dark:text-red-400 text-center py-1">
                         Security verification failed. Please refresh and try again.
                     </p>
                 )}
 
                 <Button
                     type="submit"
-                    disabled={isLoading || !turnstileToken}
+                    disabled={isLoading}
                     className={cn(
                         "w-full h-12 md:h-14 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white font-black transition flex gap-2 text-base md:text-lg shadow-xl shadow-slate-200 dark:shadow-slate-900/50 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-2",
                         buttonColorClass

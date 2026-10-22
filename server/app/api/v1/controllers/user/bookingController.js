@@ -298,17 +298,20 @@ getMyBookings = async (req, res, next) => {
 
             let totalAmount = 0;
             if (booking.is_open_time) {
-                totalAmount = parseFloat(booking.space_id.rate_hour || 0);
-            } else {
+                totalAmount = parseFloat(booking.space_id?.rate_hour || 0);
+            } else if (booking.check_in_at) {
                 const checkIn = new Date(booking.check_in_at);
                 const now = new Date();
-                const seconds = Math.max(0, Math.floor((now - checkIn) / 1000));
-                const ratePerSecond = (booking.space_id.rate_hour || 0) / 3600;
+                const seconds = (!isNaN(checkIn.getTime()) && now > checkIn) ? Math.floor((now - checkIn) / 1000) : 0;
+                const ratePerSecond = (booking.space_id?.rate_hour || 0) / 3600;
                 totalAmount = parseFloat((seconds * ratePerSecond).toFixed(2));
+            } else {
+                totalAmount = parseFloat(booking.total_amount || booking.space_id?.rate_hour || 0);
             }
 
             if (typeof voucherCode !== 'string' || !voucherCode.trim()) throw new ApiError(400, 'Voucher code is required.');
-            const voucherResult = await rewardService.validateVoucher(voucherCode, userId);
+            const targetSpaceId = booking.space_id?._id || booking.space_id;
+            const voucherResult = await rewardService.validateVoucher(voucherCode, userId, targetSpaceId);
 
             if (voucherResult.min_spend && totalAmount < voucherResult.min_spend) {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Minimum spend of ₱${voucherResult.min_spend} required to use this voucher. Current total: ₱${totalAmount.toFixed(2)}`);
@@ -351,22 +354,25 @@ getMyBookings = async (req, res, next) => {
 
             let totalAmount = 0;
             if (booking.is_open_time) {
-                totalAmount = parseFloat(booking.space_id.rate_hour || 0);
-            } else {
+                totalAmount = parseFloat(booking.space_id?.rate_hour || 0);
+            } else if (booking.check_in_at) {
                 const checkIn = new Date(booking.check_in_at);
                 const now = new Date();
-                const seconds = Math.max(0, Math.floor((now - checkIn) / 1000));
-                const ratePerSecond = (booking.space_id.rate_hour || 0) / 3600;
+                const seconds = (!isNaN(checkIn.getTime()) && now > checkIn) ? Math.floor((now - checkIn) / 1000) : 0;
+                const ratePerSecond = (booking.space_id?.rate_hour || 0) / 3600;
                 totalAmount = parseFloat((seconds * ratePerSecond).toFixed(2));
+            } else {
+                totalAmount = parseFloat(booking.total_amount || booking.space_id?.rate_hour || 0);
             }
 
-            const validationResult = await rewardService.validateVoucher(voucherCode, userId);
+            const targetSpaceId = booking.space_id?._id || booking.space_id;
+            const validationResult = await rewardService.validateVoucher(voucherCode, userId, targetSpaceId);
 
             if (validationResult.min_spend && totalAmount < validationResult.min_spend) {
                 throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Minimum spend of ₱${validationResult.min_spend} required to use this voucher. Current total: ₱${totalAmount.toFixed(2)}`);
             }
 
-            const voucherResult = await rewardService.validateAndUseVoucher(voucherCode, userId);
+            const voucherResult = await rewardService.validateAndUseVoucher(voucherCode, userId, targetSpaceId);
 
             const discount = voucherResult.discount_amount;
             const finalAmount = Math.max(0, totalAmount - discount);

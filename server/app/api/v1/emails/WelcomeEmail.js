@@ -12,9 +12,9 @@ const WelcomeEmail = ({ name, email, password, role }) => {
         </p>
         
         <div style="background-color: #EEF2FF; border-left: 4px solid #4F46E5; padding: 20px; margin: 20px 0; border-radius: 8px;">
-            <p style="margin: 8px 0;"><strong>Login ID:</strong> <code style="background: white; padding: 4px 8px; border-radius: 4px;">${email}</code> <em>or</em> <code style="background: white; padding: 4px 8px; border-radius: 4px;">${email}</code></p>
-            <p style="margin: 8px 0;"><strong>Password:</strong> <code style="background: white; padding: 4px 8px; border-radius: 4px;">${password}</code></p>
+            <p style="margin: 8px 0;"><strong>Login ID:</strong> <code style="background: white; padding: 4px 8px; border-radius: 4px;">${email}</code></p>
             <p style="margin: 8px 0;"><strong>Role:</strong> <span style="background: #4F46E5; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">${role}</span></p>
+            <p style="margin: 8px 0; font-size: 13px; color: #4338CA;">Your account password has been securely registered. For security, never share your password.</p>
         </div>
         
         <p style="font-size: 16px; line-height: 1.5; margin: 16px 0;">
