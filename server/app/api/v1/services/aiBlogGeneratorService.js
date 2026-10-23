@@ -1,9 +1,6 @@
-const { GoogleGenAI } = require("@google/genai");
-const config = require('@/config/config');
 const { Space, Booking, Review } = require('@/api/v1/models');
 const Blog = require('@/api/v1/models/schema/Blog');
-
-const genAI = new GoogleGenAI({ apiKey: config.ai.geminiKey || process.env.GEMINI_API_KEY });
+const aiService = require('@/api/v1/services/aiService');
 
 const PERIOD_LABELS = {
     week: 'Weekly',
@@ -227,74 +224,51 @@ Do not mention revenue or booking counts.
 Use short paragraphs and proper spacing.`;
         }
 
-        const modelsToTry = [
-            'gemini-2.5-flash',
-            'gemini-2.5-flash-lite',
-            'gemini-2.0-flash-lite',
-        ];
+        try {
+            const result = await aiService.generateContent({
+                service: 'blog',
+                contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                systemInstruction: systemPrompt,
+                maxOutputTokens: 2000
+            });
 
-        let lastError = null;
+            const content = result.text?.trim();
+            if (content) {
+                console.log(`[AI Blog] Success using model: ${result.modelUsed} (${result.status})`);
 
-        for (const modelName of modelsToTry) {
-            try {
-                console.log(`[AI Blog] Trying model: ${modelName}`);
+                // Format the content properly
+                const formattedContent = this.formatBlogContent(content, blogType);
 
-                const response = await genAI.models.generateContent({
-                    model: modelName,
-                    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-                    config: {
-                        systemInstruction: systemPrompt,
-                        maxOutputTokens: 2000,
-                        temperature: 0.7
-                    }
-                });
+                // Extract title from content
+                const titleMatch = formattedContent.match(/<h1>(.+?)<\/h1>/);
+                const title = titleMatch ? titleMatch[1] : `${blogType.replace('_', ' ').toUpperCase()} Blog`;
 
-                let content = response.text?.trim();
-                if (content) {
-                    console.log(`[AI Blog] Success using model: ${modelName}`);
+                // Generate excerpt (first 160 characters of plain text)
+                const plainText = formattedContent.replace(/<[^>]*>/g, '');
+                const excerpt = plainText.substring(0, 160) + '...';
 
-                    // Format the content properly
-                    const formattedContent = this.formatBlogContent(content, blogType);
+                // Include period in slug so weekly/monthly/quarterly/yearly runs on the
+                // same day don't collide and silently get skipped as "already exists"
+                const slug = `${blogType}-${period}-${new Date().toISOString().split('T')[0]}-${language}`;
 
-                    // Extract title from content
-                    const titleMatch = formattedContent.match(/<h1>(.+?)<\/h1>/);
-                    const title = titleMatch ? titleMatch[1] : `${blogType.replace('_', ' ').toUpperCase()} Blog`;
-
-                    // Generate excerpt (first 160 characters of plain text)
-                    const plainText = formattedContent.replace(/<[^>]*>/g, '');
-                    const excerpt = plainText.substring(0, 160) + '...';
-
-                    // Include period in slug so weekly/monthly/quarterly/yearly runs on the
-                    // same day don't collide and silently get skipped as "already exists"
-                    const slug = `${blogType}-${period}-${new Date().toISOString().split('T')[0]}-${language}`;
-
-                    return {
-                        success: true,
-                        title,
-                        slug: slug.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                        excerpt,
-                        content: formattedContent,
-                        category: blogType,
-                        period,
-                        language,
-                        generated_from: 'ai'
-                    };
-                }
-            } catch (error) {
-                lastError = error;
-                console.log(`[AI Blog] Failed: ${modelName} - ${error.message}`);
-
-                if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
-                    console.log(`[AI Blog] Quota exceeded, waiting 5 seconds...`);
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                }
-                continue;
+                return {
+                    success: true,
+                    title,
+                    slug: slug.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                    excerpt,
+                    content: formattedContent,
+                    category: blogType,
+                    period,
+                    language,
+                    generated_from: 'ai'
+                };
             }
+        } catch (error) {
+            console.error(`[AI Blog] Generation failed for ${blogType} (${period}/${language}):`, error?.message);
+            return { success: false, error: error?.message || 'AI generation failed' };
         }
 
-        const errorMessage = lastError?.message || 'Unknown error: no model returned content';
-        console.error(`[AI Blog] All models failed for ${blogType} (${period}/${language}):`, errorMessage);
-        return { success: false, error: errorMessage };
+        return { success: false, error: 'Unknown error: no model returned content' };
     }
 
     async generateMultilingualBlogs(analyticsData, blogType, period = 'week') {

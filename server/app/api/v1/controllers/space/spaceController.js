@@ -211,6 +211,30 @@ class SpaceController {
             if (updates.lat) updates.lat = Number(updates.lat);
             if (updates.lng) updates.lng = Number(updates.lng);
 
+            // Handle virtual_tour
+            if (updates.virtual_tour !== undefined) {
+                try {
+                    updates.virtual_tour = typeof updates.virtual_tour === 'string'
+                        ? JSON.parse(updates.virtual_tour)
+                        : updates.virtual_tour;
+                } catch (e) {
+                    console.warn('Failed to parse virtual_tour:', e);
+                    delete updates.virtual_tour;
+                }
+            }
+
+            // Handle panorama_images
+            if (updates.panorama_images !== undefined) {
+                try {
+                    updates.panorama_images = typeof updates.panorama_images === 'string'
+                        ? JSON.parse(updates.panorama_images)
+                        : updates.panorama_images;
+                } catch (e) {
+                    console.warn('Failed to parse panorama_images:', e);
+                    delete updates.panorama_images;
+                }
+            }
+
             // 🚀 OPTIMIZED: Handle new image uploads
             if (req.cloudinaryUrls) {
                 const newImages = Array.isArray(req.cloudinaryUrls)
@@ -234,6 +258,15 @@ class SpaceController {
                     // Set new images
                     updates.images = newImages;
                     updates.image = newImages[0];
+                }
+
+                // Handle panorama uploads if included in multipart form
+                const newPanoramas = req.cloudinaryUrls.panoramas || req.cloudinaryUrls.panorama_images || [];
+                if (newPanoramas.length > 0) {
+                    const currentPanoramas = Array.isArray(updates.panorama_images)
+                        ? updates.panorama_images
+                        : (space.panorama_images || []);
+                    updates.panorama_images = [...currentPanoramas, ...newPanoramas];
                 }
             }
 
@@ -415,6 +448,154 @@ class SpaceController {
         }
     };
 
+    // ============ 360° VIRTUAL TOUR & PANORAMA MANAGEMENT ============
+
+    uploadPanoramas = async (req, res, next) => {
+        try {
+            const userId = this.getUserId(req);
+            const { id } = req.params;
+
+            const space = await Space.findOne({ _id: id, user_id: userId });
+            if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
+
+            let newPanoramas = [];
+            if (req.cloudinaryUrls) {
+                newPanoramas = req.cloudinaryUrls.panoramas || 
+                    req.cloudinaryUrls.panorama_images ||
+                    (Array.isArray(req.cloudinaryUrls) ? req.cloudinaryUrls : req.cloudinaryUrls.images || []);
+            }
+
+            if (!newPanoramas || newPanoramas.length === 0) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'No panorama files uploaded');
+            }
+
+            const updatedPanoramas = [...(space.panorama_images || []), ...newPanoramas];
+
+            const updatedSpace = await Space.findByIdAndUpdate(
+                id,
+                { $set: { panorama_images: updatedPanoramas } },
+                { new: true, runValidators: false }
+            );
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: `${newPanoramas.length} panorama(s) uploaded successfully`,
+                uploaded: newPanoramas,
+                panorama_images: updatedSpace.panorama_images
+            });
+        } catch (error) {
+            console.error('Upload panoramas error:', error);
+            next(error);
+        }
+    };
+
+    updateVirtualTour = async (req, res, next) => {
+        try {
+            const userId = this.getUserId(req);
+            const { id } = req.params;
+            const { virtual_tour, panorama_images } = req.body;
+
+            const space = await Space.findOne({ _id: id, user_id: userId });
+            if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
+
+            const updateData = {};
+            if (virtual_tour !== undefined) {
+                updateData.virtual_tour = typeof virtual_tour === 'string'
+                    ? JSON.parse(virtual_tour)
+                    : virtual_tour;
+            }
+            if (panorama_images !== undefined) {
+                updateData.panorama_images = typeof panorama_images === 'string'
+                    ? JSON.parse(panorama_images)
+                    : panorama_images;
+            }
+
+            const updatedSpace = await Space.findByIdAndUpdate(
+                id,
+                { $set: updateData },
+                { new: true, runValidators: true }
+            );
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: '360° Virtual Tour updated successfully',
+                data: {
+                    virtual_tour: updatedSpace.virtual_tour,
+                    panorama_images: updatedSpace.panorama_images
+                }
+            });
+        } catch (error) {
+            console.error('Update virtual tour error:', error);
+            next(error);
+        }
+    };
+
+    removePanorama = async (req, res, next) => {
+        try {
+            const userId = this.getUserId(req);
+            const { id } = req.params;
+            const { panorama_url, node_id } = req.body;
+
+            if (!panorama_url && !node_id) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'panorama_url or node_id required');
+            }
+
+            const space = await Space.findOne({ _id: id, user_id: userId });
+            if (!space) throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Space not found');
+
+            // Delete from Cloudinary in background if it is a Cloudinary URL
+            if (panorama_url && panorama_url.includes('cloudinary')) {
+                deleteFileByUrl(panorama_url).catch(() => {});
+            }
+
+            let updatedPanoramas = space.panorama_images || [];
+            if (panorama_url) {
+                updatedPanoramas = updatedPanoramas.filter(p => p !== panorama_url);
+            }
+
+            let updatedTour = space.virtual_tour ? JSON.parse(JSON.stringify(space.virtual_tour)) : { enabled: false, nodes: [] };
+            if (node_id || panorama_url) {
+                const filterOutNodeId = node_id || updatedTour.nodes?.find(n => n.panorama === panorama_url)?.id;
+                if (filterOutNodeId && updatedTour.nodes) {
+                    // Remove node
+                    updatedTour.nodes = updatedTour.nodes.filter(n => n.id !== filterOutNodeId);
+                    // Remove links pointing to this node
+                    updatedTour.nodes.forEach(n => {
+                        if (n.links) {
+                            n.links = n.links.filter(l => l.nodeId !== filterOutNodeId);
+                        }
+                    });
+                    // Reset initial_node_id if it was this node
+                    if (updatedTour.initial_node_id === filterOutNodeId) {
+                        updatedTour.initial_node_id = updatedTour.nodes[0]?.id || null;
+                    }
+                }
+            }
+
+            const updatedSpace = await Space.findByIdAndUpdate(
+                id,
+                {
+                    $set: {
+                        panorama_images: updatedPanoramas,
+                        virtual_tour: updatedTour
+                    }
+                },
+                { new: true, runValidators: false }
+            );
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Panorama removed successfully',
+                data: {
+                    panorama_images: updatedSpace.panorama_images,
+                    virtual_tour: updatedSpace.virtual_tour
+                }
+            });
+        } catch (error) {
+            console.error('Remove panorama error:', error);
+            next(error);
+        }
+    };
     
 }
 

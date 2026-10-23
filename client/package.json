@@ -23,6 +23,10 @@
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",
     "@fontsource/poppins": "^5.2.7",
+    "@photo-sphere-viewer/compass-plugin": "^5.15.1",
+    "@photo-sphere-viewer/core": "^5.15.1",
+    "@photo-sphere-viewer/markers-plugin": "^5.15.1",
+    "@photo-sphere-viewer/virtual-tour-plugin": "^5.15.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@tailwindcss/vite": "^4.1.18",
     "@vercel/analytics": "^2.0.1",

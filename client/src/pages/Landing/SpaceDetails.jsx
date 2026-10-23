@@ -9,13 +9,15 @@ import {
     ChevronLeft, ChevronRight, Image as ImageIcon,
     CheckCircle, Award, Maximize2, X, Shield,
     Sun, Moon, DoorOpen, Building2, ChevronDown, Calendar,
-    Loader2, Check, Sofa, Grid3x3, AlertCircle
+    Loader2, Check, Sofa, Grid3x3, AlertCircle, Compass
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { getSpaceImage, getImageUrl } from '@/utils/imageHelper';
 import { UserBookingModal, UserLightboxModal } from '@/components/modal';
+import { VirtualTourViewer } from '@/components/VirtualTour/VirtualTourViewer';
+import { getEffectiveVirtualTour } from '@/utils/virtualTourHelper';
 
 const ROOM_TYPE_LABELS = {
     private_office: 'Private Office',
@@ -92,6 +94,7 @@ const SpaceDetails = () => {
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [showFullSchedule, setShowFullSchedule] = useState(false);
     const [selectedFilter, setSelectedFilter] = useState('all');
+    const [viewMode, setViewMode] = useState('gallery'); // 'gallery' | '360'
 
     // Space availability for open area (capacity)
     const [spaceAvailability, setSpaceAvailability] = useState({
@@ -708,6 +711,8 @@ const SpaceDetails = () => {
     const currentImg = displayImages[currentImageIndex];
     const amenities = space.amenities || [];
     const hasRooms = rooms.length > 0;
+    const effectiveVirtualTour = getEffectiveVirtualTour(space, id);
+    const hasVirtualTour = effectiveVirtualTour?.enabled !== false && (effectiveVirtualTour?.nodes?.length || 0) > 0;
 
     return (
         <div className="min-h-screen bg-white pb-12">
@@ -730,7 +735,82 @@ const SpaceDetails = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 py-8">
-                {/* Gallery Filter Tabs */}
+                {/* View Mode Switcher: Photo Gallery vs 360° Walkthrough */}
+                <div id="space-view-section" className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200/80 shadow-xs">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('gallery')}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                                viewMode === 'gallery'
+                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80'
+                                    : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            <ImageIcon size={14} className={viewMode === 'gallery' ? 'text-indigo-600' : 'text-slate-400'} />
+                            <span>Photo Gallery</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md font-black bg-slate-100 text-slate-600">
+                                {allGalleryImages.length}
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('360')}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                                viewMode === '360'
+                                    ? 'bg-slate-950 text-white shadow-md ring-1 ring-slate-800'
+                                    : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            <Compass size={14} className={viewMode === '360' ? 'text-indigo-400' : 'text-indigo-600'} />
+                            <span>360° Walkthrough</span>
+                            {hasVirtualTour ? (
+                                <span className="text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-400 border border-indigo-400/30 flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    Interactive
+                                </span>
+                            ) : (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold bg-slate-200 text-slate-500">
+                                    Not available
+                                </span>
+                            )}
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {viewMode === '360' && hasVirtualTour && (
+                            <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1.5">
+                                <Compass size={13} className="text-indigo-500" />
+                                Drag to look 360° • Click floor arrows to move between rooms
+                            </span>
+                        )}
+                        {viewMode === 'gallery' && (
+                            <span className="text-xs text-slate-500 hidden sm:inline">
+                                Click any photo to expand full-screen
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {viewMode === '360' ? (
+                    <div id="space-360-tour" className="mb-8">
+                        <VirtualTourViewer
+                            virtualTour={effectiveVirtualTour}
+                            spaceName={space.name}
+                            rooms={rooms}
+                            onBookRoom={(room) => {
+                                setSelectedRoom(room);
+                                setSelectedBookableType('room');
+                                handleBookNow();
+                            }}
+                            onBookSpace={handleBookNow}
+                            onBackToGallery={() => setViewMode('gallery')}
+                        />
+                    </div>
+                ) : (
+                    <>
+                        {/* Gallery Filter Tabs */}
                 {filterTabs.length > 1 && (
                     <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-3 scrollbar-none">
                         {filterTabs.map(tab => (
@@ -939,6 +1019,8 @@ const SpaceDetails = () => {
                         )}
                     </div>
                 </div>
+                    </>
+                )}
 
                 {/* Space Info */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -948,7 +1030,8 @@ const SpaceDetails = () => {
                                 {space.name && space.name.length > 60
                                     ? space.name.substring(0, 57) + '...'
                                     : space.name}
-                            </h1>                            <div className="flex flex-wrap items-center gap-3 mt-2">
+                            </h1>
+                            <div className="flex flex-wrap items-center gap-3 mt-2">
                                 <div className="flex items-center gap-1">
                                     <MapPin size={14} className="text-slate-400" />
                                     <span className="text-sm text-slate-600">{space.area || space.district_id?.name || 'Iloilo City'}</span>
@@ -964,6 +1047,21 @@ const SpaceDetails = () => {
                                     }`}>
                                     {space.status}
                                 </div>
+
+                                {hasVirtualTour && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setViewMode('360');
+                                            const el = document.getElementById('space-view-section');
+                                            el?.scrollIntoView({ behavior: 'smooth' });
+                                        }}
+                                        className="px-3 py-0.5 rounded-full text-xs font-black bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                    >
+                                        <Compass size={12} className="text-indigo-600" />
+                                        <span>360° Walkthrough</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -1091,6 +1189,21 @@ const SpaceDetails = () => {
                                                                 >
                                                                     <ImageIcon size={12} />
                                                                     <span>View Photos ({roomImgs.length})</span>
+                                                                </button>
+                                                            )}
+                                                            {effectiveVirtualTour?.nodes?.some(n => String(n.room_id) === String(room._id) || n.room_name?.toLowerCase() === room.name?.toLowerCase()) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setViewMode('360');
+                                                                        const el = document.getElementById('space-view-section');
+                                                                        el?.scrollIntoView({ behavior: 'smooth' });
+                                                                    }}
+                                                                    className="px-2.5 py-1 text-xs font-bold text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                                                                    title="Explore room in 360°"
+                                                                >
+                                                                    <Compass size={12} />
+                                                                    <span>360° Tour</span>
                                                                 </button>
                                                             )}
                                                             <button

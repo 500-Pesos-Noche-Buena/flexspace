@@ -10,8 +10,8 @@ const storage = multer.memoryStorage();
 const upload = multer({ 
     storage,
     limits: { 
-        fileSize: 5 * 1024 * 1024, // 5MB limit
-        files: 5
+        fileSize: 25 * 1024 * 1024, // 25MB limit for high-res panoramas & images
+        files: 10
     },
     fileFilter: (req, file, cb) => {
         const allowedTypes = [
@@ -49,6 +49,16 @@ const isValidMagicBytes = (buffer) => {
         return true;
     }
     return false;
+};
+
+const getTargetFolder = (fieldName) => {
+    if (fieldName === 'panoramas' || fieldName === 'panorama_images') {
+        return 'coworking/panoramas';
+    }
+    if (fieldName === 'room_images') {
+        return 'coworking/room_images';
+    }
+    return 'coworking/images';
 };
 
 const processUploadedFiles = async (req, res, next) => {
@@ -101,33 +111,40 @@ const processUploadedFiles = async (req, res, next) => {
 
         // Handle array format
         if (Array.isArray(req.files)) {
-            cloudinaryUrls.images = [];
+            const fieldName = req.files[0]?.fieldname || 'images';
+            cloudinaryUrls[fieldName] = [];
+            const folder = getTargetFolder(fieldName);
             
             // Upload one by one with error handling
             for (const file of req.files) {
                 try {
-                    const url = await uploadWithTimeout(file, 'coworking/images');
-                    cloudinaryUrls.images.push(url);
-                    console.log(`✅ Uploaded: ${url}`);
+                    const url = await uploadWithTimeout(file, folder);
+                    cloudinaryUrls[fieldName].push(url);
+                    console.log(`✅ Uploaded ${fieldName}: ${url}`);
                 } catch (error) {
                     console.error(`❌ Failed to upload ${file.originalname}:`, error.message);
                     // Continue with other files
-                    cloudinaryUrls.images.push(null);
+                    cloudinaryUrls[fieldName].push(null);
                 }
             }
             
             // Filter out failed uploads
-            cloudinaryUrls.images = cloudinaryUrls.images.filter(url => url !== null);
+            cloudinaryUrls[fieldName] = cloudinaryUrls[fieldName].filter(url => url !== null);
+            // Backward compatibility
+            if (fieldName === 'images') {
+                cloudinaryUrls.images = cloudinaryUrls[fieldName];
+            }
         } 
         // Handle object format
         else if (typeof req.files === 'object' && req.files !== null) {
             for (const [fieldName, files] of Object.entries(req.files)) {
                 if (Array.isArray(files) && files.length > 0) {
                     cloudinaryUrls[fieldName] = [];
+                    const folder = getTargetFolder(fieldName);
                     
                     for (const file of files) {
                         try {
-                            const url = await uploadWithTimeout(file, `coworking/${fieldName}`);
+                            const url = await uploadWithTimeout(file, folder);
                             cloudinaryUrls[fieldName].push(url);
                             console.log(`✅ Uploaded ${fieldName}: ${url}`);
                         } catch (error) {

@@ -57,6 +57,10 @@ const spaceSchema = new mongoose.Schema({
         type: String, 
         default: null 
     },
+    panorama_images: {
+        type: [String],
+        default: []
+    },
     district_id: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'District', 
@@ -93,6 +97,36 @@ const spaceSchema = new mongoose.Schema({
     room_count: { 
         type: Number, 
         default: 0 
+    },
+    virtual_tour: {
+        enabled: { type: Boolean, default: false },
+        initial_node_id: { type: String, default: null },
+        nodes: [{
+            id: { type: String, required: true },
+            name: { type: String, required: true },
+            panorama: { type: String, required: true },
+            thumbnail: { type: String, default: null },
+            caption: { type: String, default: null },
+            room_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', default: null },
+            room_name: { type: String, default: null },
+            default_pitch: { type: Number, default: 0 },
+            default_yaw: { type: Number, default: 0 },
+            default_zoom: { type: Number, default: 50 },
+            links: [{
+                nodeId: { type: String, required: true },
+                pitch: { type: Number, default: -0.2 },
+                yaw: { type: Number, required: true },
+                tooltip: { type: String, default: '' }
+            }],
+            markers: [{
+                id: { type: String },
+                pitch: { type: Number },
+                yaw: { type: Number },
+                tooltip: { type: String },
+                html: { type: String },
+                room_name: { type: String }
+            }]
+        }]
     }
 }, { 
     timestamps: { 

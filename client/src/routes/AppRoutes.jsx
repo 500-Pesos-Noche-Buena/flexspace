@@ -39,6 +39,7 @@ import QueueDashboard from '@/pages/Admin/Queue/Index';
 import Logs from '@/pages/Admin/Logs/Index';
 import ErrorLogs from '@/pages/Admin/Logs/ErrorLogs';
 import Location from '@/pages/Admin/Locations/Index';
+import AiSettings from '@/pages/Admin/Settings/AiSettings';
 
 import SpaceDashboard from '@/pages/Space/Dashboard/Index';
 import MySpaces from '@/pages/Space/MySpaces/Index';
@@ -130,6 +131,8 @@ export const AppRoutes = () => {
                     <Route path="logs" element={<Logs />} />
                     <Route path="logs/errors" element={<ErrorLogs />} />
                     <Route path="locations" element={<Location />} />
+                    <Route path="settings/ai" element={<AiSettings />} />
+                    <Route path="ai" element={<Navigate to="settings/ai" replace />} />
                 </Route>
 
                 {/* Space Owner Section */}

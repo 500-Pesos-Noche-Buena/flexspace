@@ -12,6 +12,7 @@ const {
     ORDER_SPECIALS
 } = require('@/api/v1/constants/chatConstants');
 const { detectLanguage, getLocalizedResponse } = require('@/api/v1/utils/languageUtils');
+const aiService = require('@/api/v1/services/aiService');
 
 const genAI = new GoogleGenAI({ apiKey: config.ai.geminiKey });
 
@@ -310,51 +311,27 @@ OTHER RULES
 
         history.push({ role: 'user', parts: [{ text: message }] });
 
-        // Inside your chatService.js - processMessage method
-        const modelsToTry = [
-            // Gemini 3 Series (Newer, might have separate quota)
-            'gemini-3.1-flash-lite-preview', // As you requested
-            'gemini-3.1-pro-preview',
-            'models/gemini-3.1-flash-lite-preview',
-            
-            // Gemini 2.0 Series (Your old ones, currently exhausted)
-            'gemini-2.0-flash-lite',
-            'gemini-2.0-flash',
-            
-            // Gemini 2.5 Series (A middle-ground option)
-            'gemini-2.5-flash',
-            'gemini-2.5-flash-lite',
-        ];
-
         let lastError = null;
+        try {
+            const systemInstruction = this.getSystemInstruction(spaceContext, districtList, productContext);
+            const result = await aiService.generateContent({
+                service: 'chatbot',
+                contents: history,
+                systemInstruction,
+                maxOutputTokens: 800
+            });
 
-        for (const modelName of modelsToTry) {
-            try {
-                console.log(`[Chat] 🔄 Trying model: ${modelName}`);
+            const finalResponse = result.text?.trim();
+            if (finalResponse) {
+                console.log(`[Chat] ✅ Success! Using model: ${result.modelUsed} (${result.status})`);
+                history.push({ role: 'model', parts: [{ text: finalResponse }] });
 
-                const response = await this.genAI.models.generateContent({
-                    model: modelName,
-                    contents: history,
-                    config: {
-                        systemInstruction: this.getSystemInstruction(spaceContext, districtList, productContext),
-                        maxOutputTokens: 800,
-                        temperature: 0.3
-                    }
-                });
-
-                const finalResponse = response.text?.trim();
-                if (finalResponse) {
-                    console.log(`[Chat] ✅ Success! Using model: ${modelName}`);
-                    history.push({ role: 'model', parts: [{ text: finalResponse }] });
-
-                    if (history.length > 40) history.splice(0, 2);
-                    return finalResponse;
-                }
-            } catch (error) {
-                lastError = error;
-                console.log(`[Chat] ❌ Failed: ${modelName} - ${error.message}`);
-                continue;
+                if (history.length > 40) history.splice(0, 2);
+                return finalResponse;
             }
+        } catch (error) {
+            lastError = error;
+            console.error("[Chat] AI generation failed:", error?.message);
         }
 
         // If all models fail, return a helpful fallback

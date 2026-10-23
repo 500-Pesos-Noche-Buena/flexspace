@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiGet, apiPost, apiPut } from '@/utils/Api';
 import { showToast } from '@/components/ui/SweetAlert2';
@@ -17,6 +17,7 @@ import {
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/utils/cn';
 import { getImageUrl } from '@/utils/imageHelper';
+import VirtualTourEditor from '@/components/VirtualTour/VirtualTourEditor';
 
 // Fix Leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -197,6 +198,8 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
     const [uploadProgress, setUploadProgress] = useState(0);
     const [districts, setDistricts] = useState([]);
     const [images, setImages] = useState([]);
+    const [virtualTour, setVirtualTour] = useState(null);
+    const [panoramaImages, setPanoramaImages] = useState([]);
     const [detectingDistrict, setDetectingDistrict] = useState(false);
     const [errors, setErrors] = useState({});
 
@@ -237,6 +240,11 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
         hours_json: defaultHours(),
         status: 'Open Now'
     });
+
+    const handleVirtualTourChange = useCallback(({ virtualTour: vt, panoramaImages: panos }) => {
+        setVirtualTour(vt);
+        setPanoramaImages(panos);
+    }, []);
 
     const [touched, setTouched] = useState({});
     const [mapCenter, setMapCenter] = useState([10.7202, 122.5621]);
@@ -327,6 +335,14 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
 
             if (initialData.images && initialData.images.length > 0) {
                 setImages(initialData.images);
+            }
+
+            if (initialData.virtual_tour) {
+                setVirtualTour(initialData.virtual_tour);
+            }
+
+            if (initialData.panorama_images && initialData.panorama_images.length > 0) {
+                setPanoramaImages(initialData.panorama_images);
             }
 
             if (initialData.lat && initialData.lng) {
@@ -782,6 +798,13 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
             imageFiles.forEach(img => {
                 submitData.append('images', img);
             });
+
+            if (virtualTour) {
+                submitData.append('virtual_tour', JSON.stringify(virtualTour));
+            }
+            if (panoramaImages && panoramaImages.length > 0) {
+                submitData.append('panorama_images', JSON.stringify(panoramaImages));
+            }
 
             const url = isEditing ? `/space/spaces/${spaceId}/update` : '/space/spaces';
 
@@ -1560,6 +1583,16 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
                             </div>
                         )}
                     </div>
+
+                    {/* 360° Virtual Walkthrough & Panorama Management */}
+                    <VirtualTourEditor
+                        spaceId={spaceId || initialData?._id}
+                        rooms={rooms}
+                        initialVirtualTour={initialData?.virtual_tour || virtualTour}
+                        initialPanoramas={initialData?.panorama_images || panoramaImages}
+                        onChange={handleVirtualTourChange}
+                        isEditing={isEditing}
+                    />
 
                     <div className="flex gap-3 pt-4 border-t border-border">
                         <Button

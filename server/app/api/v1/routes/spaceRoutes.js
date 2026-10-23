@@ -121,7 +121,13 @@ class SpaceRoutes {
             next();
         });
 
-        const uploadArray = upload.array('images', 5);
+        const uploadArray = upload.array('images', 10);
+        const uploadPanoramas = upload.array('panoramas', 10);
+        const uploadSpaceFields = upload.fields([
+            { name: 'images', maxCount: 10 },
+            { name: 'panoramas', maxCount: 10 },
+            { name: 'panorama_images', maxCount: 10 }
+        ]);
 
         // ============ DASHBOARD ============
         this.router.get('/dashboard', auth, (req, res, next) => DashboardController.index(req, res, next));
@@ -135,13 +141,18 @@ class SpaceRoutes {
 
         // ============ SPACE MANAGEMENT ============
         this.router.get('/spaces', auth, (req, res, next) => SpaceController.index(req, res, next));
-        this.router.post('/spaces', auth, uploadArray, processUploadedFiles, (req, res, next) => SpaceController.store(req, res, next));
+        this.router.post('/spaces', auth, uploadSpaceFields, processUploadedFiles, (req, res, next) => SpaceController.store(req, res, next));
         this.router.get('/spaces/:id', auth, (req, res, next) => SpaceController.show(req, res, next));
-        this.router.post('/spaces/:id/update', auth, uploadArray, processUploadedFiles, (req, res, next) => SpaceController.update(req, res, next));
+        this.router.post('/spaces/:id/update', auth, uploadSpaceFields, processUploadedFiles, (req, res, next) => SpaceController.update(req, res, next));
         this.router.post('/spaces/:id/delete', auth, (req, res, next) => SpaceController.delete(req, res, next));
         this.router.post('/spaces/:id/add-images', auth, uploadArray, processUploadedFiles, (req, res, next) => SpaceController.addImages(req, res, next));
         this.router.post('/spaces/:id/remove-image', auth, (req, res, next) => SpaceController.removeImage(req, res, next));
         this.router.post('/spaces/:id/set-primary', auth, (req, res, next) => SpaceController.setPrimaryImage(req, res, next));
+
+        // ============ 360° VIRTUAL TOUR & PANORAMAS ============
+        this.router.post('/spaces/:id/panoramas', auth, uploadPanoramas, processUploadedFiles, (req, res, next) => SpaceController.uploadPanoramas(req, res, next));
+        this.router.post('/spaces/:id/virtual-tour', auth, (req, res, next) => SpaceController.updateVirtualTour(req, res, next));
+        this.router.post('/spaces/:id/remove-panorama', auth, (req, res, next) => SpaceController.removePanorama(req, res, next));
 
         // ============ ROOM MANAGEMENT ============
         this.router.get('/spaces/:spaceId/rooms', auth, (req, res, next) => RoomController.getRooms(req, res, next));

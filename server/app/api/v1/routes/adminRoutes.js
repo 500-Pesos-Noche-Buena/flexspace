@@ -14,6 +14,7 @@ const logsController = require('@/api/v1/controllers/admin/logsController');
 const districtController = require('@/api/v1/controllers/admin/location/districtController');
 const ErrorLogController = require('@/api/v1/controllers/admin/errorLogController');
 const paymentController = require('@/api/v1/controllers/admin/paymentController');
+const aiController = require('@/api/v1/controllers/admin/aiController');
 
 const { ActivityLog } = require('@/api/v1/models');
 
@@ -139,6 +140,17 @@ class AdminRoutes {
         this.router.get('/error-logs/:id', auth, ErrorLogController.show);
         this.router.put('/error-logs/:id/resolve', auth, ErrorLogController.resolve);
         this.router.delete('/error-logs/cleanup', auth, ErrorLogController.cleanup);
+
+        // ============ AI SETTINGS & TELEMETRY ============
+        this.router.get('/ai/settings', auth, (req, res, next) => aiController.getSettings(req, res, next));
+        this.router.put('/ai/settings', auth, (req, res, next) => aiController.updateSettings(req, res, next));
+        this.router.get('/ai/analytics', auth, (req, res, next) => aiController.getAnalytics(req, res, next));
+        this.router.get('/ai/logs', auth, (req, res, next) => aiController.getLogs(req, res, next));
+
+        this.router.get('/settings/ai', auth, (req, res, next) => aiController.getSettings(req, res, next));
+        this.router.put('/settings/ai', auth, (req, res, next) => aiController.updateSettings(req, res, next));
+        this.router.get('/settings/ai/analytics', auth, (req, res, next) => aiController.getAnalytics(req, res, next));
+        this.router.get('/settings/ai/logs', auth, (req, res, next) => aiController.getLogs(req, res, next));
 
     };
 

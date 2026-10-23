@@ -16,6 +16,8 @@ const Blog = require('./schema/Blog');
 const Order = require('./schema/Order');
 const Product = require('./schema/Product');
 const ErrorLog = require('./schema/ErrorLog');
+const AiSettings = require('./schema/AiSettings');
+const AiUsageLog = require('./schema/AiUsageLog');
 
 module.exports = {
     User,
@@ -36,4 +38,6 @@ module.exports = {
     Order,
     Product,
     ErrorLog,
+    AiSettings,
+    AiUsageLog,
 };

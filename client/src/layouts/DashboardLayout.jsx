@@ -6,7 +6,7 @@ import {
     DollarSign,
     Package,
     ClipboardList, Bug,
-    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity, Star, Database, CreditCard
+    Settings as SettingsIcon, Menu, X, History, MapPin, Search, ShieldCheck, Ticket, Activity, Star, Database, CreditCard, Cpu
 } from "lucide-react";
 import { apiPost, apiGet } from "@/utils/Api";
 import { useAuth } from '@/context/AuthContext';
@@ -237,6 +237,7 @@ export default function DashboardLayout() {
             sections.push({
                 title: "System",
                 items: [
+                    { href: "/admin/settings/ai", active: isRouteActive("/admin/settings/ai"), icon: <Cpu />, label: "AI Operations" },
                     { href: "/admin/logs", active: isRouteActive("/admin/logs"), icon: <History />, label: "Activity Logs" },
                     { href: "/admin/logs/errors", active: isRouteActive("/admin/logs/errors"), icon: <Bug />, label: "Activity Logs Errors" },
                     { href: "/admin/queues", active: isRouteActive("/admin/queue"), icon: <Database />, label: "Queue Monitor" },
