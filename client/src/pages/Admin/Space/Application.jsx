@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatNumber } from '@/utils/formatNumber';
 import { ApplicationReviewModal } from '@/components/modal';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 let globalAppPollingInstance = null;
 
@@ -209,10 +210,11 @@ const SpaceApplications = () => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
-            <div className="mb-8">
-                <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">Space Applications</h1>
-                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">Verify and audit new space owner registrations.</p>
-            </div>
+            <PageHeader
+                icon={FileSearch}
+                title="Space Applications"
+                description="Verify and audit new space owner registrations, business permits, and property listings"
+            />
 
             {/* STATS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

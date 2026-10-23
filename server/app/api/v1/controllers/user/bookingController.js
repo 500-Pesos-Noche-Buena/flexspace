@@ -1,4 +1,4 @@
-const { Booking, Space, User, Review, Room } = require('@/api/v1/models');
+const { Booking, Space, User, Review, Room, Settings } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const crypto = require('crypto');
@@ -113,6 +113,20 @@ getMyBookings = async (req, res, next) => {
                 const [endHour, endMinute] = (end_time || '23:59').split(':');
                 startDateTime = new Date(year, month, day, parseInt(startHour), parseInt(startMinute), 0);
                 endDateTime = new Date(year, month, day, parseInt(endHour), parseInt(endMinute), 0);
+
+                const durationHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
+                if (durationHours <= 0) {
+                    throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Booking end time must be after start time.');
+                }
+
+                const maxSetting = await Settings.findOne({ key: 'max_booking_hours' });
+                const maxHours = maxSetting ? Number(maxSetting.value) : 24;
+                if (durationHours > maxHours) {
+                    throw new ApiError(
+                        HTTP_STATUS.BAD_REQUEST,
+                        `Booking duration (${durationHours} hrs) exceeds the maximum limit of ${maxHours} hours allowed.`
+                    );
+                }
             }
 
             // CHECK: User already has a booking for this space/room on overlapping time?
@@ -423,6 +437,50 @@ getMyBookings = async (req, res, next) => {
                 }
             });
         } catch (error) {
+            next(error);
+        }
+    };
+
+    cancelBooking = async (req, res, next) => {
+        try {
+            const userId = this.getUserId(req);
+            const { id } = req.params;
+
+            const booking = await Booking.findOne({ _id: id, user_id: userId });
+            if (!booking) {
+                throw new ApiError(HTTP_STATUS.NOT_FOUND, 'Booking not found');
+            }
+
+            if (['active', 'completed', 'cancelled', 'rejected'].includes(booking.status)) {
+                throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Booking cannot be cancelled in '${booking.status}' status.`);
+            }
+
+            // Check cancellation window from Settings
+            const cancelSetting = await Settings.findOne({ key: 'cancellation_window_hours' });
+            const windowHours = cancelSetting ? Number(cancelSetting.value) : 2;
+
+            if (windowHours > 0 && booking.start_time) {
+                const now = new Date();
+                const minAllowedCancelTime = new Date(booking.start_time.getTime() - (windowHours * 60 * 60 * 1000));
+                if (now > minAllowedCancelTime) {
+                    throw new ApiError(
+                        HTTP_STATUS.BAD_REQUEST,
+                        `Cancellation is only allowed up to ${windowHours} hour${windowHours > 1 ? 's' : ''} prior to booking start time.`
+                    );
+                }
+            }
+
+            booking.status = 'cancelled';
+            booking.notes = req.body?.reason || 'Cancelled by user';
+            await booking.save();
+
+            return res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Booking cancelled successfully.',
+                data: booking
+            });
+        } catch (error) {
+            console.error('Cancel booking error:', error);
             next(error);
         }
     };

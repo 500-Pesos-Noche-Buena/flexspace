@@ -4,7 +4,7 @@ import { apiGet, apiPost } from '@/utils/Api';
 import {
     Clock, CheckCircle2, User, LogIn, LogOut, Activity,
     QrCode, Banknote, Loader2, BadgeCheck, Users, UserPlus, Star,
-    Eye, CheckCircle, CreditCard
+    Eye, CheckCircle, CreditCard, Calendar
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { DataTable } from '@/components/ui/DataTable';
@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PaymentQRModal, WalkinModal, ReviewQRModal, BookingDetailsModal, BookingTicketModal } from '@/components/modal';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatPHTime = (dateStr) => new Date(dateStr).toLocaleTimeString('en-PH', {
@@ -441,10 +442,11 @@ const BookingsIndex = () => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
-            <div className="mb-8">
-                <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">Live Hub Traffic</h1>
-                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest italic">Monitoring real-time check-ins.</p>
-            </div>
+            <PageHeader
+                icon={Calendar}
+                title="Live Hub Traffic"
+                description="Real-time check-ins, member bookings, and occupancy monitoring"
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <Card className="bg-primary/5 border-primary/10"><CardContent className="p-5 flex items-center gap-4"><div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center"><Activity size={20} className="animate-pulse text-primary" /></div><div><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Active Sessions</p><p className="text-xl font-[1000] text-foreground italic tracking-tighter">{stats.active || 0}</p></div></CardContent></Card>

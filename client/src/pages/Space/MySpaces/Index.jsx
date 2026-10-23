@@ -5,7 +5,7 @@ import { apiGet, apiPost } from '@/utils/Api';
 import {
     Plus, Image as ImageIcon, Trash2, Edit3, Users,
     MapPin, Activity, CheckCircle, PieChart, Grid,
-    X, Upload, Eye, ChevronDown, ChevronUp
+    X, Upload, Eye, ChevronDown, ChevronUp, Building2
 } from 'lucide-react';
 import { showToast, showConfirm } from '@/components/ui/SweetAlert2';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from "@/lib/utils";
 import { getSpaceImage } from '@/utils/imageHelper';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const MySpaces = () => {
     const { themeColor } = useTheme();
@@ -239,21 +240,22 @@ const MySpaces = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
             {/* Header */}
-            <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">Space Gallery</h1>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">Inventory & Environment Management</p>
-                </div>
-                <button
-                    onClick={() => navigate('/space/my-spaces/create')}
-                    className={cn(
-                        "bg-primary text-primary-foreground px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl active:scale-95",
-                        getButtonHoverColor()
-                    )}
-                >
-                    <Plus size={14} /> New Listing
-                </button>
-            </div>
+            <PageHeader
+                icon={Building2}
+                title="Space Gallery"
+                description="Inventory & environment management, room configurations & 360° virtual tours"
+                actions={
+                    <button
+                        onClick={() => navigate('/space/my-spaces/create')}
+                        className={cn(
+                            "bg-primary text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow hover:bg-primary/90 active:scale-95",
+                            getButtonHoverColor()
+                        )}
+                    >
+                        <Plus size={16} /> New Listing
+                    </button>
+                }
+            />
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">

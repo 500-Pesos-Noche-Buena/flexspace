@@ -10,6 +10,7 @@ import { DataTable } from '@/components/ui/DataTable';
 import { cn } from '@/utils/cn';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const PERIODS = [
     { id: 'daily', label: 'Today' },
@@ -325,35 +326,37 @@ const EarningsTracker = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="mb-6 md:mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase italic">Complete Financial Dashboard</h1>
-                    <p className="text-[10px] md:text-xs text-muted-foreground font-medium uppercase tracking-widest">Booking earnings + POS sales combined</p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={exportToCSV}
-                        disabled={exporting}
-                        className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 uppercase tracking-tighter bg-emerald-500/10 px-3 py-1.5 rounded-full hover:bg-emerald-500/20 transition-all disabled:opacity-50"
-                    >
-                        {exporting ? <Loader2 size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />}
-                        CSV
-                    </button>
-                    <button
-                        onClick={exportToPDF}
-                        disabled={exporting}
-                        className="text-[9px] font-black text-primary flex items-center gap-1.5 uppercase tracking-tighter bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-all disabled:opacity-50"
-                    >
-                        {exporting ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
-                        PDF
-                    </button>
-                    <div className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 uppercase tracking-tighter bg-emerald-500/10 px-3 py-1.5 rounded-full">
+            <PageHeader
+                icon={Wallet}
+                title="Complete Financial Dashboard"
+                description="Comprehensive booking earnings, POS retail sales, platform fee deductions & net profits"
+                badge={
+                    <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                         Live Data
                     </div>
-                </div>
-            </div>
+                }
+                actions={
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={exportToCSV}
+                            disabled={exporting}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card hover:bg-accent text-emerald-600 dark:text-emerald-400 transition-colors disabled:opacity-50"
+                        >
+                            {exporting ? <Loader2 size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />}
+                            Export CSV
+                        </button>
+                        <button
+                            onClick={exportToPDF}
+                            disabled={exporting}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card hover:bg-accent text-primary transition-colors disabled:opacity-50"
+                        >
+                            {exporting ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+                            Export PDF
+                        </button>
+                    </div>
+                }
+            />
 
             {/* Overall Summary Cards */}
             <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">

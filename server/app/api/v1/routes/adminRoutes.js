@@ -93,6 +93,7 @@ class AdminRoutes {
 
         // ============ EARNINGS ============
         this.router.get('/earnings', auth, (req, res, next) => earningController.index(req, res, next));
+        this.router.get('/earnings/analytics', auth, (req, res, next) => earningController.getEarningsAnalytics(req, res, next));
         this.router.post('/earnings/collect-cash', auth, (req, res, next) => earningController.collectCashFees(req, res, next));
         this.router.post('/earnings/generate-fee-payment', auth, (req, res, next) => earningController.generateFeePaymentLink(req, res, next));
         this.router.get('/earnings/verify/:paymentIntentId/:owner_id', auth, (req, res, next) => earningController.verifyFeePayment(req, res, next));

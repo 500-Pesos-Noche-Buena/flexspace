@@ -13,6 +13,7 @@ import { DataTable } from '@/components/ui/DataTable';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const ErrorLogs = () => {
     const { themeColor } = useTheme();
@@ -291,36 +292,34 @@ const ErrorLogs = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">
-                        Error Logs
-                    </h1>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">
-                        Monitor and track system errors
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => setAutoRefresh(!autoRefresh)}
-                        className={cn(
-                            "px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all",
-                            autoRefresh 
-                                ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                                : "bg-muted text-muted-foreground"
-                        )}
-                    >
-                        {autoRefresh ? 'Auto-Refresh On' : 'Auto-Refresh Off'}
-                    </button>
-                    <button
-                        onClick={() => { fetchLogs(); fetchStats(); }}
-                        className="p-2 bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-all"
-                        title="Refresh"
-                    >
-                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-                    </button>
-                </div>
-            </div>
+            <PageHeader
+                icon={Bug}
+                title="System Error Logs"
+                description="Monitor, investigate, and triage system runtime errors, API failures, and exceptions"
+                actions={
+                    <div className="flex items-center gap-2.5">
+                        <button
+                            onClick={() => setAutoRefresh(!autoRefresh)}
+                            className={cn(
+                                "px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors border",
+                                autoRefresh 
+                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                    : "bg-card text-muted-foreground border-border hover:bg-accent"
+                            )}
+                        >
+                            {autoRefresh ? 'Auto-Refresh On' : 'Auto-Refresh Off'}
+                        </button>
+                        <button
+                            onClick={() => { fetchLogs(); fetchStats(); }}
+                            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors"
+                            title="Refresh"
+                        >
+                            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+                            Refresh
+                        </button>
+                    </div>
+                }
+            />
 
             {/* Stats Cards */}
             {stats && (

@@ -8,6 +8,7 @@ import { getSpaceImage } from '@/utils/imageHelper';
 import { formatNumber } from '@/utils/formatNumber';
 import { SpaceDetailsModal } from '@/components/modal';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const SpaceManagement = () => {
     const { themeColor } = useTheme();
@@ -131,10 +132,11 @@ const SpaceManagement = () => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
-            <div className="mb-8">
-                <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">Hub Management</h1>
-                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">Global hub monitoring system</p>
-            </div>
+            <PageHeader
+                icon={Building2}
+                title="Space Management"
+                description="Global hub monitoring, active listings inspection & status controls"
+            />
 
             {/* STATISTICS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

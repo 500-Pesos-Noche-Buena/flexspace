@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '@/context/AuthContext';
 import { apiGet } from '@/utils/Api';
-import { Loader2, RefreshCw, Database, Activity, HardDrive, Clock, AlertCircle, CheckCircle, XCircle, Server, PieChart } from 'lucide-react';
+import { Loader2, RefreshCw, Database, Activity, HardDrive, Clock, AlertCircle, CheckCircle, XCircle, Server, PieChart, Layers } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/utils/cn';
 import { formatNumber } from '@/utils/formatNumber';
 import { QueueStatCard } from '@/components/QueueStatCard';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const QueueDashboard = () => {
     const { logout } = useContext(AuthContext);
@@ -142,17 +143,20 @@ const QueueDashboard = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="mb-6 md:mb-8 flex flex-row justify-between items-center gap-4">
-                <div>
-                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase italic">Queue Monitor</h1>
-                    <p className="text-[10px] md:text-xs text-muted-foreground font-medium uppercase tracking-widest">Background job processing & failed job management</p>
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={() => fetchQueueStats(true)} className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group">
+            <PageHeader
+                icon={Layers}
+                title="Queue Monitor"
+                description="Background job processing, worker pipelines & failed job retry telemetry"
+                actions={
+                    <button
+                        onClick={() => fetchQueueStats(true)}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors active:scale-95"
+                    >
                         <RefreshCw className={cn("w-4 h-4 text-primary", refreshing && "animate-spin")} />
+                        Refresh
                     </button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Queue Selection Tabs */}
             <div className="flex gap-2 mb-6 border-b border-border pb-3">

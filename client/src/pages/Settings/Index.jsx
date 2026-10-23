@@ -5,6 +5,7 @@ import { apiGet, apiPut } from '@/utils/Api';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Settings, Percent, Loader2, RefreshCw, ToggleLeft, Wrench, HardDrive, MessageCircle, Monitor, Palette, Layout } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const SETTINGS_META = {
     platform_fee_percent: {
@@ -137,13 +138,22 @@ const SettingsIndex = () => {
         ([, meta]) => isAdmin || !meta.adminOnly
     );
 
+    const DEFAULTS = {
+        platform_fee_percent: 10,
+        max_booking_hours: 24,
+        cancellation_window_hours: 2,
+        allow_walkin_guest: true,
+        maintenance_mode: false,
+        maintenance_message: 'System is currently undergoing scheduled maintenance. Please check back shortly.',
+    };
+
     const fetchSettings = useCallback(async () => {
         setLoading(true);
         try {
             if (isAdmin) {
                 const res = await apiGet('/admin/settings');
                 if (res.success) {
-                    const map = {};
+                    const map = { ...DEFAULTS };
                     (res.data || []).forEach(s => { map[s.key] = s.value; });
                     setSettings(map);
                     setOriginal(map);
@@ -254,7 +264,12 @@ const SettingsIndex = () => {
     };
 
     const handleSave = async (key) => {
-        await saveSetting(key, settings[key]);
+        const val = settings[key];
+        if (val === '' || val === undefined || val === null || (typeof val === 'number' && isNaN(val))) {
+            showToast({ icon: 'warning', title: 'Please provide a valid value' });
+            return;
+        }
+        await saveSetting(key, val);
     };
 
     const isDirty = (key) => settings[key] !== original[key];
@@ -270,24 +285,23 @@ const SettingsIndex = () => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
-            <div className="flex items-end justify-between mb-10">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground uppercase italic tracking-tighter">
-                        {isAdmin ? 'System Settings' : 'Space Settings'}
-                    </h1>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">
-                        {isAdmin
-                            ? 'Global configuration — changes apply immediately.'
-                            : 'Customize your workspace appearance and preferences.'}
-                    </p>
-                </div>
-                <button
-                    onClick={() => fetchSettings()}
-                    className="p-3 bg-accent rounded-2xl border border-border hover:bg-accent/80 transition-all active:scale-95 group"
-                >
-                    <RefreshCw className="w-4 h-4 text-primary group-hover:rotate-180 transition-transform duration-500" />
-                </button>
-            </div>
+            <PageHeader
+                icon={Settings}
+                title={isAdmin ? 'System Settings' : 'Space Settings'}
+                description={isAdmin
+                    ? 'Global configuration — changes apply immediately across the entire platform.'
+                    : 'Customize your workspace appearance and operational preferences.'}
+                actions={
+                    <button
+                        onClick={() => fetchSettings()}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors"
+                        title="Refresh Settings"
+                    >
+                        <RefreshCw className="w-4 h-4 text-primary" />
+                        Refresh
+                    </button>
+                }
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredSettingsMeta.map(([key, meta]) => {
@@ -409,7 +423,10 @@ const SettingsIndex = () => {
                                         max={meta.max}
                                         step="0.01"
                                         value={value ?? ''}
-                                        onChange={(e) => handleChange(key, parseFloat(e.target.value))}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            handleChange(key, v === '' ? '' : parseFloat(v));
+                                        }}
                                         className={cn(
                                             "w-full bg-background border rounded-2xl px-4 py-3 text-foreground font-black text-lg outline-none transition-all",
                                             dirty ? `${c.border} ${c.focus}` : "border-border focus:border-primary/30"
@@ -424,7 +441,10 @@ const SettingsIndex = () => {
                                         min={meta.min}
                                         max={meta.max}
                                         value={value ?? ''}
-                                        onChange={(e) => handleChange(key, parseFloat(e.target.value))}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            handleChange(key, v === '' ? '' : parseFloat(v));
+                                        }}
                                         className={cn(
                                             "w-full bg-background border rounded-2xl px-4 py-3 text-foreground font-black text-lg outline-none transition-all",
                                             dirty ? `${c.border} ${c.focus}` : "border-border focus:border-primary/30"

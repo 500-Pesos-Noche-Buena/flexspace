@@ -6,11 +6,12 @@ import { Link } from 'react-router-dom';
 import BookingBillBreakdown from '@/components/BookingBillBreakdown';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiGet, apiPost } from '@/utils/Api';
-import { UserPlus, Clock, Banknote, QrCode, BadgeCheck, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { UserPlus, Clock, Banknote, QrCode, BadgeCheck, AlertCircle, Loader2, CheckCircle2, UserCheck } from 'lucide-react';
 import { DataTable } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { cn } from '@/utils/cn';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // ─── Live Billing Timer ───────────────────────────────────────────────────────
 const LiveBillingTimer = ({ checkInAt, checkOutAt, rateHour, onAmountUpdate, booking }) => {
@@ -508,19 +509,20 @@ const WalkinsIndex = () => {
     ];
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex justify-between items-end mb-8">
-                <div>
-                    <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Walk-ins</h1>
-                    <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest">Live Hub Traffic.</p>
-                </div>
-                <button
-                    onClick={() => setOpenModal(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/20"
-                >
-                    <UserPlus size={14} /> New Check-in
-                </button>
-            </div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
+            <PageHeader
+                icon={UserCheck}
+                title="Walk-in Desk"
+                description="Manage live walk-in guests, assign rooms & process instant check-ins"
+                actions={
+                    <button
+                        onClick={() => setOpenModal(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-500 transition-all shadow active:scale-95"
+                    >
+                        <UserPlus size={16} /> New Check-in
+                    </button>
+                }
+            />
 
             <DataTable
                 columns={columns}

@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from "@/lib/utils";
 import { ProductModal, DeleteConfirmModal } from '@/components/modal';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const Inventory = () => {
     const { themeColor } = useTheme();
@@ -292,35 +293,28 @@ const Inventory = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="mb-8">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">Inventory Management</h1>
-                        <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest italic">
-                            Manage products across all your branches
-                        </p>
+            <PageHeader
+                icon={Archive}
+                title="Inventory Management"
+                description="Manage products, track stock levels, and configure restock alerts across all branches"
+                actions={
+                    <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-1.5 shadow-sm">
+                        <Building2 size={16} className="text-primary" />
+                        <select
+                            value={selectedSpaceId}
+                            onChange={(e) => setSelectedSpaceId(e.target.value)}
+                            className="bg-transparent text-foreground text-sm font-semibold outline-none pr-2 cursor-pointer"
+                        >
+                            {spaces.map(space => (
+                                <option key={space._id} value={space._id} className="bg-background text-foreground">
+                                    {space.name}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown size={14} className="text-muted-foreground" />
                     </div>
-
-                    {/* Branch Selector */}
-                    <div className="relative">
-                        <div className="flex items-center gap-2 bg-muted border border-border rounded-2xl px-4 py-2">
-                            <Building2 size={16} className="text-primary" />
-                            <select
-                                value={selectedSpaceId}
-                                onChange={(e) => setSelectedSpaceId(e.target.value)}
-                                className="bg-transparent text-foreground text-sm font-bold outline-none pr-8 cursor-pointer"
-                            >
-                                {spaces.map(space => (
-                                    <option key={space._id} value={space._id} className="bg-background text-foreground">
-                                        {space.name}
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDown size={14} className="text-muted-foreground" />
-                        </div>
-                    </div>
-                </div>
-            </div>
+                }
+            />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">

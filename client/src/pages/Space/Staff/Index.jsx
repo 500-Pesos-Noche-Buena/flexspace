@@ -8,6 +8,7 @@ import { DataTable } from '@/components/ui/DataTable';
 import { cn } from "@/lib/utils";
 import { BranchModal } from '@/components/modal';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 let globalPollingInstance = null;
 
@@ -284,30 +285,31 @@ const StaffManagement = () => {
             transition={{ duration: 0.5 }}
             className="px-4 md:px-0 pb-10"
         >
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">Staff Management</h1>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">Manage your hub's operational team.</p>
-                </div>
-                <button
-                    onClick={() => {
-                        setSelectedMember({
-                            name: '',
-                            email: '',
-                            space_id: '',
-                            password: ''
-                        });
-                        setIsEditMode(false);
-                        setOpenModal(true);
-                    }}
-                    className={cn(
-                        "bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl active:scale-95",
-                        getButtonColor()
-                    )}
-                >
-                    <UserPlus size={16} className="inline mr-2" /> Add Staff
-                </button>
-            </div>
+            <PageHeader
+                icon={Users}
+                title="Staff Management"
+                description="Manage your hub's operational team, staff access permissions & branch assignments"
+                actions={
+                    <button
+                        onClick={() => {
+                            setSelectedMember({
+                                name: '',
+                                email: '',
+                                space_id: '',
+                                password: ''
+                            });
+                            setIsEditMode(false);
+                            setOpenModal(true);
+                        }}
+                        className={cn(
+                            "bg-primary text-primary-foreground px-4 py-2.5 rounded-lg font-medium text-sm transition-all shadow hover:bg-primary/90 active:scale-95 flex items-center gap-2",
+                            getButtonColor()
+                        )}
+                    >
+                        <UserPlus size={16} /> Add Staff
+                    </button>
+                }
+            />
 
             {/* STATS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

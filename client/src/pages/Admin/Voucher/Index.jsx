@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 let globalPollingInstance = null;
 
@@ -269,23 +270,22 @@ const AdminVouchers = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">Global Vouchers</h1>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest italic">
-                        Create platform-wide discount vouchers for all spaces
-                    </p>
-                </div>
-                <button
-                    onClick={() => setShowModal(true)}
-                    className={cn(
-                        "bg-primary text-primary-foreground px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl active:scale-95",
-                        `hover:bg-${color}-600`
-                    )}
-                >
-                    <Plus size={14} /> Create Global Voucher
-                </button>
-            </div>
+            <PageHeader
+                icon={Ticket}
+                title="Global Vouchers"
+                description="Create and manage platform-wide discount vouchers for all spaces and members"
+                actions={
+                    <button
+                        onClick={() => setShowModal(true)}
+                        className={cn(
+                            "bg-primary text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow hover:bg-primary/90 active:scale-95",
+                            `hover:bg-${color}-600`
+                        )}
+                    >
+                        <Plus size={16} /> Create Global Voucher
+                    </button>
+                }
+            />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

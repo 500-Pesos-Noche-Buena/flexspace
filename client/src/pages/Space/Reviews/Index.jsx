@@ -10,6 +10,7 @@ import { showToast, showConfirm } from '@/components/ui/SweetAlert2';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const SpaceReviewList = () => {
     const { themeColor } = useTheme();
@@ -212,12 +213,11 @@ const SpaceReviewList = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">Customer Reviews</h1>
-                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">
-                    Manage and respond to customer feedback
-                </p>
-            </div>
+            <PageHeader
+                icon={Star}
+                title="Customer Reviews"
+                description="Manage, moderate, and respond to customer feedback across all your spaces"
+            />
 
             {/* Stats Cards */}
             {stats.total_reviews > 0 && (

@@ -12,12 +12,13 @@ import {
     MapPin, Clock, Image as ImageIcon,
     X, CheckCircle, AlertCircle, Crosshair, Search,
     Plus, Trash2, Edit, DoorOpen, Users as UsersIcon,
-    Wind, Sun, Upload, ImageOff, Loader2
+    Wind, Sun, Upload, ImageOff, Loader2, PlusCircle, Building2
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/utils/cn';
 import { getImageUrl } from '@/utils/imageHelper';
 import VirtualTourEditor from '@/components/VirtualTour/VirtualTourEditor';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // Fix Leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -866,14 +867,13 @@ const CreateSpace = ({ initialData = null, isEditing = false, spaceId = null }) 
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
-            <div className="mb-8">
-                <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic">
-                    {isEditing ? 'Edit Space' : 'Create New Space'}
-                </h1>
-                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">
-                    {isEditing ? 'Modify your coworking space details' : 'List your coworking space'}
-                </p>
-            </div>
+            <PageHeader
+                icon={isEditing ? Building2 : PlusCircle}
+                title={isEditing ? 'Edit Space Details' : 'Create New Space'}
+                description={isEditing
+                    ? 'Modify your coworking space information, room inventory & 360° virtual tours'
+                    : 'List your coworking space on FlexSpace and start welcoming members'}
+            />
 
             <form onSubmit={handleSubmit} className="max-w-7xl mx-auto">
                 <div className="bg-card border border-border rounded-3xl p-6 space-y-6">

@@ -26,6 +26,7 @@ import {
     Server,
     HelpCircle
 } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export default function AiSettings() {
     const { themeColor } = useTheme();
@@ -218,49 +219,39 @@ export default function AiSettings() {
     };
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
-            {/* Page Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/40 pb-6">
-                <div>
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                            <Cpu className="w-6 h-6" />
-                        </div>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                            AI Operations & Model Routing
-                        </h1>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
-                        Centralized Gemini AI model orchestration with autonomous 429 rate-limit failovers, manual overrides, and live token usage telemetry.
-                    </p>
-                </div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10 w-full">
+            <PageHeader
+                icon={Cpu}
+                title="AI Operations & Model Routing"
+                description="Centralized Gemini AI model orchestration with autonomous 429 rate-limit failovers, manual overrides, and live token usage telemetry."
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                fetchSettings();
+                                fetchAnalytics(timeframe);
+                                fetchLogs(pagination.page);
+                            }}
+                            disabled={loadingSettings || loadingAnalytics || loadingLogs}
+                            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${(loadingSettings || loadingAnalytics || loadingLogs) ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
 
-                <div className="flex items-center gap-2.5">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            fetchSettings();
-                            fetchAnalytics(timeframe);
-                            fetchLogs(pagination.page);
-                        }}
-                        disabled={loadingSettings || loadingAnalytics || loadingLogs}
-                        className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${(loadingSettings || loadingAnalytics || loadingLogs) ? 'animate-spin' : ''}`} />
-                        Refresh
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={handleSaveSettings}
-                        disabled={savingSettings}
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow transition-colors disabled:opacity-50"
-                    >
-                        <Save className="w-4 h-4" />
-                        {savingSettings ? 'Saving...' : 'Save Configuration'}
-                    </button>
-                </div>
-            </div>
+                        <button
+                            type="button"
+                            onClick={handleSaveSettings}
+                            disabled={savingSettings}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow transition-colors disabled:opacity-50"
+                        >
+                            <Save className="w-4 h-4" />
+                            {savingSettings ? 'Saving...' : 'Save Configuration'}
+                        </button>
+                    </>
+                }
+            />
 
             {/* Navigation Tabs */}
             <div className="flex items-center gap-2 border-b border-border/60">

@@ -11,12 +11,20 @@ import {
     Loader2,
     Calendar,
     Eye,
-    X
+    X,
+    TrendingUp,
+    TrendingDown,
+    BarChart3,
+    Sparkles,
+    Coins,
+    PieChart
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { useTheme } from '@/hooks/useTheme';
 import { Modal } from '@/components/ui/Modal';
+import { formatNumber } from '@/utils/formatNumber';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const AdminEarnings = () => {
     const { themeColor } = useTheme();
@@ -32,6 +40,8 @@ const AdminEarnings = () => {
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [ownerDetails, setOwnerDetails] = useState(null);
     const [detailsLoading, setDetailsLoading] = useState(false);
+    const [analytics, setAnalytics] = useState(null);
+    const [analyticsLoading, setAnalyticsLoading] = useState(true);
     
     const getThemeColorClass = () => {
         const colors = {
@@ -44,6 +54,20 @@ const AdminEarnings = () => {
         };
         return colors[themeColor] || 'indigo';
     };
+
+    const fetchEarningsAnalytics = useCallback(async () => {
+        setAnalyticsLoading(true);
+        try {
+            const res = await apiGet('/admin/earnings/analytics');
+            if (res.success) {
+                setAnalytics(res.data);
+            }
+        } catch (err) {
+            console.error('Earnings analytics fetch error:', err);
+        } finally {
+            setAnalyticsLoading(false);
+        }
+    }, []);
 
     const fetchEarnings = useCallback(async () => {
         setLoading(true);
@@ -68,13 +92,14 @@ const AdminEarnings = () => {
 
     useEffect(() => {
         fetchEarnings();
-    }, []);
+        fetchEarningsAnalytics();
+    }, [fetchEarningsAnalytics]);
 
     useEffect(() => {
         if (selectedDate) {
             fetchEarnings();
         }
-    }, [selectedDate]);
+    }, [selectedDate, fetchEarnings]);
 
     const handleMarkCollected = async () => {
         if (!selectedOwner) return;
@@ -245,73 +270,71 @@ const AdminEarnings = () => {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             
             {/* Header */}
-            <div className="mb-6 md:mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase italic">Owner Financial Summary</h1>
-                    <p className="text-[10px] md:text-xs text-muted-foreground font-medium uppercase tracking-widest">
-                        Track who owes platform fees each month
-                    </p>
-                </div>
-                
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    {availableMonths.length > 0 && (
-                        <div className="relative flex-1 md:flex-none">
-                            <button
-                                onClick={() => setShowDatePicker(!showDatePicker)}
-                                className="w-full md:w-64 bg-card border border-border rounded-2xl px-4 py-3 flex items-center justify-between group hover:border-primary/30 transition-all"
-                            >
-                                <div className="flex items-center gap-2">
+            <PageHeader
+                icon={Banknote}
+                title="Owner Financial Summary"
+                description="Track who owes platform fees each month, monitor collection metrics, and inspect breakdowns."
+                actions={
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                        {availableMonths.length > 0 && (
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowDatePicker(!showDatePicker)}
+                                    className="bg-card border border-border rounded-lg px-3.5 py-2 flex items-center gap-2 group hover:border-primary/40 transition-colors text-xs font-semibold"
+                                >
                                     <Calendar size={14} className="text-primary" />
-                                    <span className="text-foreground text-xs font-black uppercase tracking-wider">
+                                    <span className="text-foreground">
                                         {selectedMonthLabel}
                                     </span>
-                                </div>
-                                <ChevronDown size={14} className={cn(
-                                    "text-muted-foreground transition-transform duration-300",
-                                    showDatePicker && "rotate-180"
-                                )} />
-                            </button>
-                            
-                            {showDatePicker && (
-                                <>
-                                    <div 
-                                        className="fixed inset-0 z-10 bg-black/50 backdrop-blur-sm"
-                                        onClick={() => setShowDatePicker(false)}
-                                    />
-                                    <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-2xl z-20 max-h-80 overflow-y-auto shadow-2xl">
-                                        <div className="p-2">
-                                            {availableMonths.map(month => (
-                                                <button
-                                                    key={month.value}
-                                                    onClick={() => {
-                                                        setSelectedDate(month.value);
-                                                        setShowDatePicker(false);
-                                                    }}
-                                                    className={cn(
-                                                        "w-full px-4 py-3 text-left text-xs font-black uppercase tracking-wider transition-all rounded-xl",
-                                                        selectedDate === month.value 
-                                                            ? `bg-${color}-600/20 text-primary` 
-                                                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                    )}
-                                                >
-                                                    {month.label}
-                                                </button>
-                                            ))}
+                                    <ChevronDown size={14} className={cn(
+                                        "text-muted-foreground transition-transform duration-300",
+                                        showDatePicker && "rotate-180"
+                                    )} />
+                                </button>
+                                
+                                {showDatePicker && (
+                                    <>
+                                        <div 
+                                            className="fixed inset-0 z-10 bg-black/50 backdrop-blur-sm"
+                                            onClick={() => setShowDatePicker(false)}
+                                        />
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl z-20 max-h-80 overflow-y-auto shadow-2xl">
+                                            <div className="p-2">
+                                                {availableMonths.map(month => (
+                                                    <button
+                                                        key={month.value}
+                                                        onClick={() => {
+                                                            setSelectedDate(month.value);
+                                                            setShowDatePicker(false);
+                                                        }}
+                                                        className={cn(
+                                                            "w-full px-3 py-2 text-left text-xs font-medium transition-all rounded-lg",
+                                                            selectedDate === month.value 
+                                                                ? `bg-${color}-600/20 text-primary font-semibold` 
+                                                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        {month.label}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-                    
-                    <button 
-                        onClick={fetchEarnings}
-                        className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group shrink-0"
-                    >
-                        <RefreshCw className="w-4 h-4 text-primary group-hover:rotate-180 transition-transform duration-500" />
-                    </button>
-                </div>
-            </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        
+                        <button 
+                            onClick={fetchEarnings}
+                            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors shrink-0"
+                            title="Refresh Financial Data"
+                        >
+                            <RefreshCw className="w-4 h-4 text-primary" />
+                            Refresh
+                        </button>
+                    </div>
+                }
+            />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
@@ -343,6 +366,181 @@ const AdminEarnings = () => {
                     trend="Platform Fee" 
                     themeColor={color}
                 />
+            </div>
+
+            {/* Dedicated Earnings Analytics & Financial Trajectory */}
+            <div className="mb-8 space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                            <BarChart3 size={16} />
+                        </div>
+                        <div>
+                            <h2 className="text-base sm:text-lg font-black text-foreground uppercase italic tracking-tight">
+                                Platform Financial Analytics & Trajectory
+                            </h2>
+                            <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">
+                                Historical revenue trends, collection efficiency & run-rate projections
+                            </p>
+                        </div>
+                    </div>
+                    {analytics?.totals && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                {analytics.totals.collectionEfficiency}% Fee Collection Rate
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Analytics Charts Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Trajectory Bar Chart */}
+                    <div className="lg:col-span-2 bg-card rounded-[2rem] border border-border p-6 shadow-xl space-y-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-border/40">
+                            <div className="flex items-center gap-2">
+                                <TrendingUp size={16} className="text-primary" />
+                                <h3 className="text-xs font-black text-foreground uppercase tracking-wider">Gross Volume & Platform Fees Over Time</h3>
+                            </div>
+                            <div className="flex items-center gap-3 text-[8px] font-bold text-muted-foreground uppercase">
+                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-primary" /> Gross Volume</span>
+                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Collected Fee</span>
+                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500" /> Pending Fee</span>
+                            </div>
+                        </div>
+
+                        {analyticsLoading ? (
+                            <div className="h-44 flex items-center justify-center">
+                                <Loader2 size={24} className="animate-spin text-primary" />
+                            </div>
+                        ) : analytics?.monthlyTrends?.length > 0 ? (
+                            <div className="space-y-4">
+                                <div className="flex items-end gap-3 h-44 pt-4 px-2">
+                                    {analytics.monthlyTrends.map((trend, idx) => {
+                                        const maxVol = Math.max(...analytics.monthlyTrends.map(t => t.grossVolume), 1);
+                                        const barHeight = Math.max(12, (trend.grossVolume / maxVol) * 110);
+                                        const maxFee = Math.max(...analytics.monthlyTrends.map(t => t.platformFee || 1), 1);
+                                        const feeHeight = Math.max(8, (trend.collectedFee / maxFee) * 90);
+
+                                        return (
+                                            <div key={trend.month || idx} className="flex-1 flex flex-col items-center group relative">
+                                                {/* Tooltip on hover */}
+                                                <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-foreground text-background text-[8px] font-bold rounded-lg px-2 py-1 pointer-events-none whitespace-nowrap z-20 shadow-lg">
+                                                    ₱{formatNumber(trend.grossVolume)} Gross | ₱{formatNumber(trend.platformFee)} Fee
+                                                </div>
+                                                <div className="w-full flex items-end justify-center gap-1 h-32">
+                                                    {/* Gross volume bar */}
+                                                    <div 
+                                                        className="w-1/2 bg-primary/20 rounded-t-lg transition-all group-hover:bg-primary/40 relative" 
+                                                        style={{ height: `${barHeight}px` }}
+                                                    >
+                                                        <div 
+                                                            className="absolute bottom-0 w-full bg-primary rounded-t-sm" 
+                                                            style={{ height: `${Math.max(4, barHeight * 0.4)}px` }} 
+                                                        />
+                                                    </div>
+                                                    {/* Collected fee bar */}
+                                                    <div 
+                                                        className="w-1/2 bg-emerald-500 rounded-t-lg transition-all group-hover:bg-emerald-400" 
+                                                        style={{ height: `${feeHeight}px` }} 
+                                                    />
+                                                </div>
+                                                <span className="text-[8px] font-black text-muted-foreground uppercase mt-2 tracking-tighter truncate w-full text-center">
+                                                    {trend.label}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Bottom Summary Bar */}
+                                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/40 text-center">
+                                    <div>
+                                        <p className="text-[8px] text-muted-foreground uppercase font-bold">All-Time Platform Gross</p>
+                                        <p className="text-sm font-black text-foreground">₱{formatNumber(analytics?.totals?.totalGross || 0)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[8px] text-muted-foreground uppercase font-bold">Total Platform Fees</p>
+                                        <p className="text-sm font-black text-primary">₱{formatNumber(analytics?.totals?.totalPlatformFee || 0)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[8px] text-muted-foreground uppercase font-bold">Owner Distributions</p>
+                                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">₱{formatNumber(analytics?.totals?.totalOwnerPayouts || 0)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="h-44 flex flex-col items-center justify-center text-muted-foreground">
+                                <p className="text-[10px] font-bold uppercase tracking-widest">No historical revenue data recorded</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Projections & Payment Channels */}
+                    <div className="bg-card rounded-[2rem] border border-border p-6 shadow-xl space-y-5 flex flex-col justify-between">
+                        <div>
+                            <div className="flex items-center gap-2 pb-2 border-b border-border/40 mb-4">
+                                <Sparkles size={16} className="text-amber-500" />
+                                <h3 className="text-xs font-black text-foreground uppercase tracking-wider">Run-Rate Projections</h3>
+                            </div>
+
+                            {analytics?.projections && (
+                                <div className="space-y-3">
+                                    <div className="p-3 bg-muted/60 rounded-2xl border border-border/50">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-[8px] text-muted-foreground uppercase font-black tracking-widest">Month Progress</span>
+                                            <span className="text-[9px] font-black text-primary">Day {analytics.projections.daysElapsed} of {analytics.projections.daysInMonth}</span>
+                                        </div>
+                                        <div className="w-full bg-background rounded-full h-1.5 overflow-hidden">
+                                            <div 
+                                                className="bg-primary h-full rounded-full transition-all" 
+                                                style={{ width: `${Math.min(100, (analytics.projections.daysElapsed / analytics.projections.daysInMonth) * 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2.5">
+                                        <div className="p-3 bg-primary/5 rounded-2xl border border-primary/10">
+                                            <p className="text-[7px] text-muted-foreground uppercase font-black">Daily Run-Rate</p>
+                                            <p className="text-base font-black text-primary">₱{formatNumber(analytics.projections.dailyRunRate)}</p>
+                                            <p className="text-[6px] text-muted-foreground mt-0.5">Average gross / day</p>
+                                        </div>
+                                        <div className="p-3 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                                            <p className="text-[7px] text-muted-foreground uppercase font-black">Projected Gross</p>
+                                            <p className="text-base font-black text-emerald-600 dark:text-emerald-400">₱{formatNumber(analytics.projections.projectedGross)}</p>
+                                            <p className="text-[6px] text-muted-foreground mt-0.5">Estimated month-end</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-3 bg-amber-500/5 rounded-2xl border border-amber-500/10 flex justify-between items-center">
+                                        <div>
+                                            <p className="text-[7px] text-muted-foreground uppercase font-black">Projected Platform Fee Cut</p>
+                                            <p className="text-sm font-black text-amber-600 dark:text-amber-400">₱{formatNumber(analytics.projections.projectedPlatformFee)}</p>
+                                        </div>
+                                        <span className="text-[8px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                            Forecast
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Payment Method Distribution */}
+                        {analytics?.paymentMethodBreakdown?.length > 0 && (
+                            <div className="pt-2 border-t border-border/40">
+                                <p className="text-[8px] text-muted-foreground font-black uppercase tracking-wider mb-2">Collection Channels</p>
+                                <div className="space-y-1.5">
+                                    {analytics.paymentMethodBreakdown.slice(0, 3).map((pm, idx) => (
+                                        <div key={idx} className="flex justify-between items-center text-[9px]">
+                                            <span className="text-muted-foreground uppercase font-bold tracking-tight">{pm.method}</span>
+                                            <span className="font-black text-foreground">₱{formatNumber(pm.volume)} ({pm.count} txns)</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* DataTable - Owner Summary */}

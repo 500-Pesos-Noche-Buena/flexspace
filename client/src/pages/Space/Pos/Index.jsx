@@ -903,7 +903,7 @@ const POS = () => {
     const color = getThemeColorClass();
 
     return (
-        <div className="h-[calc(100vh-80px)] flex gap-4">
+        <div className="h-[calc(100vh-80px)] flex gap-4 animate-in fade-in duration-500">
             {/* Products Panel */}
             <div className="flex-1 bg-card rounded-2xl border border-border flex flex-col overflow-hidden">
                 <div className="p-4 border-b border-border">

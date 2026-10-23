@@ -28,6 +28,7 @@ class UserRoutes {
         // Bookings
         this.router.get('/bookings', auth, (req, res, next) => bookingController.getMyBookings(req, res, next));
         this.router.post('/bookings', auth, (req, res, next) => bookingController.createBooking(req, res, next));
+        this.router.put('/bookings/:id/cancel', auth, (req, res, next) => bookingController.cancelBooking(req, res, next));
         this.router.post('/bookings/scan', auth, (req, res, next) => bookingController.scanHubQRCode(req, res, next));
         
         // Active booking - FAST endpoint for ChatOrder

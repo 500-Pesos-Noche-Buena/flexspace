@@ -4,7 +4,7 @@ import { showToast } from '@/components/ui/SweetAlert2';
 import { 
     TrendingUp, Users, Eye, MousePointer, 
     MapPin, Monitor, Smartphone, Tablet, 
-    Globe, Calendar, Activity,
+    Globe, Calendar, Activity, BarChart3,
     ArrowUp, ArrowDown, Loader2, Edit2, Save, X, Plus, Trash2
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { StatCard } from '@/components/StatCard';
 import { EditableList } from '@/components/EditableList';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 let globalPollingInstance = null;
 
@@ -163,33 +164,34 @@ const InsightsIndex = () => {
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-12">
-            <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground tracking-tighter uppercase italic">Analytics Insights</h1>
-                    <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-[0.3em]">Visitor Analytics & User Behavior</p>
-                </div>
-                <div className="flex gap-3">
-                    <div className="flex bg-card border border-border p-1 rounded-2xl">
-                        <PeriodButton periodId="24h" label="24h" />
-                        <PeriodButton periodId="7d" label="7d" />
-                        <PeriodButton periodId="30d" label="30d" />
+            <PageHeader
+                icon={BarChart3}
+                title="Analytics & Platform Insights"
+                description="Comprehensive visitor telemetry, geographic distribution & user engagement metrics"
+                actions={
+                    <div className="flex items-center gap-3">
+                        <div className="flex bg-card border border-border p-1 rounded-xl">
+                            <PeriodButton periodId="24h" label="24h" />
+                            <PeriodButton periodId="7d" label="7d" />
+                            <PeriodButton periodId="30d" label="30d" />
+                        </div>
+                        {editing ? (
+                            <>
+                                <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 gap-2 text-white">
+                                    <Save size={14} /> Save
+                                </Button>
+                                <Button onClick={() => { setEditing(false); setEditData(JSON.parse(JSON.stringify(data))); }} variant="outline" className="gap-2">
+                                    <X size={14} /> Cancel
+                                </Button>
+                            </>
+                        ) : (
+                            <Button onClick={() => setEditing(true)} className={`bg-${color}-600 hover:bg-${color}-500 gap-2 text-white`}>
+                                <Edit2 size={14} /> Edit Numbers
+                            </Button>
+                        )}
                     </div>
-                    {editing ? (
-                        <>
-                            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 gap-2 text-white">
-                                <Save size={14} /> Save
-                            </Button>
-                            <Button onClick={() => { setEditing(false); setEditData(JSON.parse(JSON.stringify(data))); }} variant="outline" className="gap-2">
-                                <X size={14} /> Cancel
-                            </Button>
-                        </>
-                    ) : (
-                        <Button onClick={() => setEditing(true)} className={`bg-${color}-600 hover:bg-${color}-500 gap-2 text-white`}>
-                            <Edit2 size={14} /> Edit Numbers
-                        </Button>
-                    )}
-                </div>
-            </div>
+                }
+            />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

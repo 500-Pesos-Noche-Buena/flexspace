@@ -12,6 +12,7 @@ import { cn } from '@/utils/cn';
 import { formatNumber } from '@/utils/formatNumber';
 import { StatsModal } from '@/components/modal';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 let globalPollingInstance = null;
 
@@ -292,47 +293,47 @@ const AdminLogs = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="mb-6 flex flex-row justify-between items-center gap-4 flex-wrap">
-                <div>
-                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase italic">Activity Logs</h1>
-                    <p className="text-[10px] md:text-xs text-muted-foreground font-medium uppercase tracking-widest">
-                        Real-time system activity & user actions
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={fetchDetailedStats}
-                        className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group"
-                        title="View Detailed Stats"
-                    >
-                        <BarChart3 size={16} className="text-purple-600 dark:text-purple-400" />
-                    </button>
-                    <button
-                        onClick={exportLogs}
-                        disabled={exporting}
-                        className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group disabled:opacity-50"
-                        title="Export Logs"
-                    >
-                        <Download className={cn("w-4 h-4 text-emerald-600 dark:text-emerald-400", exporting && "animate-pulse")} />
-                    </button>
-                    <button
-                        onClick={cleanupOldLogs}
-                        disabled={cleaning}
-                        className="p-3 bg-muted rounded-2xl border border-border hover:bg-rose-500/10 transition-all active:scale-95 group disabled:opacity-50"
-                        title="Clean Old Logs"
-                    >
-                        <Trash2 className={cn("w-4 h-4 text-rose-600 dark:text-rose-400", cleaning && "animate-pulse")} />
-                    </button>
-                    <button
-                        onClick={refreshLogs}
-                        disabled={refreshing}
-                        className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group disabled:opacity-50"
-                        title="Refresh Logs"
-                    >
-                        <RefreshCw className={cn("w-4 h-4 text-primary", refreshing && "animate-spin")} />
-                    </button>
-                </div>
-            </div>
+            <PageHeader
+                icon={History}
+                title="Activity Logs"
+                description="Real-time system audit logs, user authentication events & activity history"
+                actions={
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={fetchDetailedStats}
+                            className="p-2.5 rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors"
+                            title="View Detailed Stats"
+                        >
+                            <BarChart3 size={16} className="text-purple-600 dark:text-purple-400" />
+                        </button>
+                        <button
+                            onClick={exportLogs}
+                            disabled={exporting}
+                            className="p-2.5 rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
+                            title="Export Logs"
+                        >
+                            <Download className={cn("w-4 h-4 text-emerald-600 dark:text-emerald-400", exporting && "animate-pulse")} />
+                        </button>
+                        <button
+                            onClick={cleanupOldLogs}
+                            disabled={cleaning}
+                            className="p-2.5 rounded-lg border border-border bg-card hover:bg-rose-500/10 hover:text-rose-600 transition-colors disabled:opacity-50"
+                            title="Clean Old Logs"
+                        >
+                            <Trash2 className={cn("w-4 h-4 text-rose-600 dark:text-rose-400", cleaning && "animate-pulse")} />
+                        </button>
+                        <button
+                            onClick={refreshLogs}
+                            disabled={refreshing}
+                            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
+                            title="Refresh Logs"
+                        >
+                            <RefreshCw className={cn("w-4 h-4 text-primary", refreshing && "animate-spin")} />
+                            Refresh
+                        </button>
+                    </div>
+                }
+            />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

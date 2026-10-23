@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 let globalPollingInstance = null;
 
@@ -257,23 +258,22 @@ const VouchersIndex = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">Vouchers</h1>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest italic">
-                        Create discount vouchers for users to redeem with points
-                    </p>
-                </div>
-                <button
-                    onClick={() => setShowModal(true)}
-                    className={cn(
-                        "bg-primary text-primary-foreground px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl active:scale-95",
-                        getButtonColor()
-                    )}
-                >
-                    <Plus size={14} /> Create Voucher
-                </button>
-            </div>
+            <PageHeader
+                icon={Ticket}
+                title="Space Vouchers"
+                description="Create and distribute discount vouchers for members to redeem with loyalty points"
+                actions={
+                    <button
+                        onClick={() => setShowModal(true)}
+                        className={cn(
+                            "bg-primary text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow hover:bg-primary/90 active:scale-95",
+                            getButtonColor()
+                        )}
+                    >
+                        <Plus size={16} /> Create Voucher
+                    </button>
+                }
+            />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

@@ -19,7 +19,8 @@ import {
     Activity,
     Award,
     AlertCircle,
-    ShoppingBag
+    ShoppingBag,
+    LayoutDashboard
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/utils/cn';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // Animation variants
 const containerVariants = {
@@ -231,29 +233,31 @@ const SpaceDashboard = () => {
             className="px-4 md:px-0 pb-12"
         >
             {/* --- HEADER & FILTERS --- */}
-            <motion.div variants={itemVariants} className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                    <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase italic">Hub Command</h1>
-                    <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-[0.3em]">Operational Intelligence • Iloilo City</p>
-                </div>
-
-                <Tabs value={period} onValueChange={setPeriod} className="w-auto">
-                    <TabsList className="bg-card border border-border rounded-2xl p-1 shadow-2xl">
-                        {periodFilters.map((f) => (
-                            <TabsTrigger
-                                key={f.id}
-                                value={f.id}
-                                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg text-muted-foreground transition-all"
-                                style={{ 
-                                    backgroundColor: period === f.id ? `var(--theme-primary)` : undefined,
-                                    color: period === f.id ? 'white' : undefined
-                                }}
-                            >
-                                {f.label}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                </Tabs>
+            <motion.div variants={itemVariants}>
+                <PageHeader
+                    icon={LayoutDashboard}
+                    title="Space Operations Hub"
+                    description="Real-time hub operations, bookings, walk-ins & point-of-sale intelligence"
+                    actions={
+                        <Tabs value={period} onValueChange={setPeriod} className="w-auto">
+                            <TabsList className="bg-card border border-border rounded-xl p-1 shadow-sm">
+                                {periodFilters.map((f) => (
+                                    <TabsTrigger
+                                        key={f.id}
+                                        value={f.id}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm text-muted-foreground transition-all"
+                                        style={{ 
+                                            backgroundColor: period === f.id ? `var(--theme-primary)` : undefined,
+                                            color: period === f.id ? 'white' : undefined
+                                        }}
+                                    >
+                                        {f.label}
+                                    </TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </Tabs>
+                    }
+                />
             </motion.div>
 
             {/* --- PRIMARY STATS GRID --- */}

@@ -10,13 +10,14 @@ import {
     MessageSquare, CheckCircle, XCircle, Clock as ClockIcon,
     TrendingUp as TrendingUpIcon, DollarSign, PieChart,
     Layers, Sparkles, Shield, Zap as ZapIcon, Eye,
-    Calendar as CalendarIcon, UserCheck, UserX, UserPlus
+    Calendar as CalendarIcon, UserCheck, UserX, UserPlus, LayoutDashboard
 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/utils/cn';
 import { formatNumber } from '@/utils/formatNumber';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 let globalDashboardPollingInstance = null;
 
@@ -25,37 +26,69 @@ const StatCard = ({ title, value, icon, trend, subValue, color = 'primary' }) =>
     const theme = themeColor;
 
     const colorMap = {
-        primary: `text-${theme}-600 dark:text-${theme}-400 bg-${theme}-500/10 border-${theme}-500/20`,
-        blue: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
-        emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-        purple: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
-        amber: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
-        rose: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20',
-        indigo: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
-        cyan: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+        primary: {
+            iconBg: `text-${theme}-600 dark:text-${theme}-400 bg-${theme}-500/10 border-${theme}-500/20`,
+            hoverBorder: `hover:border-${theme}-500/40`,
+        },
+        blue: {
+            iconBg: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
+            hoverBorder: 'hover:border-blue-500/40',
+        },
+        emerald: {
+            iconBg: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+            hoverBorder: 'hover:border-emerald-500/40',
+        },
+        purple: {
+            iconBg: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
+            hoverBorder: 'hover:border-purple-500/40',
+        },
+        amber: {
+            iconBg: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
+            hoverBorder: 'hover:border-amber-500/40',
+        },
+        rose: {
+            iconBg: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20',
+            hoverBorder: 'hover:border-rose-500/40',
+        },
+        indigo: {
+            iconBg: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+            hoverBorder: 'hover:border-indigo-500/40',
+        },
+        cyan: {
+            iconBg: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+            hoverBorder: 'hover:border-cyan-500/40',
+        },
     };
+
+    const cfg = colorMap[color] || colorMap.primary;
 
     const displayValue = typeof value === 'string' && value.includes('₱')
         ? value
-        : formatNumber(value);
+        : (typeof value === 'number' ? formatNumber(value) : value);
 
     return (
-        <div className="bg-card p-5 rounded-4xl border border-border group hover:border-primary/30 transition-all duration-500 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-                <div className={cn("p-2.5 rounded-xl border transition-all duration-500", colorMap[color] || colorMap.primary)}>
+        <div className={cn(
+            "group bg-card p-5 rounded-3xl border border-border/80 transition-all duration-300 shadow-sm hover:shadow-xl",
+            cfg.hoverBorder
+        )}>
+            <div className="flex items-center justify-between mb-3.5">
+                <div className={cn("p-2.5 rounded-2xl border transition-transform duration-300 group-hover:scale-105", cfg.iconBg)}>
                     {icon}
                 </div>
                 {trend && (
-                    <span className="text-[7px] font-black text-muted-foreground uppercase tracking-wider bg-muted px-2 py-1 rounded-lg">
+                    <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted/80 text-foreground border border-border/60">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                         {trend}
                     </span>
                 )}
             </div>
-            <h4 className="text-xl font-black text-foreground mb-0.5 truncate italic tracking-tighter">{displayValue}</h4>
-            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{title}</p>
-            {subValue && (
-                <p className="text-[8px] text-muted-foreground/70 mt-1">{subValue}</p>
-            )}
+            <div>
+                <h4 className="text-2xl font-black text-foreground mb-1 truncate tracking-tight">{displayValue}</h4>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-tight">{title}</p>
+                {subValue && (
+                    <p className="text-[9px] text-muted-foreground/75 mt-1 font-medium truncate">{subValue}</p>
+                )}
+            </div>
         </div>
     );
 };
@@ -154,7 +187,9 @@ const AdminDashboard = () => {
         bookingGrowth: 0,
         totalReviews: 0,
         avgRating: 0,
-        totalEarnings: 0
+        totalEarnings: 0,
+        totalPlatformRevenue: 0,
+        totalGrossVolume: 0
     });
 
     // Advanced analytics states
@@ -164,7 +199,8 @@ const AdminDashboard = () => {
         thrivingSpaces: []
     });
     const [revenueTrend, setRevenueTrend] = useState({ trend: [], growth: 0, totalRevenue: 0 });
-    const [topSpaces, setTopSpaces] = useState([]);
+    const [mostVisitedSpaces, setMostVisitedSpaces] = useState([]);
+    const [mostBookedSpaces, setMostBookedSpaces] = useState([]);
     const [userGrowth, setUserGrowth] = useState({ growth: [], totals: {} });
     const [analyticsLoading, setAnalyticsLoading] = useState(true);
     const [trendPeriod, setTrendPeriod] = useState('monthly');
@@ -212,13 +248,21 @@ const AdminDashboard = () => {
             const [occupancyRes, revenueRes, topSpacesRes, userGrowthRes] = await Promise.all([
                 apiGet('/admin/dashboard/occupancy'),
                 apiGet(`/admin/dashboard/revenue-trend?period=${trendPeriod}`),
-                apiGet('/admin/dashboard/top-spaces?limit=5&sort=bookings'),
+                apiGet('/admin/dashboard/top-spaces?limit=5&sort=all'),
                 apiGet('/admin/dashboard/user-growth')
             ]);
 
             if (occupancyRes.success) setPlatformOccupancy(occupancyRes.data);
             if (revenueRes.success) setRevenueTrend(revenueRes.data);
-            if (topSpacesRes.success) setTopSpaces(topSpacesRes.data);
+            if (topSpacesRes.success) {
+                if (topSpacesRes.data?.mostVisited || topSpacesRes.data?.mostBooked) {
+                    setMostVisitedSpaces(topSpacesRes.data.mostVisited || []);
+                    setMostBookedSpaces(topSpacesRes.data.mostBooked || []);
+                } else if (Array.isArray(topSpacesRes.data)) {
+                    setMostVisitedSpaces(topSpacesRes.data);
+                    setMostBookedSpaces(topSpacesRes.data);
+                }
+            }
             if (userGrowthRes.success) setUserGrowth(userGrowthRes.data);
         } catch (err) {
             console.error('Analytics fetch error:', err);
@@ -277,66 +321,76 @@ const AdminDashboard = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="mb-6 md:mb-8 flex flex-row justify-between items-center gap-4">
-                <div>
-                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase italic">Platform Command Center</h1>
-                    <p className="text-[10px] md:text-xs text-muted-foreground font-medium uppercase tracking-widest">Real-time platform intelligence & monitoring</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 text-[8px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full">
+            <PageHeader
+                icon={LayoutDashboard}
+                title="Platform Command Center"
+                description="Real-time platform intelligence, booking trends & financial monitoring"
+                badge={
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-medium">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         Live
                     </div>
-                    <button onClick={() => { fetchDashboardData(true); fetchAnalytics(); }} className="p-3 bg-muted rounded-2xl border border-border hover:bg-muted/80 transition-all active:scale-95 group">
-                        <RefreshCw className="w-4 h-4 text-primary group-hover:rotate-180 transition-transform duration-500" />
+                }
+                actions={
+                    <button
+                        onClick={() => { fetchDashboardData(true); fetchAnalytics(); }}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors active:scale-95"
+                    >
+                        <RefreshCw className="w-4 h-4 text-primary" />
+                        Refresh
                     </button>
-                </div>
-            </div>
+                }
+            />
 
-            {/* Primary Stats Grid - Expanded */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-8">
+            {/* Primary Stats Grid - Platform Intelligence */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3.5 mb-6">
                 <StatCard 
-                    title="Total Users" 
-                    value={stats.totalUsers} 
-                    icon={<Users size={16} />} 
-                    trend="Active" 
-                    color="blue"
-                    subValue={`+${stats.newUsersThisMonth || 0} this month`}
+                    title="Total Platform Revenue" 
+                    value={`₱${formatNumber(stats.totalPlatformRevenue || stats.platformFeesCollected || 0)}`} 
+                    icon={<Banknote size={16} />} 
+                    trend="All Time" 
+                    color="rose"
+                    subValue={`₱${formatNumber(stats.monthlyRevenue || 0)} this month`}
                 />
                 <StatCard 
-                    title="Space Owners" 
-                    value={stats.totalSpaceHubs} 
-                    icon={<Building2 size={16} />} 
-                    trend="Registered" 
-                    color="purple"
-                />
-                <StatCard 
-                    title="Active Spaces" 
-                    value={stats.activeSpaces} 
-                    icon={<MapPin size={16} />} 
-                    trend="Live Now" 
+                    title="Gross Booking Volume" 
+                    value={`₱${formatNumber(stats.totalGrossVolume || stats.grossVolume || 0)}`} 
+                    icon={<Coins size={16} />} 
+                    trend="All Spaces" 
                     color="emerald"
-                />
-                <StatCard 
-                    title="Pending" 
-                    value={stats.pendingRequests} 
-                    icon={<Clock size={16} />} 
-                    trend="Applications" 
-                    color="amber"
+                    subValue={`₱${formatNumber(stats.grossVolume || 0)} this month`}
                 />
                 <StatCard 
                     title="Total Bookings" 
                     value={stats.totalBookings || 0} 
                     icon={<CalendarIcon size={16} />} 
-                    trend="All Time" 
+                    trend={`${stats.activeBookings || 0} Active`} 
                     color="indigo"
+                    subValue={`${formatNumber(stats.completedBookings || 0)} completed`}
                 />
                 <StatCard 
-                    title="Platform Revenue" 
-                    value={`₱${formatNumber(stats.monthlyRevenue)}`} 
-                    icon={<Banknote size={16} />} 
-                    trend="This Month" 
-                    color="rose"
+                    title="Active Spaces" 
+                    value={stats.activeSpaces || 0} 
+                    icon={<Building2 size={16} />} 
+                    trend="Live Hubs" 
+                    color="purple"
+                    subValue={`${stats.totalSpaceHubs || 0} owners registered`}
+                />
+                <StatCard 
+                    title="Platform Users" 
+                    value={stats.totalUsers || 0} 
+                    icon={<Users size={16} />} 
+                    trend={`+${stats.newUsersThisMonth || 0}`} 
+                    color="blue"
+                    subValue={`${stats.userGrowth >= 0 ? '+' : ''}${stats.userGrowth}% monthly growth`}
+                />
+                <StatCard 
+                    title="Seat Occupancy" 
+                    value={`${platformOccupancy.platform.occupancyRate || 0}%`} 
+                    icon={<Activity size={16} />} 
+                    trend="Live Rate" 
+                    color="amber"
+                    subValue={`${platformOccupancy.platform.activeBookings || 0} / ${platformOccupancy.platform.totalCapacity || 0} occupied`}
                 />
             </div>
 
@@ -378,10 +432,10 @@ const AdminDashboard = () => {
                     color="cyan"
                 />
                 <StatCard 
-                    title="Platform Fees" 
-                    value={`₱${formatNumber(stats.platformFeesCollected || 0)}`} 
-                    icon={<Coins size={14} />} 
-                    trend="Collected" 
+                    title="Monthly Revenue" 
+                    value={`₱${formatNumber(stats.monthlyRevenue || 0)}`} 
+                    icon={<Banknote size={14} />} 
+                    trend="This Month" 
                     color="rose"
                 />
             </div>
@@ -531,101 +585,164 @@ const AdminDashboard = () => {
                     </Card>
                 </div>
 
-                {/* Row 2: Top Spaces + User Growth + Activity Stats */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Top Performing Spaces */}
-                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500">
+                {/* Row 2: Popularity Sections - Most Visited & Most Booked (No Individual Space Revenue) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    {/* Most Visited Spaces */}
+                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-xl">
                         <CardContent className="p-6">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Crown size={16} className="text-amber-600 dark:text-amber-400" />
-                                <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">🏆 Most Visited</h3>
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <Crown size={16} className="text-amber-600 dark:text-amber-400" />
+                                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">🏆 Most Visited Spaces</h3>
+                                </div>
+                                <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                    Foot Traffic
+                                </span>
                             </div>
                             <div className="space-y-3">
-                                {topSpaces.length > 0 ? (
-                                    topSpaces.map((space, idx) => (
-                                        <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded-xl">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 w-5">#{idx + 1}</span>
-                                                <div>
-                                                    <p className="text-[11px] font-black text-foreground">{space.spaceName}</p>
-                                                    <p className="text-[7px] text-muted-foreground">{space.ownerName}</p>
-                                                    <StarRating rating={space.rating || 0} />
+                                {mostVisitedSpaces.length > 0 ? (
+                                    mostVisitedSpaces.map((space, idx) => (
+                                        <div key={space.spaceId || idx} className="flex justify-between items-center p-3 bg-muted/70 hover:bg-muted rounded-2xl transition-all border border-border/40">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <span className={cn(
+                                                    "w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0",
+                                                    idx === 0 ? "bg-amber-500 text-white shadow-md shadow-amber-500/30" :
+                                                    idx === 1 ? "bg-slate-400 text-white" :
+                                                    idx === 2 ? "bg-amber-700 text-white" : "bg-muted-foreground/20 text-muted-foreground"
+                                                )}>
+                                                    #{idx + 1}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="text-[11px] font-black text-foreground truncate">{space.spaceName}</p>
+                                                    <p className="text-[8px] text-muted-foreground truncate">{space.ownerName} • {space.capacity || 0} seats cap.</p>
+                                                    <div className="mt-0.5">
+                                                        <StarRating rating={space.rating || 0} />
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{formatNumber(space.totalBookings)} visits</p>
-                                                <p className="text-[7px] text-muted-foreground">{formatNumber(space.totalWalkins || 0)} walk-ins</p>
+                                            <div className="text-right shrink-0 pl-3">
+                                                <p className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{formatNumber(space.totalVisits || space.totalBookings || 0)} visits</p>
+                                                <p className="text-[7px] text-muted-foreground font-semibold">{formatNumber(space.totalWalkins || 0)} walk-ins • {formatNumber(space.totalOnline || 0)} online</p>
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="text-center text-[9px] text-muted-foreground py-4">No booking data yet</p>
+                                    <p className="text-center text-[9px] text-muted-foreground py-6 font-semibold">No visit data recorded yet</p>
                                 )}
                             </div>
                         </CardContent>
                     </Card>
 
+                    {/* Most Booked Spaces */}
+                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-xl">
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <Target size={16} className="text-indigo-600 dark:text-indigo-400" />
+                                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">🎯 Most Booked Spaces</h3>
+                                </div>
+                                <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                    Reservations
+                                </span>
+                            </div>
+                            <div className="space-y-3">
+                                {mostBookedSpaces.length > 0 ? (
+                                    mostBookedSpaces.map((space, idx) => (
+                                        <div key={space.spaceId || idx} className="flex justify-between items-center p-3 bg-muted/70 hover:bg-muted rounded-2xl transition-all border border-border/40">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <span className={cn(
+                                                    "w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0",
+                                                    idx === 0 ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/30" :
+                                                    idx === 1 ? "bg-slate-400 text-white" :
+                                                    idx === 2 ? "bg-indigo-700 text-white" : "bg-muted-foreground/20 text-muted-foreground"
+                                                )}>
+                                                    #{idx + 1}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="text-[11px] font-black text-foreground truncate">{space.spaceName}</p>
+                                                    <p className="text-[8px] text-muted-foreground truncate">{space.ownerName} • {space.completionRate ?? 100}% completion</p>
+                                                    <div className="mt-0.5">
+                                                        <StarRating rating={space.rating || 0} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right shrink-0 pl-3">
+                                                <p className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{formatNumber(space.totalBookings || 0)} bookings</p>
+                                                <p className="text-[7px] text-muted-foreground font-semibold">{formatNumber(space.totalOnline || 0)} online • {formatNumber(space.completedBookings || 0)} done</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-center text-[9px] text-muted-foreground py-6 font-semibold">No booking data recorded yet</p>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Row 3: User Growth + Platform Health */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* User Growth */}
-                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500">
+                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-xl">
                         <CardContent className="p-6">
                             <div className="flex items-center gap-2 mb-4">
                                 <Users size={16} className="text-blue-600 dark:text-blue-400" />
                                 <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">User Growth</h3>
                             </div>
                             <div className="grid grid-cols-3 gap-2 mb-4">
-                                <div className="text-center p-2 bg-blue-500/5 rounded-xl">
+                                <div className="text-center p-2.5 bg-blue-500/5 rounded-xl border border-blue-500/10">
                                     <p className="text-lg font-black text-blue-600 dark:text-blue-400">{formatNumber(userGrowth.totals?.all || 0)}</p>
-                                    <p className="text-[6px] text-muted-foreground uppercase">Total</p>
+                                    <p className="text-[7px] text-muted-foreground uppercase font-bold">Total</p>
                                 </div>
-                                <div className="text-center p-2 bg-purple-500/5 rounded-xl">
+                                <div className="text-center p-2.5 bg-purple-500/5 rounded-xl border border-purple-500/10">
                                     <p className="text-lg font-black text-purple-600 dark:text-purple-400">{formatNumber(userGrowth.totals?.spaceOwners || 0)}</p>
-                                    <p className="text-[6px] text-muted-foreground uppercase">Owners</p>
+                                    <p className="text-[7px] text-muted-foreground uppercase font-bold">Owners</p>
                                 </div>
-                                <div className="text-center p-2 bg-emerald-500/5 rounded-xl">
+                                <div className="text-center p-2.5 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
                                     <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{formatNumber(userGrowth.totals?.regularUsers || 0)}</p>
-                                    <p className="text-[6px] text-muted-foreground uppercase">Users</p>
+                                    <p className="text-[7px] text-muted-foreground uppercase font-bold">Users</p>
                                 </div>
                             </div>
-                            <div className="flex items-end gap-1 h-16">
+                            <div className="flex items-end gap-1.5 h-20">
                                 {userGrowth.growth?.slice(-7).map((item, idx) => (
                                     <div key={idx} className="flex-1 flex flex-col items-center">
-                                        <div className="w-full bg-blue-500/30 rounded-t-lg" style={{ height: `${(item.users / Math.max(...(userGrowth.growth?.map(g => g.users) || [1]), 1)) * 40}px` }}>
-                                            <div className="w-full bg-blue-500 rounded-t-lg" style={{ height: `${(item.users / Math.max(...(userGrowth.growth?.map(g => g.users) || [1]), 1)) * 40}px` }} />
+                                        <div className="w-full bg-blue-500/20 rounded-t-lg" style={{ height: `${Math.max(6, (item.users / Math.max(...(userGrowth.growth?.map(g => g.users) || [1]), 1)) * 50)}px` }}>
+                                            <div className="w-full bg-blue-500 rounded-t-lg" style={{ height: `${Math.max(4, (item.users / Math.max(...(userGrowth.growth?.map(g => g.users) || [1]), 1)) * 50)}px` }} />
                                         </div>
-                                        <span className="text-[5px] text-muted-foreground mt-1">{String(item._id).slice(5)}</span>
+                                        <span className="text-[6px] text-muted-foreground mt-1 font-bold">{String(item._id).slice(5)}</span>
                                     </div>
                                 ))}
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Platform Status Card */}
-                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500">
+                    {/* Platform Health Card */}
+                    <Card className="bg-card border-border hover:border-primary/30 transition-all duration-500 shadow-xl">
                         <CardContent className="p-6">
                             <div className="flex items-center gap-2 mb-4">
                                 <Shield size={16} className="text-primary" />
                                 <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Platform Health</h3>
                             </div>
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
-                                    <span className="text-[9px] text-muted-foreground">Total Spaces</span>
-                                    <span className="text-[10px] font-black text-foreground">{stats.activeSpaces || 0}</span>
+                            <div className="space-y-2.5">
+                                <div className="flex justify-between items-center p-2.5 bg-muted/60 rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground font-bold uppercase">Total Spaces</span>
+                                    <span className="text-xs font-black text-foreground">{stats.activeSpaces || 0} Active Hubs</span>
                                 </div>
-                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
-                                    <span className="text-[9px] text-muted-foreground">Total Bookings</span>
-                                    <span className="text-[10px] font-black text-foreground">{stats.totalBookings || 0}</span>
+                                <div className="flex justify-between items-center p-2.5 bg-muted/60 rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground font-bold uppercase">Total Bookings</span>
+                                    <span className="text-xs font-black text-foreground">{formatNumber(stats.totalBookings || 0)} Total</span>
                                 </div>
-                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
-                                    <span className="text-[9px] text-muted-foreground">Total Reviews</span>
-                                    <span className="text-[10px] font-black text-foreground">{stats.totalReviews || 0}</span>
+                                <div className="flex justify-between items-center p-2.5 bg-muted/60 rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground font-bold uppercase">Total Reviews</span>
+                                    <span className="text-xs font-black text-foreground">{formatNumber(stats.totalReviews || 0)} Verified</span>
                                 </div>
-                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
-                                    <span className="text-[9px] text-muted-foreground">Average Rating</span>
-                                    <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">⭐ {(stats.avgRating || 0).toFixed(1)}</span>
+                                <div className="flex justify-between items-center p-2.5 bg-muted/60 rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground font-bold uppercase">Platform Rating</span>
+                                    <span className="text-xs font-black text-amber-600 dark:text-amber-400">⭐ {(stats.avgRating || 0).toFixed(1)} / 5.0</span>
                                 </div>
-                                <div className="flex justify-between items-center p-2 bg-muted rounded-xl">
-                                    <span className="text-[9px] text-muted-foreground">Pending Requests</span>
-                                    <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">{stats.pendingRequests || 0}</span>
+                                <div className="flex justify-between items-center p-2.5 bg-muted/60 rounded-xl">
+                                    <span className="text-[9px] text-muted-foreground font-bold uppercase">Pending Hub Applications</span>
+                                    <span className="text-xs font-black text-amber-600 dark:text-amber-400">{stats.pendingRequests || 0} Pending</span>
                                 </div>
                             </div>
                         </CardContent>

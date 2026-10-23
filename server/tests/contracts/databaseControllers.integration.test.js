@@ -15,7 +15,7 @@ test('controllers and services against real test records', { timeout: 60000 }, a
     const makeReq = (role = 'space', extras = {}) => request({ user: { sub: String(role === 'user' ? user : owner), id: String(role === 'user' ? user : owner), role }, ...extras });
     const reads = {
         'admin/dashboardController': ['index','getPlatformOccupancy','getPlatformRevenueTrend','getTopSpaces','getUserGrowth'],
-        'admin/earningController': ['index'],
+        'admin/earningController': ['index','getEarningsAnalytics'],
         'admin/errorLogController': ['index','stats'],
         'admin/insightsController': ['getStats'],
         'admin/logsController': ['getActivityLogs','getStats','getRecentActivity','exportLogs'],

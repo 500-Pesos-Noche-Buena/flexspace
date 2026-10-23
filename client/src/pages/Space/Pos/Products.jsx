@@ -5,6 +5,7 @@ import { Package, Plus, Edit2, Trash2, Search, Loader2 } from 'lucide-react';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const Products = () => {
     const [products, setProducts] = useState([]);
@@ -72,16 +73,17 @@ const Products = () => {
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
-        <div className="bg-[#111114] rounded-2xl border border-white/5 p-6">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-black text-white">Products</h1>
-                    <p className="text-slate-400 text-sm">Manage your product catalog</p>
-                </div>
-                <Button onClick={() => { setEditingProduct(null); setFormData({ name: '', price: '', category: 'beverage', stock: '', description: '' }); setModalOpen(true); }} className="bg-indigo-600">
-                    <Plus size={16} className="mr-2" /> Add Product
-                </Button>
-            </div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
+            <PageHeader
+                icon={Package}
+                title="Menu & Products"
+                description="Manage your product catalog, drinks, snacks, and consumable pricing"
+                actions={
+                    <Button onClick={() => { setEditingProduct(null); setFormData({ name: '', price: '', category: 'beverage', stock: '', description: '' }); setModalOpen(true); }} className="bg-primary text-primary-foreground gap-2">
+                        <Plus size={16} /> Add Product
+                    </Button>
+                }
+            />
 
             <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />

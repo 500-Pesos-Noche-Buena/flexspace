@@ -12,6 +12,7 @@ import { cn } from '@/utils/cn';
 import { useTheme } from '@/hooks/useTheme';
 import { Modal } from '@/components/ui/Modal';
 import { QRCodeSVG } from 'qrcode.react';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const PaymentSettings = () => {
     const { themeColor } = useTheme();
@@ -282,13 +283,12 @@ const PaymentSettings = () => {
     }
 
     return (
-        <div className="max-w-5xl mx-auto px-4 md:px-0 pb-10">
-            <div className="mb-8">
-                <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">Payment Configuration</h1>
-                <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest italic">
-                    Connect your PayMongo account to accept online payments.
-                </p>
-            </div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-5xl mx-auto px-4 md:px-0 pb-10">
+            <PageHeader
+                icon={CreditCard}
+                title="Payment Configuration"
+                description="Connect and configure your PayMongo payment gateway to accept online GCash, cards & Maya payments"
+            />
 
             {!feeLoading && pendingFees.hasPending && (
                 <Card className="bg-amber-500/5 dark:bg-amber-500/5 border-amber-500/30 mb-6">

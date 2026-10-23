@@ -127,6 +127,19 @@ class DashboardController {
             ]);
             const grossVolume = grossBookingData.length > 0 ? grossBookingData[0].total : 0;
 
+            // All-time platform-wide aggregates across all spaces
+            const allTimeGrossData = await Booking.aggregate([
+                { $match: { status: 'completed' } },
+                { $group: { _id: null, total: { $sum: "$total_amount" } } }
+            ]);
+            const totalGrossVolume = allTimeGrossData.length > 0 ? allTimeGrossData[0].total : 0;
+
+            const allTimePlatformFeeData = await Earnings.aggregate([
+                { $match: { fee_status: 'collected' } },
+                { $group: { _id: null, total: { $sum: "$platform_fee" } } }
+            ]);
+            const totalPlatformRevenue = allTimePlatformFeeData.length > 0 ? allTimePlatformFeeData[0].total : 0;
+
             const recentRequests = await SpaceRequest.find({ status: 'pending' })
                 .select('name business_name status created_at')
                 .sort({ created_at: -1 })
@@ -141,6 +154,8 @@ class DashboardController {
                     pendingRequests: pendingRequestsCount,
                     monthlyRevenue: platformRevenue.toLocaleString(),
                     grossVolume: grossVolume.toLocaleString(),
+                    totalPlatformRevenue,
+                    totalGrossVolume,
                     recentRequests: recentRequests.map(req => ({
                         name: req.business_name || req.name,
                         ownerName: 'Pending',
@@ -286,19 +301,28 @@ class DashboardController {
     };
 
     // ============================================
-    // 3. TOP PERFORMING SPACES (by Bookings with Ratings)
+    // 3. TOP PERFORMING SPACES (Most Visited & Most Booked - No Space Revenue)
     // ============================================
     getTopSpaces = async (req, res, next) => {
         try {
-            const { limit = 5, sort = 'bookings' } = req.query;
+            const { limit = 5, sort = 'all' } = req.query;
+            const parsedLimit = Math.max(1, parseInt(limit) || 5);
 
-            const topSpaces = await Booking.aggregate([
-                { $match: { status: 'completed' } },
+            // 1. Most Visited Spaces (foot-traffic visits / completed check-ins)
+            const mostVisited = await Booking.aggregate([
+                {
+                    $match: {
+                        space_id: { $ne: null },
+                        $or: [
+                            { status: { $in: ['completed', 'active'] } },
+                            { check_in_at: { $ne: null } }
+                        ]
+                    }
+                },
                 {
                     $group: {
                         _id: "$space_id",
-                        totalRevenue: { $sum: "$total_amount" },
-                        totalBookings: { $sum: 1 },
+                        totalVisits: { $sum: 1 },
                         totalWalkins: { $sum: { $cond: [{ $eq: ["$booking_type", "walkin"] }, 1, 0] } },
                         totalOnline: { $sum: { $cond: [{ $eq: ["$booking_type", "online"] }, 1, 0] } }
                     }
@@ -338,30 +362,133 @@ class DashboardController {
                                 0
                             ]
                         },
-                        reviewCount: { $size: "$reviews" }
+                        reviewCount: { $size: "$reviews" },
+                        occupancyEstimate: {
+                            $cond: [
+                                { $gt: ["$space.capacity", 0] },
+                                { $round: [{ $multiply: [{ $divide: ["$totalVisits", "$space.capacity"] }, 100] }, 0] },
+                                0
+                            ]
+                        }
                     }
                 },
                 {
                     $project: {
+                        spaceId: "$_id",
                         spaceName: "$space.name",
                         ownerName: "$owner.name",
                         ownerEmail: "$owner.email",
-                        totalRevenue: 1,
-                        totalBookings: 1,
+                        totalVisits: 1,
+                        totalBookings: "$totalVisits",
                         totalWalkins: 1,
                         totalOnline: 1,
+                        capacity: "$space.capacity",
+                        rating: "$averageRating",
+                        reviewCount: 1,
+                        occupancyEstimate: 1
+                    }
+                },
+                { $sort: { totalVisits: -1 } },
+                { $limit: parsedLimit }
+            ]);
+
+            // 2. Most Booked Spaces (total reservation bookings & completion rate)
+            const mostBooked = await Booking.aggregate([
+                {
+                    $match: {
+                        space_id: { $ne: null },
+                        status: { $nin: ['cancelled', 'rejected'] }
+                    }
+                },
+                {
+                    $group: {
+                        _id: "$space_id",
+                        totalBookings: { $sum: 1 },
+                        completedBookings: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } },
+                        activeBookings: { $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] } },
+                        totalOnline: { $sum: { $cond: [{ $eq: ["$booking_type", "online"] }, 1, 0] } },
+                        totalWalkins: { $sum: { $cond: [{ $eq: ["$booking_type", "walkin"] }, 1, 0] } }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: "spaces",
+                        localField: "_id",
+                        foreignField: "_id",
+                        as: "space"
+                    }
+                },
+                { $unwind: "$space" },
+                {
+                    $lookup: {
+                        from: "reviews",
+                        localField: "space._id",
+                        foreignField: "space_id",
+                        as: "reviews"
+                    }
+                },
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "space.user_id",
+                        foreignField: "_id",
+                        as: "owner"
+                    }
+                },
+                { $unwind: "$owner" },
+                {
+                    $addFields: {
+                        averageRating: {
+                            $cond: [
+                                { $gt: [{ $size: "$reviews" }, 0] },
+                                { $avg: "$reviews.rating" },
+                                0
+                            ]
+                        },
+                        reviewCount: { $size: "$reviews" },
+                        completionRate: {
+                            $cond: [
+                                { $gt: ["$totalBookings", 0] },
+                                { $round: [{ $multiply: [{ $divide: ["$completedBookings", "$totalBookings"] }, 100] }, 0] },
+                                0
+                            ]
+                        }
+                    }
+                },
+                {
+                    $project: {
+                        spaceId: "$_id",
+                        spaceName: "$space.name",
+                        ownerName: "$owner.name",
+                        ownerEmail: "$owner.email",
+                        totalBookings: 1,
+                        completedBookings: 1,
+                        activeBookings: 1,
+                        totalOnline: 1,
+                        totalWalkins: 1,
+                        completionRate: 1,
                         capacity: "$space.capacity",
                         rating: "$averageRating",
                         reviewCount: 1
                     }
                 },
                 { $sort: { totalBookings: -1 } },
-                { $limit: parseInt(limit) }
+                { $limit: parsedLimit }
             ]);
+
+            if (sort === 'visits') {
+                return res.status(HTTP_STATUS.OK).json({ success: true, data: mostVisited });
+            }
+            if (sort === 'bookings') {
+                return res.status(HTTP_STATUS.OK).json({ success: true, data: mostBooked });
+            }
 
             return res.status(HTTP_STATUS.OK).json({
                 success: true,
-                data: topSpaces
+                data: {
+                    mostVisited,
+                    mostBooked
+                }
             });
         } catch (error) {
             console.error('getTopSpaces error:', error);

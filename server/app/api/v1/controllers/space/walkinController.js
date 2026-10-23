@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { Booking, Space, User, Room } = require('@/api/v1/models');
+const { Booking, Space, User, Room, Settings } = require('@/api/v1/models');
 const ApiError = require('@/api/v1/utils/ApiError');
 const { HTTP_STATUS } = require('@/api/v1/utils/constants');
 const bookingBillingService = require('@/api/v1/services/bookingBillingService');
@@ -67,6 +67,13 @@ class WalkinController {
             if (!allowedIds.some(id => String(id) === String(space_id))) throw new ApiError(403, 'Unauthorized branch.');
             const space = await Space.findOne({ _id: space_id, user_id: ownerId });
             if (!space) throw new ApiError(HTTP_STATUS.FORBIDDEN, "Unauthorized space access.");
+
+            // Check if anonymous walk-ins are allowed by admin policy
+            const walkinSetting = await Settings.findOne({ key: 'allow_walkin_guest' });
+            const allowAnonymous = walkinSetting ? (walkinSetting.value === true || walkinSetting.value === 'true' || walkinSetting.value === 1) : true;
+            if (!allowAnonymous && !req.body.user_id) {
+                throw new ApiError(HTTP_STATUS.FORBIDDEN, 'Anonymous walk-in bookings are currently disabled by platform policy. A registered user account is required.');
+            }
 
             // If room_id provided, verify room belongs to space and get rate
             let rate_per_hour = space.rate_hour;
@@ -166,6 +173,17 @@ class WalkinController {
                 }
                 if (end_time) {
                     walkinData.end_time = new Date(`${today}T${end_time}:00+08:00`);
+                }
+                if (walkinData.start_time && walkinData.end_time) {
+                    const durationHours = (walkinData.end_time.getTime() - walkinData.start_time.getTime()) / (1000 * 60 * 60);
+                    if (durationHours <= 0) {
+                        throw new ApiError(HTTP_STATUS.BAD_REQUEST, 'Walk-in end time must be after start time.');
+                    }
+                    const maxSetting = await Settings.findOne({ key: 'max_booking_hours' });
+                    const maxHours = maxSetting ? Number(maxSetting.value) : 24;
+                    if (durationHours > maxHours) {
+                        throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Walk-in duration (${durationHours} hrs) exceeds the maximum limit of ${maxHours} hours allowed.`);
+                    }
                 }
                 console.log(`Hourly walk-in: Scheduled ${walkinData.start_time} - ${walkinData.end_time} - ${bookable_type === 'room' ? 'Room' : 'Open Area'}`);
             }

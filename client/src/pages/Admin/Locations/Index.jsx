@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/utils/cn';
 import { useTheme } from '@/hooks/useTheme';
 import { DistrictModal } from '@/components/modal';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // Helper to generate slug from name
 const generateSlug = (name) => {
@@ -124,23 +125,22 @@ const AdminLocations = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">District Management</h1>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">
-                        Manage districts for Iloilo and nationwide expansion
-                    </p>
-                </div>
-                <button
-                    onClick={() => { resetForm(); setOpenModal(true); }}
-                    className={cn(
-                        "bg-primary text-primary-foreground px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl active:scale-95",
-                        getButtonColor()
-                    )}
-                >
-                    <Plus size={14} /> Add District
-                </button>
-            </div>
+            <PageHeader
+                icon={MapPin}
+                title="District Management"
+                description="Manage operational districts for Iloilo and nationwide expansion hubs"
+                actions={
+                    <button
+                        onClick={() => { resetForm(); setOpenModal(true); }}
+                        className={cn(
+                            "bg-primary text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow hover:bg-primary/90 active:scale-95",
+                            getButtonColor()
+                        )}
+                    >
+                        <Plus size={16} /> Add District
+                    </button>
+                }
+            />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">

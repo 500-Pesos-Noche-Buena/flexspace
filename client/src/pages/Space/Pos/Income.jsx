@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from "@/lib/utils";
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const Income = () => {
     const [stats, setStats] = useState({ 
@@ -130,22 +131,19 @@ const Income = () => {
     );
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="mb-8">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Income Analytics</h1>
-                        <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-widest italic">
-                            Track your POS earnings and revenue insights
-                        </p>
+            <PageHeader
+                icon={DollarSign}
+                title="Store Revenue & Sales"
+                description="Track POS store earnings, retail product margins & revenue breakdown"
+                badge={
+                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-primary/10 rounded-full border border-primary/20 text-xs font-semibold text-primary">
+                        <Sparkles size={12} />
+                        Live Updates
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
-                        <Sparkles size={14} className="text-indigo-400" />
-                        <span className="text-[9px] text-indigo-400 font-black uppercase tracking-wider">Live Updates</span>
-                    </div>
-                </div>
-            </div>
+                }
+            />
 
             {/* Main Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">

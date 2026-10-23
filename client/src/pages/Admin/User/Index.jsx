@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { formatNumber } from '@/utils/formatNumber';
 import { DocumentPreviewModal, EditUserModal } from '@/components/modal';
 import { useTheme } from '@/hooks/useTheme';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 let globalPollingInstance = null;
 
@@ -335,46 +336,45 @@ const UserManagement = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground tracking-tight uppercase italic flex items-center gap-3">
-                        <Users size={24} className="text-primary" />
-                        User Management
-                    </h1>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest">
-                        Manage platform users and space providers with ease.
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => { fetchData({ ...paramsRef.current, role: userRole }, true); }}
-                        className="p-2.5 bg-muted rounded-xl border border-border hover:bg-muted/80 transition-all active:scale-95"
-                        title="Refresh"
-                    >
-                        <RefreshCw size={16} className="text-muted-foreground" />
-                    </button>
-                    <div className="flex bg-muted border border-border rounded-xl p-1">
+            <PageHeader
+                icon={Users}
+                title="User Management"
+                description="Manage platform users, verify space providers, and control account permissions"
+                actions={
+                    <div className="flex items-center gap-2.5">
                         <button
-                            onClick={() => setViewMode('grid')}
-                            className={cn(
-                                "p-1.5 rounded-lg transition-all",
-                                viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-                            )}
+                            onClick={() => { fetchData({ ...paramsRef.current, role: userRole }, true); }}
+                            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-colors active:scale-95"
+                            title="Refresh"
                         >
-                            <Users size={14} />
+                            <RefreshCw size={16} className="text-muted-foreground" />
+                            Refresh
                         </button>
-                        <button
-                            onClick={() => setViewMode('table')}
-                            className={cn(
-                                "p-1.5 rounded-lg transition-all",
-                                viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-                            )}
-                        >
-                            <Filter size={14} />
-                        </button>
+                        <div className="flex bg-muted border border-border rounded-lg p-1">
+                            <button
+                                onClick={() => setViewMode('grid')}
+                                className={cn(
+                                    "p-1.5 rounded-md transition-all",
+                                    viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                                )}
+                                title="Grid View"
+                            >
+                                <Users size={14} />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={cn(
+                                    "p-1.5 rounded-md transition-all",
+                                    viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                                )}
+                                title="Table View"
+                            >
+                                <Filter size={14} />
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </div>
+                }
+            />
 
             {/* Filter Tabs */}
             <div className="flex items-center justify-between mb-6">

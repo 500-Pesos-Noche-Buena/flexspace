@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { DataTable } from '@/components/ui/DataTable';
 import { showToast } from '@/components/ui/SweetAlert2';
 import { PaymentQRModal, OrderDetailsModal } from '@/components/modal';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -548,46 +549,43 @@ const Orders = () => {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 px-4 md:px-0 pb-10">
             {/* Header */}
-            <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-foreground italic uppercase tracking-tighter">
-                        Order Management
-                        <span className="text-sm font-normal ml-2 text-muted-foreground">
-                            ({currentStats.active_count} active)
-                        </span>
-                    </h1>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest italic">
-                        Manage POS and online orders
-                    </p>
-                </div>
-
-                {/* Quick Bulk Actions */}
-                <div className="flex gap-2">
-                    {orderType === 'pos' && (
+            <PageHeader
+                icon={Receipt}
+                title="Order Management"
+                badge={
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                        {currentStats.active_count} active
+                    </span>
+                }
+                description="Manage live POS tickets, prep kitchen status & order completions"
+                actions={
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {orderType === 'pos' && (
+                            <Button
+                                onClick={() => bulkAdvanceAll('pending')}
+                                className="bg-blue-600/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-medium"
+                                size="sm"
+                            >
+                                <Zap size={13} className="mr-1" /> Advance Pending
+                            </Button>
+                        )}
                         <Button
-                            onClick={() => bulkAdvanceAll('pending')}
-                            className="bg-blue-600/20 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl text-[9px] font-black uppercase"
+                            onClick={() => bulkAdvanceAll('preparing')}
+                            className="bg-purple-600/10 text-purple-600 dark:text-purple-400 hover:bg-purple-600 hover:text-white rounded-lg text-xs font-medium"
                             size="sm"
                         >
-                            <Zap size={12} className="mr-1" /> Advance All Pending
+                            <Zap size={13} className="mr-1" /> Bulk Ready
                         </Button>
-                    )}
-                    <Button
-                        onClick={() => bulkAdvanceAll('preparing')}
-                        className="bg-purple-600/20 text-purple-600 dark:text-purple-400 hover:bg-purple-600 hover:text-white rounded-xl text-[9px] font-black uppercase"
-                        size="sm"
-                    >
-                        <Zap size={12} className="mr-1" /> Bulk Ready
-                    </Button>
-                    <Button
-                        onClick={() => fetchOrders(false)}
-                        className="bg-muted text-muted-foreground hover:text-foreground rounded-xl text-[9px] font-black uppercase"
-                        size="sm"
-                    >
-                        <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-                    </Button>
-                </div>
-            </div>
+                        <Button
+                            onClick={() => fetchOrders(false)}
+                            className="bg-muted text-muted-foreground hover:text-foreground rounded-lg text-xs font-medium border border-border"
+                            size="sm"
+                        >
+                            <RefreshCw size={13} className={`mr-1 ${loading ? "animate-spin" : ""}`} /> Refresh
+                        </Button>
+                    </div>
+                }
+            />
 
             {/* Quick Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
